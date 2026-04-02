@@ -878,7 +878,3 @@ html, body {
   box-sizing: border-box;
   min-width: 0;        /* ← add this — prevents flex child from overflowing */
 }
-justify-content: center;
-max-width: 1000px;
-gap: 20px;
-padding: 20px;
