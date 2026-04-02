@@ -62,10 +62,23 @@ app.post('/api/register', async (req, res) => {
         $11,$12,$13,$14,$15,$16,$17)
        RETURNING *`,
       [
-        name || null, age || null, senior || null, gender || null, status || null,
-        barangay || null, spouse || null, sons || null, daughters || null, pwd || null,
-        dob || null, religion || null, family_members || null, contact || null,
-        email || null, username || null, address || null
+        name || null,
+        age ? parseInt(age) : null,
+        senior === 'Yes' ? true : false,        // convert to boolean
+        gender || null,
+        status || null,
+        barangay || null,
+        spouse || null,
+        sons ? parseInt(sons) : 0,
+        daughters ? parseInt(daughters) : 0,
+        pwd === 'Yes' ? true : false,           // convert to boolean
+        dob || null,
+        religion || null,
+        family_members ? parseInt(family_members) : 0,
+        contact || null,
+        email || null,
+        username || null,
+        address || null
       ]
     );
 
