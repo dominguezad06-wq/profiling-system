@@ -332,11 +332,11 @@ app.get('/create-admins', async (req, res) => {
     const managerPw = await bcrypt.hash('1234', 10);
     const dswdPw = await bcrypt.hash('1234', 10);
     await pool.query(`
-      INSERT INTO users(username, password, role) VALUES
-      ('manager',$1,'manager'),
-      ('dswd',$2,'dswd')
-      ON CONFLICT (username) DO NOTHING
-    `, [managerPw, dswdPw]);
+  INSERT INTO users(username, password, role, name) VALUES
+  ('manager',$1,'manager','Manager Account'),
+  ('dswd',$2,'dswd','DSWD Account')
+  ON CONFLICT (username) DO NOTHING
+`, [managerPw, dswdPw]);
     res.send('Admins created successfully');
   } catch (err) {
     res.status(500).send(err.message);
