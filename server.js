@@ -46,7 +46,7 @@ app.post('/api/register', async (req, res) => {
 
     const hashedPw = await bcrypt.hash(password, 10);
 
-    // Insert into users tabl
+    // Insert into users table
     await pool.query(
       `INSERT INTO users(username, password, role, name) VALUES($1,$2,'resident',$3)`,
       [username, hashedPw, name]
@@ -64,14 +64,14 @@ app.post('/api/register', async (req, res) => {
       [
         name || null,
         age ? parseInt(age) : null,
-        senior === 'Yes' ? true : false,        // convert to boolean
+        senior === 'Yes',                          // boolean true/false
         gender || null,
         status || null,
         barangay || null,
         spouse || null,
         sons ? parseInt(sons) : 0,
         daughters ? parseInt(daughters) : 0,
-        pwd === 'Yes' ? true : false,           // convert to boolean
+        pwd === 'Yes',                             // boolean true/false
         dob || null,
         religion || null,
         family_members ? parseInt(family_members) : 0,
@@ -84,8 +84,9 @@ app.post('/api/register', async (req, res) => {
 
     res.json({ message: 'Resident created', user: result.rows[0] });
   } catch (e) {
+    console.error('REGISTER ERROR:', e.message, e.code, e.detail);
     if (e.code === '23505') return res.status(400).json({ error: 'Username already exists' });
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: e.message || e.toString() });
   }
 });
 
