@@ -2,6 +2,7 @@ let loggedInUser = null;
 let currentRole = null;
 let dswdResidents = [];
 emailjs.init('Ndd7_r9gTrjDBG9-K')
+const API_BASE = "https://profiling-system.onrender.com";
 
 // 
 function formatTime12Hour(time24){
@@ -34,7 +35,7 @@ function showForgotPassword(){ document.getElementById('login-page').style.displ
 function sendOTP() {
  const email = document.getElementById('forgot-email').value;
 
-  fetch('/api/send-otp', {
+  fetch(`${API_BASE}/api/send-otp`, {
     method: 'POST',
     headers: { 'Content-Type':'application/json' },
     body: JSON.stringify({ email })
@@ -66,7 +67,7 @@ function verifyOTP() {
   const enteredOTP = document.getElementById('otp-input').value;
   const newPassword = document.getElementById('new-password').value;
 
-  fetch('/api/verify-otp', {
+  fetch(`${API_BASE}/api/verify-otp`, {
     method: 'POST',
     headers: { 'Content-Type':'application/json' },
     body: JSON.stringify({
@@ -150,7 +151,7 @@ function createResident() {
 
   console.log("Register Data:", data);
 
-  fetch('/api/register', {
+  fetch(`${API_BASE}/api/register`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
@@ -182,7 +183,7 @@ function login() {
     return;
   }
 
-  fetch('/api/login', {
+  fetch(`${API_BASE}/api/login`, {
     method: 'POST',
     headers: { 'Content-Type':'application/json' },
     body: JSON.stringify({ username, password })
@@ -723,7 +724,7 @@ function renderResidentWelcome() {
 function loadMyRequestsPreview() {
   if(!loggedInUser || !loggedInUser.username) return;
 
-  fetch(`/api/my-requests?username=${loggedInUser.username}`)
+  fetch(`${API_BASE}/api/my-requests?username=${username}`)
     .then(res => res.json())
     .then(data => {
       loggedInUser.requests = data.requests || [];
@@ -995,7 +996,7 @@ function updateProfile(){
     address: document.getElementById('profile-address')?.value || ''
   };
 
-  fetch(`/api/update-resident/${loggedInUser.username}`, {
+  fetch(`${API_BASE}/api/update-resident/${loggedInUser.username}`, {
     method: 'PUT',
     headers: { 'Content-Type':'application/json' },
     body: JSON.stringify(updatedData)
@@ -1032,7 +1033,7 @@ function requestDocument() {
   formData.append("gov_id", govIdFile);
   formData.append("photo", photoFile);
 
-  fetch('/api/request-document', {
+  fetch(`${API_BASE}/api/request-document`, {
     method: 'POST',
     body: formData
   })
@@ -1054,7 +1055,7 @@ console.log("Logged Resident:", loggedInUser);
 function loadMyRequests() {
   if (!loggedInUser || !loggedInUser.username) return; // safety check
 
-  fetch(`/api/my-requests?username=${loggedInUser.username}`)
+  fetch(`${API_BASE}/api/my-requests?username=${username}`)
     .then(res => res.json())
     .then(data => {
       // Save requests to loggedInUser
@@ -1087,7 +1088,7 @@ function loadMyRequests() {
 
 //  Manager Functions 
 function showDocRequests() {
-  fetch('/api/document-requests')
+  fetch(`${API_BASE}/api/document-requests`)
     .then(res => res.json())
     .then(data => {
       window.allRequests = data.requests || [];
@@ -1198,7 +1199,7 @@ function approveRequest(username, documentType, index) {
     return;
   }
 
-  fetch('/api/approve-request', {
+  fetch(`${API_BASE}/api/approve-request`, {
     method: 'POST',
     headers: { 'Content-Type':'application/json' },
     body: JSON.stringify({ username, documentType, date: pickUpDate, time: pickUpTime })
@@ -1225,7 +1226,7 @@ function approveRequest(username, documentType, index) {
 function rejectRequest(username, documentType) {
   if (!confirm('Are you sure you want to reject this request?')) return;
 
-  fetch('/api/reject-request', {
+  fetch(`${API_BASE}/api/reject-request`, {
     method: 'POST',
     headers: {'Content-Type':'application/json'},
     body: JSON.stringify({ username, documentType })
@@ -1254,7 +1255,7 @@ function openDSWDPage(){
 
 // DSWD Dashboard
 function showDSWDStats(){
-  fetch('/api/residents')
+  fetch(`${API_BASE}/api/residents`)
     .then(res => res.json())
     .then(data => {
       dswdResidents = data.residents;   // <-- STORE HERE
@@ -1496,7 +1497,7 @@ function showDSWDStats(){
   // Show loading or title first (optional but clean)
   body.innerHTML = "<p>Loading statistics...</p>";
 
-  fetch('/api/residents')
+  fetch(`${API_BASE}/api/residents`)
     .then(res => res.json())
     .then(data => {
       dswdResidents = data.residents || [];
@@ -1545,7 +1546,7 @@ function saveDSWDResidentInline(username){
     pwd: document.getElementById(`edit-pwd-${username}`).value
   };
 
-  fetch(`/api/update-resident/${username}`, {
+  fetch(`${API_BASE}/api/update-resident/${username}`, {
     method: 'PUT',
     headers: { 'Content-Type':'application/json' },
     body: JSON.stringify(updatedData)
@@ -1665,7 +1666,7 @@ function saveDSWDResident(username){
     pwd: document.getElementById('dswd-pwd').value
   };
 
-  fetch(`/api/update-resident/${username}`, {
+  fetch(`${API_BASE}/api/update-resident/${username}`, {
     method: 'PUT',
     headers: { 'Content-Type':'application/json' },
     body: JSON.stringify(updatedData)
@@ -1913,7 +1914,7 @@ window.onload = function () {
 function handleCredentialResponse(response) {
   console.log("Encoded JWT ID token: " + response.credential);
 
-  fetch('/api/google-login', {
+  fetch(`${API_BASE}/api/google-login`, {
     method: 'POST',
     headers: { 'Content-Type':'application/json' },
     body: JSON.stringify({ credential: response.credential })
