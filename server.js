@@ -1,3 +1,5 @@
+
+require('dotenv').config();
 // ================= IMPORTS =================
 const express = require('express');
 const { Pool } = require('pg');
@@ -9,6 +11,7 @@ const { OAuth2Client } = require('google-auth-library');
 
 // ================= INIT APP =================
 const app = express();
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 
 // ================= MIDDLEWARE =================
 app.use(bodyParser.json());
@@ -19,15 +22,11 @@ app.use(express.static('public')); // serve uploaded files
 
 // ================= DATABASE =================
 const pool = new Pool({
-  user: 'postgres',
-  host: 'localhost',
-  database: 'trapiche_profiling',
-  password: '12345',
-  port: 5433
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false }
 });
 
 // ================= GOOGLE CLIENT =================
-const GOOGLE_CLIENT_ID = "306495383550-a78829rjufomiidmq5h79677uemjoj4g.apps.googleusercontent.com";
 const client = new OAuth2Client(GOOGLE_CLIENT_ID);
 
 // ================= REGISTER =================
@@ -133,29 +132,6 @@ app.post('/api/google-login', async (req, res) => {
   }
 });
 
-app.post('/api/create-user', async (req, res) => {
-  try {
-    const { username, name, password } = req.body;
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    await pool.query(
-      `INSERT INTO users(username, password, role, name)
-       VALUES($1, $2, 'resident', $3)`,
-      [username, hashedPassword, name]
-    );
-
-    await pool.query(
-      `INSERT INTO residents(name, username, email)
-       VALUES($1, $2, $3)`,
-      [name, username, username]
-    );
-
-    res.json({ success: true, user: { username, role: 'resident', name } });
-  } catch (err) {
-    console.error('Create user error:', err);
-    res.status(500).json({ success: false, message: 'Failed to create user' });
-  }
-});
 
 // ================= REQUEST DOCUMENT =================
 app.post('/api/request-document', async (req, res) => {
@@ -343,4 +319,7 @@ app.get('/create-admins', async (req, res) => {
 });
 
 // ================= START SERVER =================
-app.listen(3000, () => console.log('Server running on http://localhost:3000'));
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server running on port ${PORT}`);
+});
