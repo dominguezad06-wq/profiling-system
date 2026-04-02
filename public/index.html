@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Barangay Trapiche Profiling System</title>
+
+  <link rel="stylesheet" href="style.css">
+
+  <!-- Logo -->
+  <link rel="icon" type="image/png" href="trapiche.png">
+
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+
+  <style>
+    /* Logo in header */
+    #site-logo {
+      height: 50px;
+      width: auto;
+      vertical-align: middle;
+      margin-right: 10px;
+    }
+
+    h1 {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    /* Page header for of dashboard/resident/manager/DSWD */
+    .page-header {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      background-color: #f4f7ff;
+      padding: 15px 20px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+    }
+    .page-header img {
+      height: 50px;
+      width: auto;
+    }
+    .page-header h2 {
+      margin: 0;
+      color: #1a3f6c;
+      font-weight: 600;
+    }
+  </style>
+</head>
+
+<body>
+
+
+  <!-- Login Page -->
+  <div id="login-page" class="container">
+    <div class="login-header">
+  <img src="trapiche.png" alt="Barangay Logo">
+  <div>
+    <h1>Barangay Trapiche Profiling System</h1>
+    <p>Barangay Trapiche, Tanauan City, Batangas</p>
+  </div>
+</div>
+
+    <div class="login-box">
+      <h2>Login</h2>
+      <input type="text" id="login-username" placeholder="Enter username or gmail">
+<input type="password" id="login-password" placeholder="Enter password">
+      <button onclick="login()">Login</button>
+
+      <!-- Google Sign-In -->
+<div id="g_id_onload"
+    data-client_id="306495383550-a78829rjufomiidmq5h79677uemjoj4g.apps.googleusercontent.com"
+     data-callback="handleCredentialResponse"
+     data-auto_prompt="false">
+</div>
+
+<div class="g_id_signin"
+     data-type="standard"
+     data-shape="rectangular"
+     data-theme="outline"
+     data-text="signin_with"
+     data-size="large"
+     data-logo_alignment="left">
+</div>
+
+      <p>
+        Don't have a resident account? 
+        <a href="#" onclick="showResidentForm()">Create one</a><br>
+        <a href="#" onclick="showForgotPassword()">Forgot Password?</a>
+      </p>
+    </div>
+  </div>
+<button class="back-small" onclick="renderResidentWelcome()">
+  ← Back
+</button>
+  <!-- Forgot Password -->
+  <div id="forgot-page" class="container" style="display:none;">
+    <h1>
+      <img src="trapiche.png" alt="Barangay Logo" id="site-logo">
+      Forgot Password
+    </h1>
+
+    <div class="login-box">
+      <label>Enter your Gmail address:</label>
+      <input type="email" id="forgot-email" placeholder="example@gmail.com">
+
+      <button onclick="sendOTP()">Send OTP</button>
+
+      <div id="otp-section" style="display:none;">
+        <label>Enter OTP:</label>
+        <input type="text" id="otp-input" placeholder="6-digit OTP">
+
+        <label>New Password:</label>
+        <input type="password" id="new-password" placeholder="New password">
+
+        <button onclick="verifyOTP()">Verify & Reset Password</button>
+      </div>
+
+      <p><a href="#" onclick="showLogin()">Back to Login</a></p>
+      <div id="otp-message"></div>
+    </div>
+  </div>
+
+  <!-- Resident Registration  -->
+<div id="resident-form" class="container" style="display:none;">
+  <h1>
+    <img src="trapiche.png" alt="Barangay Logo" id="site-logo">
+    Create Resident Account
+  </h1>
+
+  <div class="login-box" style="max-height:500px; overflow-y:auto;">
+
+  <div style="display:flex; gap:20px; flex-wrap:wrap;">
+
+    <!-- LEFT TABLE -->
+    <div style="flex:1; min-width:300px; background:#f4f7ff; padding:15px; border-radius:10px;">
+      <h3>Personal Information</h3>
+      <table style="width:100%;">
+        <tr><td>Full Name:</td><td><input type="text" id="res-name" required></td></tr>
+        <tr><td>Email:</td><td><input type="email" id="res-email" required></td></tr>
+        <tr><td>Contact:</td><td><input type="text" id="res-contact" required></td></tr>
+        <tr><td>Username:</td><td><input type="text" id="res-username" required></td></tr>
+        <tr><td>Password:</td><td><input type="password" id="res-password" required></td></tr>
+
+        <tr><td>Gender:</td>
+          <td>
+            <select id="res-gender" required>
+              <option value="">Select</option>
+              <option value="Male">Male</option>
+              <option value="Female">Female</option>
+            </select>
+          </td>
+        </tr>
+
+        <tr><td>Age:</td><td><input type="number" id="res-age" min="1" required></td></tr>
+
+        <tr><td>Status:</td>
+          <td>
+            <select id="res-status" required>
+              <option value="">Select</option>
+              <option>Single</option>
+              <option>Married</option>
+              <option>Widowed</option>
+              <option>Separated</option>
+            </select>
+          </td>
+        </tr>
+      </table>
+    </div>
+
+    <!-- RIGHT TABLE -->
+    <div style="flex:1; min-width:300px; background:#fff0f5; padding:15px; border-radius:10px;">
+      <h3>Address & Family</h3>
+      <table style="width:100%;">
+        <tr><td>Address:</td><td><input type="text" id="res-address"></td></tr>
+
+        <tr><td>Barangay:</td>
+          <td>
+            <select id="res-barangay" required>
+              <option value="">Select</option>
+              <option>Trapiche 1</option>
+              <option>Trapiche 2</option>
+              <option>Trapiche 3</option>
+              <option>Trapiche 4</option>
+            </select>
+          </td>
+        </tr>
+
+        <tr><td>Spouse:</td><td><input type="text" id="profile-spouse"></td></tr>
+        <tr><td>Sons:</td><td><input type="number" id="res-sons" min="0"></td></tr>
+        <tr><td>Daughters:</td><td><input type="number" id="res-daughters" min="0"></td></tr>
+        <tr><td>Family Members:</td><td><input type="number" id="profile-family" min="0"></td></tr>
+
+        <tr><td>PWD:</td>
+          <td><input type="checkbox" id="res-pwd"> Yes</td>
+        </tr>
+      </table>
+
+      <button onclick="createResident()" 
+        style="margin-top:15px; width:100%; padding:10px; background:#1a3f6c; color:white; border:none; border-radius:8px;">
+        Create Account
+      </button>
+    </div>
+
+  </div>
+
+  <p style="text-align:center; margin-top:10px;">
+    <a href="#" onclick="showLogin()">Back to Login</a>
+  </p>
+
+</div>
+</div>
+
+  <!-- Dashboard Page -->
+<div id="dashboard-page" style="display:none;">
+  <div class="sidebar">
+    <h2 id="dashboard-title">My Dashboard</h2>
+    <ul>
+      
+      <li><a href="#" onclick="showMyProfile()">My Profile</a></li>
+      <li><a href="#" onclick="showMyRequests()">My Requests</a></li>
+      <li><a href="#" onclick="logout()">Logout</a></li>
+    </ul>
+  </div>
+
+  <div class="main-content" id="dashboard-content">
+    <div class="page-header">
+      <img src="trapiche.png" alt="Barangay Logo">
+      <h2>Dashboard</h2>
+    </div>
+    <!-- Resident Requests Preview -->
+    <div id="resident-requests-preview">
+    </div>
+  </div>
+</div>
+</div>
+
+  <div id="manager-page" style="display:none;">
+
+  <div style="display:flex; min-height:100vh;">
+
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+      <h2>Manager Panel</h2>
+      <ul>
+  <li><a href="#" onclick="renderManagerRequests(window.allRequests, 'pending')">Pending</a></li>
+  <li><a href="#" onclick="renderManagerRequests(window.allRequests, 'approved')">Approved</a></li>
+  <li><a href="#" onclick="renderManagerRequests(window.allRequests, 'rejected')">Rejected</a></li>
+  <li><a href="#" onclick="logout()">Logout</a></li>
+</ul>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div class="main-content" style="flex:1; padding:20px;">
+
+      <div class="page-header">
+        <img src="trapiche.png">
+        <h2>Manager Dashboard</h2>
+      </div>
+
+      <div id="manager-table"></div>
+
+    </div>
+
+  </div>
+
+</div>
+
+ <!-- DSWD Page -->
+<div id="dswd-page" style="display:none;">
+
+  <div class="dswd-layout">
+
+    <!-- Sidebar -->
+    <div class="sidebar">
+      <h2>Health Center</h2>
+      <ul>
+        <li><a href="#" onclick="showDSWDStats()">Statistics</a></li> 
+        <li><a href="#" onclick="showAgeStats()">Age Statistics</a></li>
+        <li><a href="#" onclick="showBarangayStats()">Barangay Statistics</a></li>
+        <li><a href="#" onclick="logout()">Logout</a></li>
+      </ul>
+    </div>
+
+    <!-- Main Content -->
+    <div id="dashboard-body"></div>
+
+  </div>
+
+</div>
+
+  <!-- EmailJS SDK -->
+<script type="text/javascript" src="https://cdn.emailjs.com/dist/email.min.js"></script>
+<script type="text/javascript">
+  (function(){
+    emailjs.init({
+  publicKey: "Ndd7_r9gTrjDBG9-K"
+});
+  })();
+</script>
+
+
+<!-- Generated Password Modal -->
+<div id="password-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);align-items:center;justify-content:center;z-index:999;">
+  <div style="background:#fff;padding:30px;border-radius:12px;width:90%;max-width:400px;text-align:center;position:relative;">
+    <h3>Google Account Detected</h3>
+    <p>Your generated password is:</p>
+    <input type="text" id="generated-password" readonly style="width:80%;padding:8px;margin:10px 0;font-weight:bold;text-align:center;">
+    <p>You can use this password or create your own:</p>
+    <input type="text" id="custom-password" placeholder="Enter your own password (optional)" style="width:80%;padding:8px;margin:10px 0;">
+    <br>
+    <button onclick="confirmGooglePassword()" style="padding:10px 20px;background:#1a3f6c;color:white;border:none;border-radius:8px;cursor:pointer;">Confirm</button>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<script src="script.js"></script>
+
+</body>
+</html>

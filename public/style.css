@@ -1,0 +1,880 @@
+/* =========================
+   ROOT THEME
+========================= */
+:root {
+  --primary-red: #c0392b;
+  --primary-orange: #e67e22;
+  --dark-red: #922b21;
+  --light-bg: #f4f6f7;
+  --card-bg: #ffffff;
+  --text: #2c3e50;
+  --border: #ddd;
+}
+
+html, body {
+  height: 100%;
+  width: 100%;
+}
+
+/* =========================
+   RESET
+========================= */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: Arial, sans-serif;
+}
+
+body {
+  background: var(--light-bg);
+  color: var(--text);
+}
+
+/* =========================
+   DASHBOARD LAYOUT
+========================= */
+.dashboard {
+  display: flex;
+  min-height: 100vh;
+}
+
+/* =========================
+   SIDEBAR
+========================= */
+.sidebar {
+  width: 220px;
+  min-height: 100vh;
+  height: 100%;
+  background: linear-gradient(180deg, var(--primary-red), var(--primary-orange));
+  color: white;
+  padding: 15px;
+  position: fixed;
+  top: 0;
+  left: 0;
+  overflow-y: auto;
+}
+
+.sidebar h2 {
+  margin-bottom: 20px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.sidebar button {
+  width: 100%;
+  margin-bottom: 10px;
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.2);
+  padding: 10px;
+  border-radius: 8px;
+  color: white;
+  font-size: 13px;
+  cursor: pointer;
+  transition: 0.25s;
+}
+
+.sidebar button:hover {
+  background: rgba(255,255,255,0.3);
+  transform: translateX(3px);
+}
+
+/* =========================
+   MAIN CONTENT
+========================= */
+.main-content {
+  margin-left: 220px;
+  padding: 20px;
+  width: calc(100% - 220px);
+  min-height: 100vh;
+}
+
+/* =========================
+   HEADER
+========================= */
+.page-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: linear-gradient(135deg, var(--primary-red), var(--primary-orange));
+  color: white;
+  padding: 15px;
+  border-radius: 10px;
+  margin-bottom: 20px;
+}
+
+.page-header img {
+  height: 50px;
+}
+
+/* =========================
+   CARDS
+========================= */
+.card {
+  background: #fff;
+  padding: 20px;
+  border-radius: 14px;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+  border-left: 5px solid var(--primary-red);
+  transition: all 0.25s ease;
+}
+
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 28px rgba(0,0,0,0.12);
+}
+
+/* =========================
+   FORMS
+========================= */
+input, select, textarea {
+  width: 100%;
+  padding: 11px 12px;
+  margin: 6px 0 14px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  font-size: 13px;
+  transition: all 0.2s ease;
+  background: #fff;
+}
+
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--primary-orange);
+  box-shadow: 0 0 0 3px rgba(230,126,34,0.15);
+}
+
+/* =========================
+   BUTTONS (CONTROLLED)
+========================= */
+button {
+  padding: 10px 14px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 13px;
+  transition: all 0.25s ease;
+  letter-spacing: 0.3px;
+}
+
+/* Primary */
+.btn-primary {
+  background: linear-gradient(135deg, var(--primary-red), var(--primary-orange));
+  color: white;
+  box-shadow: 0 4px 10px rgba(192,57,43,0.25);
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 14px rgba(192,57,43,0.35);
+}
+
+/* Secondary */
+.btn-secondary {
+  background: var(--primary-orange);
+  color: white;
+}
+
+.btn-secondary:hover {
+  background: #d35400;
+  transform: translateY(-2px);
+}
+
+/* Outline */
+.btn-outline {
+  background: transparent;
+  border: 2px solid var(--primary-red);
+  color: var(--primary-red);
+}
+
+.btn-outline:hover {
+  background: var(--primary-red);
+  color: white;
+}
+
+/* =========================
+   TABLES
+========================= */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+}
+
+thead {
+  background: linear-gradient(135deg, var(--primary-red), var(--primary-orange));
+  color: white;
+}
+
+th {
+  padding: 12px;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+td {
+  padding: 12px;
+  border-bottom: 1px solid #eee;
+  font-size: 13px;
+}
+
+tbody tr {
+  transition: 0.2s;
+}
+
+tbody tr:hover {
+  background: #fff3ee;
+}
+
+/* Zebra striping */
+tbody tr:nth-child(even) {
+  background: #fafafa;
+}
+
+/* =========================
+   REQUEST CARDS
+========================= */
+.request-card {
+  background: #fff;
+  padding: 12px;
+  border-radius: 8px;
+  margin-bottom: 10px;
+  border-left: 5px solid var(--primary-red);
+}
+
+.request-card.Pending {
+  border-left-color: #ff9800;
+}
+
+.request-card.Approved {
+  border-left-color: #4caf50;
+}
+
+.request-card.Rejected {
+  border-left-color: #f44336;
+}
+
+/* =========================
+   LOGIN BOX
+========================= */
+.form-box {
+  width: 100%;
+  max-width: 420px;
+  margin: 80px auto;
+  padding: 30px;
+  background: var(--card-bg);
+  border-radius: 14px;
+  box-shadow: 0 12px 30px rgba(0,0,0,0.2);
+  text-align: center;
+  border-top: 5px solid var(--primary-red);
+}
+
+/* Login header text */
+.form-box h1 {
+  font-size: 20px;
+  margin-bottom: 5px;
+  color: var(--primary-red);
+}
+
+.form-box p {
+  font-size: 13px;
+  color: #666;
+  margin-bottom: 20px;
+}
+
+/* =========================
+   GRID
+========================= */
+.grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.grid > div {
+  flex: 1;
+  min-width: 300px;
+}
+
+/* =========================
+   SEARCH
+========================= */
+.search-box {
+  padding: 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  margin-bottom: 10px;
+}
+
+/* =========================
+   STATUS TEXT
+========================= */
+.status-approved {
+  color: green;
+  font-weight: bold;
+}
+
+.status-rejected {
+  color: red;
+  font-weight: bold;
+}
+
+.status-pending {
+  color: orange;
+  font-weight: bold;
+}
+
+/* =========================
+   FOLDER ITEMS
+========================= */
+.folder-item {
+  padding: 8px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.folder-item:hover {
+  background: #f8c471;
+}
+
+.folder-item.active {
+  background: var(--primary-orange);
+  color: white;
+}
+
+/* =========================
+   RESPONSIVE
+========================= */
+@media (max-width: 768px) {
+  .sidebar {
+    position: relative;
+    width: 100%;
+    height: auto;
+  }
+
+  .main-content {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .dashboard {
+    flex-direction: column;
+  }
+}
+
+
+/* =========================
+   LOGIN PAGE BACKGROUND
+========================= */
+#login-page.container {
+  height: 100vh;
+  background: #ffffff; /* solid white */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+/* =========================
+   TITLE
+========================= */
+#login-page h1 {
+  color: white;
+  font-size: 22px;
+  margin-bottom: 5px;
+}
+
+#login-page > h1,
+#login-page > p {
+  color: #fff;
+}
+
+/* =========================
+   LOGIN BOX UPGRADE
+========================= */
+.login-box {
+  width: 100%;
+  max-width: 400px;
+  background: #ffffff;
+  padding: 32px;
+  border-radius: 16px;
+  box-shadow: 0 20px 45px rgba(0,0,0,0.25);
+  text-align: center;
+}
+
+.login-box h2 {
+  margin-bottom: 18px;
+  color: var(--primary-red);
+  font-size: 20px;
+}
+
+.login-box p {
+  font-size: 13px;
+  color: #555;
+}
+
+/* =========================
+   INPUTS
+========================= */
+.login-box input {
+  width: 100%;
+  padding: 12px;
+  margin: 8px 0;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  transition: 0.3s;
+}
+
+.login-box input:focus {
+  border-color: #e67e22;
+  box-shadow: 0 0 6px rgba(230,126,34,0.4);
+  outline: none;
+}
+
+/* =========================
+   LOGIN BUTTON
+========================= */
+.login-box button {
+  width: 100%;
+  margin-top: 10px;
+  padding: 12px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #c0392b, #e67e22);
+  color: white;
+  font-weight: bold;
+  border: none;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.login-box button:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+/* =========================
+   LINKS
+========================= */
+.login-box p {
+  margin-top: 15px;
+  font-size: 13px;
+}
+
+.login-box a {
+  color: #c0392b;
+  text-decoration: none;
+}
+
+.login-box a:hover {
+  text-decoration: underline;
+}
+
+/* =========================
+   GOOGLE BUTTON SPACING
+========================= */
+.g_id_signin {
+  margin-top: 10px;
+  display: flex;
+  justify-content: center;
+}
+
+/* Force login page to always be centered full screen */
+#login-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Ensure login header stays centered */
+#login-page h1,
+#login-page p {
+  text-align: center;
+}
+
+/* Keep login box centered */
+#login-page .login-box {
+  margin: 0;
+}
+
+.status-approved {
+  background: #e8f5e9;
+  color: #2e7d32;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+}
+
+.status-rejected {
+  background: #ffebee;
+  color: #c62828;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+}
+
+.status-pending {
+  background: #fff3e0;
+  color: #ef6c00;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+}
+
+.dashboard-wrapper {
+  min-height: 100vh;
+  display: flex;
+}
+/* =========================
+   LOGIN HEADER BOX
+========================= */
+.login-header {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  background: white;
+  padding: 15px 25px;
+  border-radius: 14px;
+  margin-bottom: 20px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+}
+
+.login-header img {
+  height: 60px;
+}
+
+.login-header h1 {
+  font-size: 18px;
+  margin: 0;
+  color: #c0392b;
+}
+
+.login-header p {
+  font-size: 13px;
+  margin: 0;
+  color: #555;
+}
+#login-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Limit width so it looks clean */
+#login-page .container {
+  width: 100%;
+  max-width: 420px;
+}
+.login-box {
+  margin-top: 10px;
+}
+.g_id_signin > div {
+  width: 100% !important;
+}
+.login-box {
+  animation: fadeIn 0.4s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.login-header h1 {
+  color: #c0392b !important;
+}
+.login-header p {
+  color: #333 !important;
+}
+
+/* DSWD CARDS TEXT */
+.card h3 {
+  font-size: 14px;
+  margin-bottom: 10px;
+  color: #555;
+}
+
+.card p {
+  font-size: 26px;
+  font-weight: bold;
+  color: var(--primary-red);
+}
+
+/* Sidebar links fix */
+.sidebar ul {
+  list-style: none;
+  padding: 0;
+}
+
+.sidebar ul li {
+  margin-bottom: 10px;
+}
+
+.sidebar ul li a {
+  display: block;
+  padding: 10px;
+  border-radius: 8px;
+  color: white;
+  text-decoration: none;
+  background: rgba(255,255,255,0.1);
+  transition: 0.2s;
+}
+
+.sidebar ul li a:hover {
+  background: rgba(255,255,255,0.3);
+  transform: translateX(5px);
+}
+
+/* ===== DSWD FULL SCREEN LAYOUT ===== */
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+/* Main wrapper */
+#dswd-page {
+  width: 100vw;
+  height: 100vh;
+}
+
+/* Layout container */
+.dswd-layout {
+  display: flex;
+  width: 100%;
+  height: 100%;
+}
+
+/* Sidebar */
+.dswd-layout .sidebar {
+  width: 220px;
+  height: 100vh;
+  background: linear-gradient(#1a3f6c, #2c5aa0);
+  color: white;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+/* Sidebar links */
+.dswd-layout .sidebar ul {
+  list-style: none;
+  padding: 0;
+}
+
+.dswd-layout .sidebar li {
+  margin: 15px 0;
+}
+
+.dswd-layout .sidebar a {
+  color: white;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.dswd-layout .sidebar a:hover {
+  text-decoration: underline;
+}
+
+/* Main content */
+#dashboard-body {
+  flex: 1;
+  height: 100vh;
+  overflow-y: auto;
+  padding: 20px;
+  background: #f5f6fa;
+  box-sizing: border-box;
+}
+/* ===== FINAL DSWD TABLE CONTROL ===== */
+
+#dashboard-body {
+  overflow-x: hidden;
+}
+
+/* Scroll container */
+.dswd-table-container {
+  width: 100%;
+  overflow-x: auto;
+}
+
+/* Table itself */
+#dashboard-body table {
+  border-collapse: collapse;
+  width: max-content;      /* KEY CHANGE */
+  min-width: 100%;         /* prevents shrinking too small */
+}
+
+/* Cells */
+#dashboard-body th,
+#dashboard-body td {
+  padding: 10px;
+  font-size: 13px;
+  white-space: nowrap;     /* prevents breaking layout */
+}
+
+/* Optional: allow only one or two columns to wrap */
+#dashboard-body td:nth-child(2) {
+  white-space: normal;
+  max-width: 200px;
+  word-break: break-word;
+}
+#dswd-resident-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.resident-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+  overflow-x: auto; /* prevents breaking layout */
+}
+
+.resident-row input,
+.resident-row select {
+  font-size: 12px;
+  padding: 4px;
+}
+
+.table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  margin-bottom: 20px;
+}
+
+.stats-table {
+  width: max-content;
+  min-width: 100%;
+  border-collapse: collapse;
+}
+
+.stats-table th,
+.stats-table td {
+  padding: 6px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.stats-table {
+  min-width: 700px; /* forces full table width */
+  border-collapse: collapse;
+}
+
+.stats-table th,
+.stats-table td {
+  padding: 8px;
+  border: 1px solid #ccc;
+  white-space: nowrap;
+}
+
+/* Prevent page from expanding horizontally */
+#dashboard-body {
+  overflow-x: hidden;
+}
+
+/* Wrapper that allows scrolling instead of breaking layout */
+.table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  background: white;
+  padding: 15px;
+  border-radius: 10px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+}
+
+/* Table sizing control */
+.stats-table {
+  width: auto;
+  table-layout: auto;
+  display: inline-table;
+}
+
+/* Cells should wrap instead of stretching */
+.stats-table th,
+.stats-table td {
+  padding: 6px;
+  border: 1px solid #ccc;
+  text-align: center;
+  word-wrap: break-word;
+  white-space: normal;
+}
+
+/* Main dashboard container */
+.stats-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.table-wrapper {
+  display: flex;
+  justify-content: center;
+}
+
+.stats-table {
+  min-width: 700px;
+}
+.stats-table th,
+.stats-table td {
+  padding: 4px 6px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+#login-page ~ .back-small {
+  display: none !important;
+}
+.stats-container {
+  max-width: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 20px;
+}
+.dashboard,
+#dswd-page {
+  width: 100%;
+  height: 100vh;
+}
+.table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  display: block; /* IMPORTANT */
+}
+/* Override fixed positioning for DSWD sidebar specifically */
+.dswd-layout .sidebar {
+  position: relative;  /* ← add this */
+  width: 220px;
+  min-width: 220px;    /* ← add this to prevent shrinking */
+  height: 100vh;
+  background: linear-gradient(#1a3f6c, #2c5aa0);
+  color: white;
+  padding: 20px;
+  box-sizing: border-box;
+  flex-shrink: 0;      /* ← add this */
+}
+
+/* Remove the margin-left since sidebar is now in normal flow */
+#dashboard-body {
+  flex: 1;
+  height: 100vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 20px;
+  background: #f5f6fa;
+  box-sizing: border-box;
+  min-width: 0;        /* ← add this — prevents flex child from overflowing */
+}
