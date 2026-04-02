@@ -1,3 +1,5 @@
+
+require('dotenv').config();
 // ================= IMPORTS =================
 const express = require('express');
 const { Pool } = require('pg');
@@ -9,6 +11,7 @@ const { OAuth2Client } = require('google-auth-library');
 
 // ================= INIT APP =================
 const app = express();
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 
 // ================= MIDDLEWARE =================
 app.use(bodyParser.json());
@@ -19,15 +22,22 @@ app.use(express.static('public')); // serve uploaded files
 
 // ================= DATABASE =================
 const pool = new Pool({
-  user: 'postgres',
-  host: 'localhost',
-  database: 'trapiche_profiling',
-  password: '12345',
-  port: 5433
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false },
+  connectionTimeoutMillis: 10000,   // wait 10s for connection
+  idleTimeoutMillis: 30000,
+  max: 5
 });
 
+pool.connect((err, client, release) => {
+  if (err) {
+    console.error('DB CONNECTION ERROR:', err.message);
+  } else {
+    console.log('DB connected successfully ✅');
+    release();
+  }
+});
 // ================= GOOGLE CLIENT =================
-const GOOGLE_CLIENT_ID = "306495383550-a78829rjufomiidmq5h79677uemjoj4g.apps.googleusercontent.com";
 const client = new OAuth2Client(GOOGLE_CLIENT_ID);
 
 // ================= REGISTER =================
@@ -63,17 +73,31 @@ app.post('/api/register', async (req, res) => {
         $11,$12,$13,$14,$15,$16,$17)
        RETURNING *`,
       [
-        name || null, age || null, senior || null, gender || null, status || null,
-        barangay || null, spouse || null, sons || null, daughters || null, pwd || null,
-        dob || null, religion || null, family_members || null, contact || null,
-        email || null, username || null, address || null
+        name || null,
+        age ? parseInt(age) : null,
+        senior === 'Yes',                          // boolean true/false
+        gender || null,
+        status || null,
+        barangay || null,
+        spouse || null,
+        sons ? parseInt(sons) : 0,
+        daughters ? parseInt(daughters) : 0,
+        pwd === 'Yes',                             // boolean true/false
+        dob || null,
+        religion || null,
+        family_members ? parseInt(family_members) : 0,
+        contact || null,
+        email || null,
+        username || null,
+        address || null
       ]
     );
 
     res.json({ message: 'Resident created', user: result.rows[0] });
   } catch (e) {
+    console.error('REGISTER ERROR FULL:', JSON.stringify(e, Object.getOwnPropertyNames(e)));
     if (e.code === '23505') return res.status(400).json({ error: 'Username already exists' });
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: e.message || e.constructor.name });
   }
 });
 
@@ -133,29 +157,6 @@ app.post('/api/google-login', async (req, res) => {
   }
 });
 
-app.post('/api/create-user', async (req, res) => {
-  try {
-    const { username, name, password } = req.body;
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    await pool.query(
-      `INSERT INTO users(username, password, role, name)
-       VALUES($1, $2, 'resident', $3)`,
-      [username, hashedPassword, name]
-    );
-
-    await pool.query(
-      `INSERT INTO residents(name, username, email)
-       VALUES($1, $2, $3)`,
-      [name, username, username]
-    );
-
-    res.json({ success: true, user: { username, role: 'resident', name } });
-  } catch (err) {
-    console.error('Create user error:', err);
-    res.status(500).json({ success: false, message: 'Failed to create user' });
-  }
-});
 
 // ================= REQUEST DOCUMENT =================
 app.post('/api/request-document', async (req, res) => {
@@ -330,12 +331,14 @@ app.get('/create-admins', async (req, res) => {
   try {
     const managerPw = await bcrypt.hash('1234', 10);
     const dswdPw = await bcrypt.hash('1234', 10);
+
     await pool.query(`
-      INSERT INTO users(username, password, role) VALUES
-      ('manager',$1,'manager'),
-      ('dswd',$2,'dswd')
+      INSERT INTO users(username, password, role, name) VALUES
+      ('manager',$1,'manager','Manager Account'),
+      ('dswd',$2,'dswd','DSWD Account')
       ON CONFLICT (username) DO NOTHING
     `, [managerPw, dswdPw]);
+
     res.send('Admins created successfully');
   } catch (err) {
     res.status(500).send(err.message);
@@ -343,4 +346,7 @@ app.get('/create-admins', async (req, res) => {
 });
 
 // ================= START SERVER =================
-app.listen(3000, () => console.log('Server running on http://localhost:3000'));
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server running on port ${PORT}`);
+});
