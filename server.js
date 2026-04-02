@@ -23,9 +23,20 @@ app.use(express.static('public')); // serve uploaded files
 // ================= DATABASE =================
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false }
+  ssl: { rejectUnauthorized: false },
+  connectionTimeoutMillis: 10000,   // wait 10s for connection
+  idleTimeoutMillis: 30000,
+  max: 5
 });
 
+pool.connect((err, client, release) => {
+  if (err) {
+    console.error('DB CONNECTION ERROR:', err.message);
+  } else {
+    console.log('DB connected successfully ✅');
+    release();
+  }
+});
 // ================= GOOGLE CLIENT =================
 const client = new OAuth2Client(GOOGLE_CLIENT_ID);
 
@@ -84,9 +95,9 @@ app.post('/api/register', async (req, res) => {
 
     res.json({ message: 'Resident created', user: result.rows[0] });
   } catch (e) {
-    console.error('REGISTER ERROR:', e.message, e.code, e.detail);
+    console.error('REGISTER ERROR FULL:', JSON.stringify(e, Object.getOwnPropertyNames(e)));
     if (e.code === '23505') return res.status(400).json({ error: 'Username already exists' });
-    res.status(500).json({ error: e.message || e.toString() });
+    res.status(500).json({ error: e.message || e.constructor.name });
   }
 });
 
