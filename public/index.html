@@ -134,26 +134,9 @@
 
   <div style="display:flex; gap:20px; flex-wrap:wrap;">
 
-   <div style="display:flex; justify-content:center; align-items:flex-start; width:100%; margin-top:20px;">
-
-  <div style="
-    display:flex;
-    gap:20px;
-    width:100%;
-    max-width:1000px;
-    justify-content:center;
-  ">
-
     <!-- LEFT TABLE -->
-    <div style="
-      flex:1;
-      min-width:300px;
-      background:#f4f7ff;
-      padding:20px;
-      border-radius:12px;
-      box-shadow:0 2px 8px rgba(0,0,0,0.1);
-    ">
-      <h3 style="margin-bottom:10px;">Personal Information</h3>
+    <div style="flex:1; min-width:300px; background:#f4f7ff; padding:15px; border-radius:10px;">
+      <h3>Personal Information</h3>
       <table style="width:100%;">
         <tr><td>Full Name:</td><td><input type="text" id="res-name" required></td></tr>
         <tr><td>Email:</td><td><input type="email" id="res-email" required></td></tr>
@@ -165,8 +148,8 @@
           <td>
             <select id="res-gender" required>
               <option value="">Select</option>
-              <option>Male</option>
-              <option>Female</option>
+              <option value="Male">Male</option>
+              <option value="Female">Female</option>
             </select>
           </td>
         </tr>
@@ -188,15 +171,8 @@
     </div>
 
     <!-- RIGHT TABLE -->
-    <div style="
-      flex:1;
-      min-width:300px;
-      background:#fff0f5;
-      padding:20px;
-      border-radius:12px;
-      box-shadow:0 2px 8px rgba(0,0,0,0.1);
-    ">
-      <h3 style="margin-bottom:10px;">Address & Family</h3>
+    <div style="flex:1; min-width:300px; background:#fff0f5; padding:15px; border-radius:10px;">
+      <h3>Address & Family</h3>
       <table style="width:100%;">
         <tr><td>Address:</td><td><input type="text" id="res-address"></td></tr>
 
@@ -223,27 +199,19 @@
       </table>
 
       <button onclick="createResident()" 
-        style="
-          margin-top:15px;
-          width:100%;
-          padding:12px;
-          background:#c0392b;
-          color:white;
-          border:none;
-          border-radius:8px;
-          font-weight:500;
-          cursor:pointer;
-        ">
+        style="margin-top:15px; width:100%; padding:10px; background:#1a3f6c; color:white; border:none; border-radius:8px;">
         Create Account
       </button>
     </div>
 
   </div>
-</div>
 
-<p style="text-align:center; margin-top:15px;">
-  <a href="#" onclick="showLogin()">Back to Login</a>
-</p>
+  <p style="text-align:center; margin-top:10px;">
+    <a href="#" onclick="showLogin()">Back to Login</a>
+  </p>
+
+</div>
+</div>
 
   <!-- Dashboard Page -->
 <div id="dashboard-page" style="display:none;">
