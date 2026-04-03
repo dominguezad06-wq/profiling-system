@@ -622,7 +622,6 @@ function renderResidentWelcome() {
           <li>Age: ${loggedInUser.age || 'N/A'}</li>
           <li>Barangay: ${loggedInUser.barangay || 'N/A'}</li>
           <li>Status: ${loggedInUser.status || 'N/A'}</li>
-          <li>Sons: ${loggedInUser.sons || 0}, Daughters: ${loggedInUser.daughters || 0}</li>
           <li>PWD: ${loggedInUser.pwd || 'No'}</li>
         </ul>
       </div>
