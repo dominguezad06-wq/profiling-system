@@ -229,7 +229,7 @@ function showDashboard(){
   document.getElementById('resident-form').style.display='none';
   document.getElementById('forgot-page').style.display='none';
   document.getElementById('dswd-page').style.display='none';
-  document.getElementById('dashboard-page').style.display='block';
+  document.getElementById('dashboard-page').style.display='flex';
 
   const title =
     currentRole === 'resident' ? 'Resident Dashboard' :
