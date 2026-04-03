@@ -776,23 +776,34 @@ function showMyProfile() {
       </div>
       <div style="background:#f4f7ff; padding:12px; border-radius:10px; box-shadow:0 2px 6px rgba(0,0,0,0.1); flex:1; min-width:240px; max-width:600px; box-sizing:border-box; width:100%;">
         <h3>Family & Contact</h3>
-        <table style="width:100%; border-collapse:collapse;">
-          <tr><td>Family:</td><td><input type="number" id="profile-family" value="${loggedInUser.family_members || ''}" style="width:100%; padding:4px;"></td></tr>
-          <tr><td>Sons:</td><td><input type="number" id="profile-sons" value="${loggedInUser.sons || ''}" style="width:100%; padding:4px;"></td></tr>
-          <tr><td>Daughters:</td><td><input type="number" id="profile-daughters" value="${loggedInUser.daughters || ''}" style="width:100%; padding:4px;"></td></tr>
-          <tr><td>PWD:</td><td>
-            <select id="profile-pwd" style="width:100%; padding:4px;">
-              <option ${loggedInUser.pwd === 'No' ? 'selected' : ''}>No</option>
-              <option ${loggedInUser.pwd === 'Yes' ? 'selected' : ''}>Yes</option>
-            </select>
-          </td></tr>
-          <tr><td>Contact:</td><td><input type="text" id="profile-contact" value="${loggedInUser.contact || ''}" style="width:100%; padding:4px;"></td></tr>
-          <tr><td>Email:</td><td><input type="email" id="profile-email" value="${loggedInUser.email || ''}" style="width:100%; padding:4px;"></td></tr>
-        </table>
-        <button onclick="updateProfile()" 
-          style="margin-top:10px; width:100%; padding:8px; background:#1a3f6c; color:white; border:none; border-radius:6px;">
-          Update Profile
-        </button>
+<table style="width:100%; border-collapse:collapse;">
+  <tr>
+    <td>PWD:</td>
+    <td>
+      <select id="profile-pwd" style="width:100%; padding:4px;">
+        <option ${loggedInUser.pwd === 'No' ? 'selected' : ''}>No</option>
+        <option ${loggedInUser.pwd === 'Yes' ? 'selected' : ''}>Yes</option>
+      </select>
+    </td>
+  </tr>
+  <tr>
+    <td>Contact:</td>
+    <td>
+      <input type="text" id="profile-contact" value="${loggedInUser.contact || ''}" style="width:100%; padding:4px;">
+    </td>
+  </tr>
+  <tr>
+    <td>Email:</td>
+    <td>
+      <input type="email" id="profile-email" value="${loggedInUser.email || ''}" style="width:100%; padding:4px;">
+    </td>
+  </tr>
+</table>
+
+<button onclick="updateProfile()" 
+  style="margin-top:10px; width:100%; padding:8px; background:#1a3f6c; color:white; border:none; border-radius:6px;">
+  Update Profile
+</button>
       </div>
     </div>
   `;
