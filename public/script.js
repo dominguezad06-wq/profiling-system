@@ -166,9 +166,9 @@ function login() {
   .then(res => res.json())
   .then(data => {
     if(data.message === 'Login successful'){
-      // Merge resident profile data into loggedInUser
       loggedInUser = { ...data.user, ...(data.profile || {}) };
       currentRole = data.user.role;
+      localStorage.setItem("user", JSON.stringify(loggedInUser));
       if (data.user.role === 'dswd') {
         openDSWDPage();
       } else if (data.user.role === 'manager') {
@@ -1627,25 +1627,27 @@ function handleCredentialResponse(response) {
   });
 }
 
-const savedUser = localStorage.getItem("user");
-if (savedUser) {
-  try {
-    loggedInUser = JSON.parse(savedUser);
-    currentRole = loggedInUser.role;
-    console.log("Restored user:", loggedInUser);
+window.addEventListener('load', () => {
+  const savedUser = localStorage.getItem("user");
+  if (savedUser) {
+    try {
+      loggedInUser = JSON.parse(savedUser);
+      currentRole = loggedInUser.role;
+      console.log("Restored user:", loggedInUser);
 
-    // Auto-redirect based on role after refresh
-    if (currentRole === 'manager') {
-      openManagerPage();
-    } else if (currentRole === 'dswd') {
-      openDSWDPage();
-    } else if (currentRole === 'resident') {
-      showDashboard();
+      if (currentRole === 'manager') {
+        openManagerPage();
+      } else if (currentRole === 'dswd') {
+        openDSWDPage();
+      } else if (currentRole === 'resident') {
+        showDashboard();
+        showMyProfile();
+      }
+    } catch (e) {
+      localStorage.removeItem("user");
     }
-  } catch (e) {
-    localStorage.removeItem("user");
   }
-}
+});
 
 function confirmGooglePassword(){
   const user = window.tempGoogleUser;
