@@ -739,8 +739,8 @@ function showMyProfile() {
       ← Back
     </button>
     <h2 style="margin:5px 0; text-align:center;">My Profile</h2>
-    <div style="display:flex; justify-content:center; align-items:flex-start; gap:30px; padding:10px; width:100%; margin:0 auto;">
-      <div style="background:#f4f7ff; padding:12px; border-radius:10px; box-shadow:0 2px 6px rgba(0,0,0,0.1); flex:1; min-width:400px; max-width:600px;">
+    <div style="display:flex; flex-wrap:wrap; justify-content:center; align-items:flex-start; gap:20px; padding:10px; width:100%; margin:0 auto; box-sizing:border-box;">
+      <div style="background:#f4f7ff; padding:12px; border-radius:10px; box-shadow:0 2px 6px rgba(0,0,0,0.1); flex:1; min-width:280px; max-width:600px; box-sizing:border-box;">
         <h3>Personal Info</h3>
         <table style="width:100%; border-collapse:collapse;">
           <tr><td>Name:</td><td><input type="text" id="profile-name" value="${loggedInUser.name || ''}" style="width:100%; padding:4px;"></td></tr>
@@ -771,7 +771,7 @@ function showMyProfile() {
           </td></tr>
         </table>
       </div>
-      <div style="background:#f4f7ff; padding:12px; border-radius:10px; box-shadow:0 2px 6px rgba(0,0,0,0.1); flex:1; min-width:400px; max-width:600px;">
+      <div style="background:#f4f7ff; padding:12px; border-radius:10px; box-shadow:0 2px 6px rgba(0,0,0,0.1); flex:1; min-width:280px; max-width:600px; box-sizing:border-box;">
         <h3>Family & Contact</h3>
         <table style="width:100%; border-collapse:collapse;">
           <tr><td>Family:</td><td><input type="number" id="profile-family" value="${loggedInUser.family_members || ''}" style="width:100%; padding:4px;"></td></tr>
