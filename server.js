@@ -11,7 +11,12 @@ const { OAuth2Client } = require('google-auth-library');
 
 // ================= INIT APP =================
 const app = express();
+const fs = require('fs');
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
+const uploadDir = './public/uploads';
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
 
 // ================= MIDDLEWARE =================
 app.use(bodyParser.json());
@@ -204,8 +209,8 @@ app.post('/api/request-document', async (req, res) => {
 
     res.json({ success: true });
   } catch (err) {
-    console.error(err);
-    res.json({ success: false, message: 'Failed to save request' });
+    console.error('REQUEST DOCUMENT ERROR:', err.message, err.stack);
+    res.json({ success: false, message: err.message || 'Failed to save request' });
   }
 });
 
