@@ -1,14 +1,4 @@
 
-
-const fs = require('fs');
-const path = require('path');
-
-const uploadDir = path.join(__dirname, 'public/uploads');
-
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
-
 require('dotenv').config();
 // ================= IMPORTS =================
 const express = require('express');
@@ -138,10 +128,30 @@ app.post('/api/google-login', async (req, res) => {
     const { credential } = req.body;
     if (!credential) return res.status(400).json({ success: false, message: 'No Google token provided' });
 
+    console.log('GOOGLE_CLIENT_ID in use:', GOOGLE_CLIENT_ID);
+
+    if (!GOOGLE_CLIENT_ID) {
+      return res.status(500).json({ success: false, message: 'Server missing Google Client ID config' });
+    }
+
     const ticket = await client.verifyIdToken({
       idToken: credential,
       audience: GOOGLE_CLIENT_ID
     });
+
+    // ================= GET SINGLE RESIDENT PROFILE =================
+app.get('/api/residents-profile', async (req, res) => {
+  try {
+    const username = req.query.username;
+    const result = await pool.query(
+      'SELECT * FROM residents WHERE username=$1',
+      [username]
+    );
+    res.json({ profile: result.rows[0] || null });
+  } catch (err) {
+    res.status(500).json({ profile: null });
+  }
+});
 
     const payload = ticket.getPayload();
     const email = payload.email;
