@@ -958,8 +958,8 @@ function renderManagerRequests(allRequests, filter = 'all') {
            <td><input type="time" id="time-${i}" value="${r.time || ''}" ${r.status!=='Pending'?'readonly':''}></td>
            <td>
              ${r.status === 'Pending' ? `
-               <button class="approve-btn" data-username="${r.username}" data-doc="${r.document_type}" data-index="${i}">Approve</button>
-               <button class="reject-btn" data-username="${r.username}" data-doc="${r.document_type}">Reject</button>
+               <button class="approve-btn" data-username="${r.username}" data-doc="${r.document_type}" data-index="${i}" data-status="${r.status}">Approve</button>
+               <button class="reject-btn" data-username="${r.username}" data-doc="${r.document_type}" data-status="${r.status}">Reject</button>
              ` : ''}
            </td>
           </tr>
