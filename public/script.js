@@ -831,6 +831,10 @@ function updateProfile(){
 }
 
 function requestDocument() {
+  if (!loggedInUser || !loggedInUser.username) {
+    alert('You must be logged in to request a document.');
+    return;
+  }
   const type = document.getElementById('document-type').value;
   const purpose = document.getElementById('document-purpose').value.trim();
   const email = document.getElementById('request-email').value.trim();
@@ -856,12 +860,16 @@ function requestDocument() {
   })
   .then(res => res.json())
   .then(data => {
-    alert(data.message);
-    loadMyRequests(); 
+    if (data.success) {
+      alert('Document request submitted successfully!');
+      loadMyRequests();
+    } else {
+      alert('Failed: ' + (data.message || 'Unknown error'));
+    }
   })
   .catch(err => {
-    console.error(err);
-    alert("Error sending request.");
+    console.error('Full error:', err);
+    alert("Error: " + err.message);
   });
 }
 
