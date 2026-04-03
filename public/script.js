@@ -3,6 +3,8 @@ let currentRole = null;
 let dswdResidents = [];
 emailjs.init('Ndd7_r9gTrjDBG9-K')
 const API_BASE = "https://profiling-system.onrender.com";
+// Wake up Render on page load
+fetch(`${API_BASE}/health`).catch(() => {});
 
 // 
 function formatTime12Hour(time24){
