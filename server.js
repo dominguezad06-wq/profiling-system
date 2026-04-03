@@ -139,21 +139,9 @@ app.post('/api/google-login', async (req, res) => {
       audience: GOOGLE_CLIENT_ID
     });
 
-    // ================= GET SINGLE RESIDENT PROFILE =================
-app.get('/api/residents-profile', async (req, res) => {
-  try {
-    const username = req.query.username;
-    const result = await pool.query(
-      'SELECT * FROM residents WHERE username=$1',
-      [username]
-    );
-    res.json({ profile: result.rows[0] || null });
-  } catch (err) {
-    res.status(500).json({ profile: null });
-  }
-});
-
     const payload = ticket.getPayload();
+
+
     const email = payload.email;
     const name = payload.name;
 
@@ -177,6 +165,19 @@ app.get('/api/residents-profile', async (req, res) => {
   }
 });
 
+// ================= GET SINGLE RESIDENT PROFILE =================
+app.get('/api/residents-profile', async (req, res) => {
+  try {
+    const username = req.query.username;
+    const result = await pool.query(
+      'SELECT * FROM residents WHERE username=$1',
+      [username]
+    );
+    res.json({ profile: result.rows[0] || null });
+  } catch (err) {
+    res.status(500).json({ profile: null });
+  }
+});
 
 // ================= REQUEST DOCUMENT =================
 app.post('/api/request-document', async (req, res) => {
