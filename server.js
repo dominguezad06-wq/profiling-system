@@ -67,11 +67,9 @@ app.post('/api/register', async (req, res) => {
     );
 
     if (duplicate.rows.length > 0) {
-      const oldUsername = duplicate.rows[0].username;
-      // Delete old duplicate records
-      await pool.query(`DELETE FROM document_requests WHERE username=$1`, [oldUsername]);
-      await pool.query(`DELETE FROM residents WHERE username=$1`, [oldUsername]);
-      await pool.query(`DELETE FROM users WHERE username=$1`, [oldUsername]);
+      return res.status(400).json({ 
+        error: `A resident named "${name}" (Age ${age}, ${barangay}) already has an account. Please login instead.` 
+      });
     }
 
     const hashedPw = await bcrypt.hash(password, 10);
@@ -383,6 +381,20 @@ app.get('/create-admins', async (req, res) => {
     res.send('Admins created successfully');
   } catch (err) {
     res.status(500).send(err.message);
+  }
+});
+
+// ================= DELETE RESIDENT =================
+app.delete('/api/delete-resident/:username', async (req, res) => {
+  try {
+    const { username } = req.params;
+    await pool.query(`DELETE FROM document_requests WHERE username=$1`, [username]);
+    await pool.query(`DELETE FROM residents WHERE username=$1`, [username]);
+    await pool.query(`DELETE FROM users WHERE username=$1`, [username]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.json({ success: false, message: err.message });
   }
 });
 
