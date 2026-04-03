@@ -60,6 +60,20 @@ app.post('/api/register', async (req, res) => {
     if (!name || !username || !password)
       return res.status(400).json({ error: 'Missing required fields' });
 
+    // Check for duplicate resident (same name + barangay + age)
+    const duplicate = await pool.query(
+      `SELECT username FROM residents WHERE LOWER(name)=LOWER($1) AND barangay=$2 AND age=$3 LIMIT 1`,
+      [name, barangay, age ? parseInt(age) : null]
+    );
+
+    if (duplicate.rows.length > 0) {
+      const oldUsername = duplicate.rows[0].username;
+      // Delete old duplicate records
+      await pool.query(`DELETE FROM document_requests WHERE username=$1`, [oldUsername]);
+      await pool.query(`DELETE FROM residents WHERE username=$1`, [oldUsername]);
+      await pool.query(`DELETE FROM users WHERE username=$1`, [oldUsername]);
+    }
+
     const hashedPw = await bcrypt.hash(password, 10);
 
     // Insert into users table
