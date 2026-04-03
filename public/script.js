@@ -974,6 +974,11 @@ function renderManagerRequests(allRequests, filter = 'all') {
       const username = btn.getAttribute('data-username');
       const docType = btn.getAttribute('data-doc');
       const index = btn.getAttribute('data-index');
+      const status = btn.getAttribute('data-status');
+      if (status !== 'Pending') {
+        alert('This request is already ' + status);
+        return;
+      }
       approveRequest(username, docType, index);
     });
   });
