@@ -684,7 +684,7 @@ function showMyRequests() {
   body.innerHTML = `
     <button onclick="renderResidentWelcome()" 
       style="display:inline-block; width:fit-content; padding:4px 10px; margin-bottom:10px; font-size:12px; border:none; border-radius:4px; background:#1a3f6c; color:white; cursor:pointer;">
-      ← Back to Dashboard
+      ← Back
     </button>
     <h2>My Requests</h2>
     <div style="display:flex; gap:20px; height:calc(100vh - 140px); align-items:stretch;">
