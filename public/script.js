@@ -1640,8 +1640,21 @@ window.addEventListener('load', () => {
       } else if (currentRole === 'dswd') {
         openDSWDPage();
       } else if (currentRole === 'resident') {
-        showDashboard();
-        showMyProfile();
+        // Re-fetch fresh profile from server to make sure username is correct
+        fetch(`${API_BASE}/api/residents-profile?username=${loggedInUser.username}`)
+          .then(r => r.json())
+          .then(profileData => {
+            if (profileData.profile) {
+              loggedInUser = { ...loggedInUser, ...profileData.profile };
+              localStorage.setItem("user", JSON.stringify(loggedInUser));
+            }
+            showDashboard();
+            renderResidentWelcome();
+          })
+          .catch(() => {
+            showDashboard();
+            renderResidentWelcome();
+          });
       }
     } catch (e) {
       localStorage.removeItem("user");
