@@ -193,6 +193,7 @@ function openManagerPage(){
 function logout(){ 
   loggedInUser = null; 
   currentRole = null;
+  localStorage.removeItem("user");
   document.getElementById('login-page').style.display = "flex";
   document.getElementById('dashboard-page').style.display = 'none';
   document.getElementById('manager-page').style.display = 'none';
@@ -1613,9 +1614,22 @@ function handleCredentialResponse(response) {
 
 const savedUser = localStorage.getItem("user");
 if (savedUser) {
-  loggedInUser = JSON.parse(savedUser);
-  currentRole = loggedInUser.role;
-  console.log("Restored user:", loggedInUser);
+  try {
+    loggedInUser = JSON.parse(savedUser);
+    currentRole = loggedInUser.role;
+    console.log("Restored user:", loggedInUser);
+
+    // Auto-redirect based on role after refresh
+    if (currentRole === 'manager') {
+      openManagerPage();
+    } else if (currentRole === 'dswd') {
+      openDSWDPage();
+    } else if (currentRole === 'resident') {
+      showDashboard();
+    }
+  } catch (e) {
+    localStorage.removeItem("user");
+  }
 }
 
 function confirmGooglePassword(){
