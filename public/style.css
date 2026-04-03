@@ -1010,3 +1010,26 @@ html, body {
 #dashboard-page[style*="block"] {
   display: flex;
 }
+
+/* Fix sidebar overlap on mobile for dashboard */
+@media (max-width: 600px) {
+  .sidebar {
+    width: 110px;
+    padding: 10px 8px;
+  }
+
+  .sidebar h2 {
+    font-size: 12px;
+  }
+
+  .sidebar ul li a {
+    font-size: 11px;
+    padding: 7px 6px;
+  }
+
+  .main-content {
+    margin-left: 110px;
+    width: calc(100% - 110px);
+    padding: 10px 8px;
+  }
+}
