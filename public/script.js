@@ -164,7 +164,8 @@ function login() {
   .then(res => res.json())
   .then(data => {
     if(data.message === 'Login successful'){
-      loggedInUser = data.user;
+      // Merge resident profile data into loggedInUser
+      loggedInUser = { ...data.user, ...(data.profile || {}) };
       currentRole = data.user.role;
       if (data.user.role === 'dswd') {
         openDSWDPage();
@@ -1585,11 +1586,21 @@ function handleCredentialResponse(response) {
   .then(res => res.json())
   .then(data => {
     if (data.success) {
-      loggedInUser = data.user;
-      currentRole = data.user.role;
-      localStorage.setItem("user", JSON.stringify(data.user));
-      console.log("Logged in user:", loggedInUser);
-      showDashboard();
+      // Fetch resident profile after Google login
+      fetch(`${API_BASE}/api/residents-profile?username=${data.user.username || data.user.email}`)
+        .then(r => r.json())
+        .then(profileData => {
+          loggedInUser = { ...data.user, ...(profileData.profile || {}) };
+          currentRole = loggedInUser.role || 'resident';
+          localStorage.setItem("user", JSON.stringify(loggedInUser));
+          showDashboard();
+        })
+        .catch(() => {
+          loggedInUser = data.user;
+          currentRole = data.user.role || 'resident';
+          localStorage.setItem("user", JSON.stringify(loggedInUser));
+          showDashboard();
+        });
     } else {
       alert(data.message || "Google login failed");
     }
