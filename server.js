@@ -253,19 +253,20 @@ app.post('/api/approve-request', async (req, res) => {
     const { username, documentType, date, time } = req.body;
 
     const checkResult = await pool.query(
-      'SELECT status, purpose, email FROM document_requests WHERE username=$1 AND document_type=$2',
+      `SELECT id, status, purpose, email FROM document_requests 
+       WHERE username=$1 AND document_type=$2 AND status='Pending'
+       ORDER BY created_at DESC LIMIT 1`,
       [username, documentType]
     );
     const request = checkResult.rows[0];
 
-    if (!request) return res.json({ success: false, message: 'Request not found' });
-    if (request.status !== 'Pending') return res.json({ success: false, message: 'Request already processed' });
+    if (!request) return res.json({ success: false, message: 'Request not found or already processed' });
 
     await pool.query(
       `UPDATE document_requests
        SET status='Approved', date=$1, time=$2
-       WHERE username=$3 AND document_type=$4`,
-      [date, time, username, documentType]
+       WHERE id=$3`,
+      [date, time, request.id]
     );
 
     res.json({ 
@@ -289,7 +290,7 @@ app.post('/api/reject-request', async (req, res) => {
     await pool.query(
       `UPDATE document_requests
        SET status='Rejected'
-       WHERE username=$1 AND document_type=$2`,
+       WHERE username=$1 AND document_type=$2 AND status='Pending'`,
       [username, documentType]
     );
     res.json({ success: true });
