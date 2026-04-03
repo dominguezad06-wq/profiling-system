@@ -1662,6 +1662,193 @@ window.addEventListener('load', () => {
   }
 });
 
+function showAllResidents() {
+  const body = document.getElementById('dashboard-body');
+  body.innerHTML = `<div style="padding:24px;"><p style="color:#888;">Loading residents...</p></div>`;
+
+  fetch(`${API_BASE}/api/residents`)
+    .then(res => res.json())
+    .then(data => {
+      const residents = data.residents || [];
+      window._allResidentsData = residents;
+      body.innerHTML = `
+        <div style="padding:24px; background:#f5f6fa; min-height:100%;">
+          <div style="background:#fff; border-radius:12px; border:0.5px solid #e0e0e0; overflow:hidden;">
+            <div style="display:flex; align-items:center; justify-content:space-between; padding:18px 22px; border-bottom:0.5px solid #eee;">
+              <span style="font-size:17px; font-weight:500; color:#1a1a1a;">All Residents</span>
+              <span style="font-size:13px; color:#aaa;">${residents.length} total</span>
+            </div>
+            <div style="padding:12px 22px; border-bottom:0.5px solid #f0f0f0; display:flex; gap:10px; align-items:center;">
+              <input type="text" placeholder="Search by name, barangay, gender..."
+                oninput="filterAllResidents(this)"
+                style="padding:8px 14px; border-radius:8px; border:0.5px solid #ddd; font-size:14px; flex:1; margin:0;">
+              <button onclick="showDuplicateResidents()"
+                style="padding:8px 18px; background:#c0392b; color:white; border:none; border-radius:8px; font-size:13px; cursor:pointer; white-space:nowrap;">
+                🔍 Check Duplicates
+              </button>
+            </div>
+            <div style="overflow-x:auto;">
+              <table style="width:100%; border-collapse:collapse;">
+                <thead>
+                  <tr style="background:#f8f9fa;">
+                    <th style="padding:12px 18px; text-align:left; font-size:13px; color:#888; font-weight:500; border-bottom:0.5px solid #eee;">#</th>
+                    <th style="padding:12px 18px; text-align:left; font-size:13px; color:#888; font-weight:500; border-bottom:0.5px solid #eee;">Name</th>
+                    <th style="padding:12px 18px; text-align:left; font-size:13px; color:#888; font-weight:500; border-bottom:0.5px solid #eee;">Age</th>
+                    <th style="padding:12px 18px; text-align:left; font-size:13px; color:#888; font-weight:500; border-bottom:0.5px solid #eee;">Gender</th>
+                    <th style="padding:12px 18px; text-align:left; font-size:13px; color:#888; font-weight:500; border-bottom:0.5px solid #eee;">Barangay</th>
+                    <th style="padding:12px 18px; text-align:left; font-size:13px; color:#888; font-weight:500; border-bottom:0.5px solid #eee;">Status</th>
+                    <th style="padding:12px 18px; text-align:left; font-size:13px; color:#888; font-weight:500; border-bottom:0.5px solid #eee;">Address</th>
+                    <th style="padding:12px 18px; text-align:left; font-size:13px; color:#888; font-weight:500; border-bottom:0.5px solid #eee;">Tags</th>
+                    <th style="padding:12px 18px; text-align:left; font-size:13px; color:#888; font-weight:500; border-bottom:0.5px solid #eee;">Action</th>
+                  </tr>
+                </thead>
+                <tbody id="all-residents-tbody">
+                  ${residents.map((r, i) => allResidentRow(r, i)).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      `;
+    })
+    .catch(() => {
+      body.innerHTML = `<div style="padding:24px;"><p style="color:red;">Failed to load residents.</p></div>`;
+    });
+}
+
+function allResidentRow(r, i) {
+  return `
+    <tr onmouseover="this.style.background='#f4f7ff'" onmouseout="this.style.background=''"
+      style="border-bottom:0.5px solid #f0f0f0;">
+      <td style="padding:12px 18px; font-size:13px; color:#aaa;">${i + 1}</td>
+      <td style="padding:12px 18px; font-size:14px; font-weight:500; color:#1a1a1a;">${r.name}</td>
+      <td style="padding:12px 18px; font-size:13px; color:#555;">${r.age || 'N/A'}</td>
+      <td style="padding:12px 18px; font-size:13px; color:#555;">${r.gender || 'N/A'}</td>
+      <td style="padding:12px 18px; font-size:13px; color:#555;">${r.barangay || 'N/A'}</td>
+      <td style="padding:12px 18px; font-size:13px; color:#555;">${r.status || 'N/A'}</td>
+      <td style="padding:12px 18px; font-size:13px; color:#555;">${r.address || 'N/A'}</td>
+      <td style="padding:12px 18px;">
+        <div style="display:flex; gap:6px; flex-wrap:wrap;">
+          ${r.age >= 60 ? `<span style="background:#EAF3DE; color:#27500A; font-size:11px; font-weight:500; padding:3px 10px; border-radius:99px;">Senior</span>` : ''}
+          ${r.pwd === 'Yes' ? `<span style="background:#FAECE7; color:#712B13; font-size:11px; font-weight:500; padding:3px 10px; border-radius:99px;">PWD</span>` : ''}
+        </div>
+      </td>
+      <td style="padding:12px 18px;">
+        <button onclick="openDSWDResidentDetail('${r.username}')"
+          style="padding:6px 14px; background:#1a3f6c; color:white; border:none; border-radius:6px; font-size:12px; cursor:pointer;">
+          Edit
+        </button>
+      </td>
+    </tr>
+  `;
+}
+
+function filterAllResidents(input) {
+  const keyword = input.value.toLowerCase();
+  const filtered = (window._allResidentsData || []).filter(r =>
+    (r.name || '').toLowerCase().includes(keyword) ||
+    (r.barangay || '').toLowerCase().includes(keyword) ||
+    (r.gender || '').toLowerCase().includes(keyword) ||
+    (r.status || '').toLowerCase().includes(keyword) ||
+    (r.address || '').toLowerCase().includes(keyword)
+  );
+  document.getElementById('all-residents-tbody').innerHTML =
+    filtered.length === 0
+      ? `<tr><td colspan="9" style="padding:30px; text-align:center; color:#aaa;">No residents match your search.</td></tr>`
+      : filtered.map((r, i) => allResidentRow(r, i)).join('');
+}
+
+function showDuplicateResidents() {
+  const residents = window._allResidentsData || [];
+  const seen = {};
+
+  residents.forEach(r => {
+    const key = `${r.name?.toLowerCase()}|${r.barangay}|${r.age}`;
+    if (!seen[key]) seen[key] = [];
+    seen[key].push(r);
+  });
+
+  const duplicates = Object.keys(seen)
+    .filter(key => seen[key].length > 1)
+    .map(key => ({
+      key,
+      name: seen[key][0].name,
+      barangay: seen[key][0].barangay,
+      age: seen[key][0].age,
+      residents: seen[key]
+    }));
+
+  if (duplicates.length === 0) {
+    alert('✅ No duplicate residents found!');
+    return;
+  }
+
+  const body = document.getElementById('dashboard-body');
+  body.innerHTML = `
+    <div style="padding:24px; background:#f5f6fa; min-height:100%;">
+      <button onclick="showAllResidents()" style="margin-bottom:16px; padding:8px 16px; background:#1a3f6c; color:white; border:none; border-radius:8px; cursor:pointer;">← Back to All Residents</button>
+      <div style="background:#fff; border-radius:12px; border:0.5px solid #e0e0e0; overflow:hidden;">
+        <div style="padding:18px 22px; border-bottom:0.5px solid #eee; background:#fff3f3;">
+          <span style="font-size:17px; font-weight:500; color:#c0392b;">⚠️ Duplicate Residents Found: ${duplicates.length} group${duplicates.length > 1 ? 's' : ''}</span>
+        </div>
+        ${duplicates.map(d => `
+          <div style="padding:18px 22px; border-bottom:0.5px solid #f0f0f0;">
+            <div style="font-size:14px; font-weight:600; color:#1a1a1a; margin-bottom:10px;">
+              ${d.name} — Age ${d.age} — ${d.barangay}
+              <span style="margin-left:8px; background:#FAECE7; color:#712B13; font-size:12px; padding:3px 10px; border-radius:99px;">${d.residents.length} duplicates</span>
+            </div>
+            <table style="width:100%; border-collapse:collapse; font-size:13px;">
+              <thead>
+                <tr style="background:#f8f9fa;">
+                  <th style="padding:8px 12px; text-align:left; color:#888;">Username</th>
+                  <th style="padding:8px 12px; text-align:left; color:#888;">Gender</th>
+                  <th style="padding:8px 12px; text-align:left; color:#888;">Status</th>
+                  <th style="padding:8px 12px; text-align:left; color:#888;">Address</th>
+                  <th style="padding:8px 12px; text-align:left; color:#888;">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${d.residents.map((r, i) => `
+                  <tr style="border-bottom:0.5px solid #f0f0f0; background:${i === 0 ? '#f0fff4' : '#fff'}">
+                    <td style="padding:8px 12px;">${r.username} ${i === 0 ? '<span style="background:#d4edda; color:#27500A; font-size:11px; padding:2px 8px; border-radius:99px;">Keep</span>' : ''}</td>
+                    <td style="padding:8px 12px;">${r.gender || 'N/A'}</td>
+                    <td style="padding:8px 12px;">${r.status || 'N/A'}</td>
+                    <td style="padding:8px 12px;">${r.address || 'N/A'}</td>
+                    <td style="padding:8px 12px;">
+                      ${i !== 0 ? `
+                        <button onclick="deleteDuplicateResident('${r.username}')"
+                          style="padding:5px 12px; background:#c0392b; color:white; border:none; border-radius:6px; font-size:12px; cursor:pointer;">
+                          Delete
+                        </button>
+                      ` : '<span style="color:#aaa; font-size:12px;">Original</span>'}
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
+}
+
+async function deleteDuplicateResident(username) {
+  if (!confirm(`Delete duplicate account: ${username}?`)) return;
+  try {
+    const res = await fetch(`${API_BASE}/api/delete-resident/${username}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (data.success) {
+      alert(`✅ Deleted ${username} successfully.`);
+      showAllResidents();
+    } else {
+      alert('Failed to delete: ' + data.message);
+    }
+  } catch (err) {
+    alert('Server error: ' + err.message);
+  }
+}
+
 function confirmGooglePassword(){
   const user = window.tempGoogleUser;
   if (!user) return;
