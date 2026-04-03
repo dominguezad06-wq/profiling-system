@@ -371,6 +371,22 @@ app.get('/create-admins', async (req, res) => {
   }
 });
 
+// ================= KEEP ALIVE =================
+const https = require('https');
+const RENDER_URL = 'https://profiling-system.onrender.com';
+setInterval(() => {
+  https.get(RENDER_URL, (res) => {
+    console.log(`Keep-alive ping: ${res.statusCode}`);
+  }).on('error', (err) => {
+    console.error('Keep-alive error:', err.message);
+  });
+}, 14 * 60 * 1000); // ping every 14 minutes
+
+// ================= HEALTH CHECK =================
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', time: new Date() });
+});
+
 // ================= START SERVER =================
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
