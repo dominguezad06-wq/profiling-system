@@ -786,16 +786,16 @@ function showMyProfile() {
       <div style="background:#f4f7ff; padding:12px; border-radius:10px; box-shadow:0 2px 6px rgba(0,0,0,0.1); flex:1; min-width:240px; max-width:600px; box-sizing:border-box; width:100%;">
         <h3>Personal Info</h3>
         <table style="width:100%; border-collapse:collapse;">
-          <tr><td>Name:</td><td><input type="text" id="profile-name" value="${loggedInUser.name || ''}" style="width:100%; padding:4px;"></td></tr>
-          <tr><td>Birth:</td><td><input type="date" id="profile-dob" value="${loggedInUser.dob || ''}" onchange="calculateAge()" style="width:100%; padding:4px;"></td></tr>
-          <tr><td>Age:</td><td><input type="number" id="profile-age" value="${loggedInUser.age || ''}" style="width:100%; padding:4px;"></td></tr>
-          <tr><td>Sex:</td><td>
+          <tr><td style="padding:4px 6px; color:#555; white-space:nowrap;">Name:</td><td><input type="text" id="profile-name" value="${loggedInUser.name || ''}" style="width:100%; padding:4px;"></td></tr>
+          <tr><td style="padding:4px 6px; color:#555; white-space:nowrap;">Birth Date:</td><td><input type="date" id="profile-dob" value="${loggedInUser.dob ? loggedInUser.dob.split('T')[0] : ''}" onchange="calculateAge()" style="width:100%; padding:4px;"></td></tr>
+          <tr><td style="padding:4px 6px; color:#555; white-space:nowrap;">Age:</td><td><input type="number" id="profile-age" value="${loggedInUser.age || ''}" style="width:100%; padding:4px;"></td></tr>
+          <tr><td style="padding:4px 6px; color:#555; white-space:nowrap;">Gender:</td><td>
             <select id="profile-gender" style="width:100%; padding:4px;">
               <option ${loggedInUser.gender==='Male'?'selected':''}>Male</option>
               <option ${loggedInUser.gender==='Female'?'selected':''}>Female</option>
             </select>
           </td></tr>
-          <tr><td>Status:</td><td>
+          <tr><td style="padding:4px 6px; color:#555; white-space:nowrap;">Civil Status:</td><td>
             <select id="profile-status" style="width:100%; padding:4px;">
               <option ${loggedInUser.status==='Single'?'selected':''}>Single</option>
               <option ${loggedInUser.status==='Married'?'selected':''}>Married</option>
@@ -803,9 +803,25 @@ function showMyProfile() {
               <option ${loggedInUser.status==='Separated'?'selected':''}>Separated</option>
             </select>
           </td></tr>
-          <tr><td>Religion:</td><td><input type="text" id="profile-religion" value="${loggedInUser.religion || ''}" style="width:100%; padding:4px;"></td></tr>
-          <tr><td>House Address:</td><td><input type="text" id="profile-address" value="${loggedInUser.address || ''}" style="width:100%; padding:4px;"></td></tr>
-          <tr><td>Barangay:</td><td>
+          <tr><td style="padding:4px 6px; color:#555; white-space:nowrap;">Place of Birth:</td><td><input type="text" id="profile-place-of-birth" value="${loggedInUser.place_of_birth || ''}" style="width:100%; padding:4px;"></td></tr>
+          <tr><td style="padding:4px 6px; color:#555; white-space:nowrap;">Nationality:</td><td><input type="text" id="profile-nationality" value="${loggedInUser.nationality || ''}" style="width:100%; padding:4px;"></td></tr>
+          <tr><td style="padding:4px 6px; color:#555; white-space:nowrap;">Blood Type:</td><td>
+            <select id="profile-blood-type" style="width:100%; padding:4px;">
+              <option value="">-- Select --</option>
+              ${['A+','A-','B+','B-','AB+','AB-','O+','O-','Unknown'].map(bt =>
+                `<option ${loggedInUser.blood_type===bt?'selected':''}>${bt}</option>`).join('')}
+            </select>
+          </td></tr>
+          <tr><td style="padding:4px 6px; color:#555; white-space:nowrap;">Voter Status:</td><td>
+            <select id="profile-voter-status" style="width:100%; padding:4px;">
+              <option value="">-- Select --</option>
+              <option ${loggedInUser.voter_status==='Registered'?'selected':''}>Registered</option>
+              <option ${loggedInUser.voter_status==='Not Registered'?'selected':''}>Not Registered</option>
+            </select>
+          </td></tr>
+          <tr><td style="padding:4px 6px; color:#555; white-space:nowrap;">Religion:</td><td><input type="text" id="profile-religion" value="${loggedInUser.religion || ''}" style="width:100%; padding:4px;"></td></tr>
+          <tr><td style="padding:4px 6px; color:#555; white-space:nowrap;">House Address:</td><td><input type="text" id="profile-address" value="${loggedInUser.address || ''}" style="width:100%; padding:4px;"></td></tr>
+          <tr><td style="padding:4px 6px; color:#555; white-space:nowrap;">Barangay:</td><td>
             <select id="profile-barangay" style="width:100%; padding:4px;">
               <option value="Trapiche 1" ${loggedInUser.barangay==='Trapiche 1'?'selected':''}>Trapiche 1</option>
               <option value="Trapiche 2" ${loggedInUser.barangay==='Trapiche 2'?'selected':''}>Trapiche 2</option>
@@ -813,13 +829,29 @@ function showMyProfile() {
               <option value="Trapiche 4" ${loggedInUser.barangay==='Trapiche 4'?'selected':''}>Trapiche 4</option>
             </select>
           </td></tr>
+          <tr><td style="padding:4px 6px; color:#555; white-space:nowrap;">Education:</td><td>
+            <select id="profile-education" style="width:100%; padding:4px;">
+              <option value="">-- Select --</option>
+              ${['No Formal Education','Elementary','High School','Senior High School','Vocational / Technical','College','Post Graduate'].map(e =>
+                `<option ${loggedInUser.educational_attainment===e?'selected':''}>${e}</option>`).join('')}
+            </select>
+          </td></tr>
+          <tr><td style="padding:4px 6px; color:#555; white-space:nowrap;">Household Role:</td><td>
+            <select id="profile-household-role" style="width:100%; padding:4px;">
+              <option value="">-- Select --</option>
+              ${['Head','Spouse','Child','Parent','Sibling','Grandchild','Grandparent','Relative','Non-Relative'].map(r =>
+                `<option ${loggedInUser.household_role===r?'selected':''}>${r}</option>`).join('')}
+            </select>
+          </td></tr>
+          <tr><td style="padding:4px 6px; color:#555; white-space:nowrap;">Spouse Name:</td><td><input type="text" id="profile-spouse" value="${loggedInUser.spouse || ''}" style="width:100%; padding:4px;"></td></tr>
+          <tr><td style="padding:4px 6px; color:#555; white-space:nowrap;">Children Names:</td><td><input type="text" id="profile-children-names" value="${loggedInUser.children_names || ''}" placeholder="comma-separated" style="width:100%; padding:4px;"></td></tr>
         </table>
       </div>
       <div style="background:#f4f7ff; padding:12px; border-radius:10px; box-shadow:0 2px 6px rgba(0,0,0,0.1); flex:1; min-width:240px; max-width:600px; box-sizing:border-box; width:100%;">
         <h3>Family & Contact</h3>
 <table style="width:100%; border-collapse:collapse;">
   <tr>
-    <td>PWD:</td>
+    <td style="padding:4px 6px; color:#555; white-space:nowrap;">PWD:</td>
     <td>
       <select id="profile-pwd" style="width:100%; padding:4px;">
         <option ${loggedInUser.pwd === 'No' ? 'selected' : ''}>No</option>
@@ -828,16 +860,20 @@ function showMyProfile() {
     </td>
   </tr>
   <tr>
-    <td>Contact:</td>
-    <td>
-      <input type="text" id="profile-contact" value="${loggedInUser.contact || ''}" style="width:100%; padding:4px;">
-    </td>
+    <td style="padding:4px 6px; color:#555; white-space:nowrap;">Contact:</td>
+    <td><input type="text" id="profile-contact" value="${loggedInUser.contact || ''}" style="width:100%; padding:4px;"></td>
   </tr>
   <tr>
-    <td>Email:</td>
-    <td>
-      <input type="email" id="profile-email" value="${loggedInUser.email || ''}" style="width:100%; padding:4px;">
-    </td>
+    <td style="padding:4px 6px; color:#555; white-space:nowrap;">Email:</td>
+    <td><input type="email" id="profile-email" value="${loggedInUser.email || ''}" style="width:100%; padding:4px;"></td>
+  </tr>
+  <tr>
+    <td style="padding:4px 6px; color:#555; white-space:nowrap;">Emergency Contact:</td>
+    <td><input type="text" id="profile-emergency-name" value="${loggedInUser.emergency_contact_name || ''}" placeholder="Contact person name" style="width:100%; padding:4px;"></td>
+  </tr>
+  <tr>
+    <td style="padding:4px 6px; color:#555; white-space:nowrap;">Emergency No.:</td>
+    <td><input type="text" id="profile-emergency-number" value="${loggedInUser.emergency_contact_number || ''}" placeholder="Contact person number" style="width:100%; padding:4px;"></td>
   </tr>
 </table>
 
@@ -880,12 +916,27 @@ function updateProfile(){
     return;
   }
 
+  const place_of_birth  = document.getElementById('profile-place-of-birth')?.value?.trim() || null;
+  const nationality     = document.getElementById('profile-nationality')?.value?.trim() || null;
+  const blood_type      = document.getElementById('profile-blood-type')?.value || null;
+  const voter_status    = document.getElementById('profile-voter-status')?.value || null;
+  const education       = document.getElementById('profile-education')?.value || null;
+  const household_role  = document.getElementById('profile-household-role')?.value || null;
+  const spouse          = document.getElementById('profile-spouse')?.value?.trim() || null;
+  const children_names  = document.getElementById('profile-children-names')?.value?.trim() || null;
+  const emergency_contact_name   = document.getElementById('profile-emergency-name')?.value?.trim() || null;
+  const emergency_contact_number = document.getElementById('profile-emergency-number')?.value?.trim() || null;
+
   const updatedData = {
     name, religion, pwd, dob, address,
     age: parseInt(age),
     senior: parseInt(age) >= 60 ? 'Yes' : 'No',
     gender, status, barangay, contact, email,
-    spouse: '', sons: 0, daughters: 0, family_members: 0
+    spouse, sons: 0, daughters: 0, family_members: 0,
+    place_of_birth, nationality, blood_type, voter_status,
+    educational_attainment: education,
+    household_role, children_names,
+    emergency_contact_name, emergency_contact_number
   };
 
   const sanitized = {};
