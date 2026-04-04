@@ -1769,31 +1769,8 @@ function handleCredentialResponse(response) {
   });
 }
 
-// Hide all pages immediately before anything renders
-(function() {
-  const savedUser = localStorage.getItem("user");
-  if (savedUser) {
-    try {
-      const user = JSON.parse(savedUser);
-      if (user && user.role) {
-        // Immediately hide login page to prevent flash
-        document.addEventListener('DOMContentLoaded', () => {
-          document.getElementById('login-page').style.display = 'none';
-          document.getElementById('resident-form').style.display = 'none';
-          document.getElementById('forgot-page').style.display = 'none';
-        });
-      }
-    } catch(e) {}
-  }
-})();
-
 window.addEventListener('load', () => {
   const savedUser = localStorage.getItem("user");
-
-  // Always hide login page first to prevent flash
-  document.getElementById('login-page').style.display = 'none';
-  document.getElementById('resident-form').style.display = 'none';
-  document.getElementById('forgot-page').style.display = 'none';
 
   if (savedUser) {
     try {
@@ -1801,14 +1778,15 @@ window.addEventListener('load', () => {
       currentRole = loggedInUser.role;
 
       if (currentRole === 'manager') {
+        document.getElementById('login-page').style.display = 'none';
         openManagerPage();
       } else if (currentRole === 'dswd') {
+        document.getElementById('login-page').style.display = 'none';
         openDSWDPage();
       } else if (currentRole === 'resident') {
-        // Show dashboard immediately with cached data first
+        document.getElementById('login-page').style.display = 'none';
         showDashboard();
         renderResidentWelcome();
-        // Then silently refresh profile in background
         fetch(`${API_BASE}/api/residents-profile?username=${loggedInUser.username}`)
           .then(r => r.json())
           .then(profileData => {
@@ -1821,11 +1799,7 @@ window.addEventListener('load', () => {
       }
     } catch (e) {
       localStorage.removeItem("user");
-      document.getElementById('login-page').style.display = 'flex';
     }
-  } else {
-    // No saved user, show login
-    document.getElementById('login-page').style.display = 'flex';
   }
 });
 
