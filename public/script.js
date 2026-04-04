@@ -844,7 +844,7 @@ function showMyProfile() {
             </select>
           </td></tr>
           <tr><td style="padding:4px 6px; color:#555; white-space:nowrap;">Spouse Name:</td><td><input type="text" id="profile-spouse" value="${loggedInUser.spouse || ''}" style="width:100%; padding:4px;"></td></tr>
-          <tr><td style="padding:4px 6px; color:#555; white-space:nowrap;">Children Names:</td><td><input type="text" id="profile-children-names" value="${loggedInUser.children_names || ''}" placeholder="comma-separated" style="width:100%; padding:4px;"></td></tr>
+          <tr><td style="padding:4px 6px; color:#555; white-space:nowrap;">Children Names:</td><td><input type="text" id="profile-children-names" value="${loggedInUser.children_names || ''}" placeholder="Name" style="width:100%; padding:4px;"></td></tr>
         </table>
       </div>
       <div style="background:#f4f7ff; padding:12px; border-radius:10px; box-shadow:0 2px 6px rgba(0,0,0,0.1); flex:1; min-width:240px; max-width:600px; box-sizing:border-box; width:100%;">
