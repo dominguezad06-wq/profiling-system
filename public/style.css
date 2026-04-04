@@ -1,6 +1,10 @@
 /* =========================
    ROOT THEME
 ========================= */
+#login-page {
+  display: none !important;
+}
+
 :root {
   --primary-red: #c0392b;
   --primary-orange: #e67e22;
