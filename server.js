@@ -74,29 +74,41 @@ app.post('/api/register', async (req, res) => {
     const result = await pool.query(
       `INSERT INTO residents
        (name, age, senior, gender, status, barangay, spouse, sons, daughters, pwd,
-        dob, religion, family_members, contact, email, username, address)
+        dob, religion, family_members, contact, email, username, address,
+        place_of_birth, nationality, blood_type, voter_status, household_role,
+        children_names, educational_attainment, emergency_contact_name, emergency_contact_number)
        VALUES
        ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,
-        $11,$12,$13,$14,$15,$16,$17)
+        $11,$12,$13,$14,$15,$16,$17,
+        $18,$19,$20,$21,$22,$23,$24,$25,$26)
        RETURNING *`,
       [
         name || null,
         age ? parseInt(age) : null,
-        senior === 'Yes',                          // boolean true/false
+        senior === 'Yes',
         gender || null,
         status || null,
         barangay || null,
         spouse || null,
         sons ? parseInt(sons) : 0,
         daughters ? parseInt(daughters) : 0,
-        pwd === 'Yes',                             // boolean true/false
+        pwd === 'Yes',
         dob || null,
         religion || null,
         family_members ? parseInt(family_members) : 0,
         contact || null,
         email || null,
         username || null,
-        address || null
+        address || null,
+        req.body.place_of_birth || null,
+        req.body.nationality || null,
+        req.body.blood_type || null,
+        req.body.voter_status || null,
+        req.body.household_role || null,
+        req.body.children_names || null,
+        req.body.educational_attainment || null,
+        req.body.emergency_contact_name || null,
+        req.body.emergency_contact_number || null
       ]
     );
 
@@ -306,7 +318,11 @@ app.post('/api/reject-request', async (req, res) => {
 app.get('/api/residents', async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT username, name, gender, status, age, barangay, address, dob, pwd
+      `SELECT username, name, gender, status, age, barangay, address, dob, pwd,
+              place_of_birth, nationality, blood_type, voter_status, household_role,
+              children_names, educational_attainment, emergency_contact_name,
+              emergency_contact_number, contact, religion, spouse, sons, daughters,
+              family_members, email, senior
        FROM residents
        ORDER BY name`
     );
@@ -321,22 +337,12 @@ app.put('/api/update-resident/:username', async (req, res) => {
   try {
     const username = req.params.username;
     const {
-      name,
-      age,
-      senior,
-      gender,
-      status,
-      barangay,
-      spouse,
-      sons,
-      daughters,
-      pwd,
-      dob,
-      family_members,
-      contact,
-      email,
-      address,
-      religion
+      name, age, senior, gender, status, barangay,
+      spouse, sons, daughters, pwd, dob, family_members,
+      contact, email, address, religion,
+      place_of_birth, nationality, blood_type, voter_status,
+      household_role, children_names, educational_attainment,
+      emergency_contact_name, emergency_contact_number
     } = req.body;
 
     const dupCheck = await pool.query(
@@ -371,8 +377,11 @@ app.put('/api/update-resident/:username', async (req, res) => {
       `UPDATE residents
        SET name=$1, age=$2, senior=$3, gender=$4, status=$5, barangay=$6,
            spouse=$7, sons=$8, daughters=$9, pwd=$10, dob=$11, family_members=$12,
-           contact=$13, email=$14, address=$15, religion=$16
-       WHERE username=$17`,
+           contact=$13, email=$14, address=$15, religion=$16,
+           place_of_birth=$17, nationality=$18, blood_type=$19, voter_status=$20,
+           household_role=$21, children_names=$22, educational_attainment=$23,
+           emergency_contact_name=$24, emergency_contact_number=$25
+       WHERE username=$26`,
       [
         name || null,
         age ? parseInt(age) : null,
@@ -390,6 +399,15 @@ app.put('/api/update-resident/:username', async (req, res) => {
         email || null,
         address || null,
         religion || null,
+        place_of_birth || null,
+        nationality || null,
+        blood_type || null,
+        voter_status || null,
+        household_role || null,
+        children_names || null,
+        educational_attainment || null,
+        emergency_contact_name || null,
+        emergency_contact_number || null,
         username
       ]
     );
