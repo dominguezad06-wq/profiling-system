@@ -60,25 +60,32 @@ app.post('/api/register', async (req, res) => {
     if (!name || !username || !password)
       return res.status(400).json({ error: 'Missing required fields' });
 
-    // Check for duplicate resident (same name + barangay + age + dob + address)
-    const duplicate = await pool.query(
-      `SELECT username FROM residents 
-       WHERE LOWER(name)=LOWER($1) 
-       AND barangay=$2 
-       AND age=$3
-       AND ($4::date IS NULL OR dob=$4::date)
-       AND ($5::text IS NULL OR LOWER(address)=LOWER($5))
+    // Check for duplicate: if 3 or more of (name, age, barangay, address, dob) match
+    const dupCheck = await pool.query(
+      `SELECT username,
+        (CASE WHEN LOWER(name)=LOWER($1) THEN 1 ELSE 0 END +
+         CASE WHEN age=$2 THEN 1 ELSE 0 END +
+         CASE WHEN barangay=$3 THEN 1 ELSE 0 END +
+         CASE WHEN $4::text IS NOT NULL AND LOWER(address)=LOWER($4) THEN 1 ELSE 0 END +
+         CASE WHEN $5::date IS NOT NULL AND dob=$5::date THEN 1 ELSE 0 END
+        ) AS match_score
+       FROM residents
+       HAVING (CASE WHEN LOWER(name)=LOWER($1) THEN 1 ELSE 0 END +
+               CASE WHEN age=$2 THEN 1 ELSE 0 END +
+               CASE WHEN barangay=$3 THEN 1 ELSE 0 END +
+               CASE WHEN $4::text IS NOT NULL AND LOWER(address)=LOWER($4) THEN 1 ELSE 0 END +
+               CASE WHEN $5::date IS NOT NULL AND dob=$5::date THEN 1 ELSE 0 END
+              ) >= 3
        LIMIT 1`,
-      [name, barangay, age ? parseInt(age) : null, dob || null, address || null]
+      [name, age ? parseInt(age) : null, barangay, address || null, dob || null]
     );
 
-    if (duplicate.rows.length > 0) {
-      const oldUsername = duplicate.rows[0].username;
-      // Delete old duplicate records
+    if (dupCheck.rows.length > 0) {
+      const oldUsername = dupCheck.rows[0].username;
       await pool.query(`DELETE FROM document_requests WHERE username=$1`, [oldUsername]);
       await pool.query(`DELETE FROM residents WHERE username=$1`, [oldUsername]);
       await pool.query(`DELETE FROM users WHERE username=$1`, [oldUsername]);
-      console.log(`Duplicate removed: ${oldUsername}`);
+      console.log(`Duplicate removed (3+ field match): ${oldUsername}`);
     }
 
     const hashedPw = await bcrypt.hash(password, 10);
