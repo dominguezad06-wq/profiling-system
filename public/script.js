@@ -860,22 +860,20 @@ document.getElementById('profile-spouse')?.addEventListener('change', function()
   if(this.value !== 'custom') txt.value = '';
 });
 </script>
-          <tr><td style="padding:4px 6px; color:#555; white-space:nowrap;">Children Names:</td><td>
-  <select id="profile-children-names-select" style="width:100%; padding:4px;">
-    <option value="N/A" ${!loggedInUser.children_names || loggedInUser.children_names==='N/A'?'selected':''}>N/A</option>
-    <option value="custom" ${loggedInUser.children_names && loggedInUser.children_names!=='N/A'?'selected':''}>Enter names...</option>
-  </select>
-  <input type="text" id="profile-children-names" value="${loggedInUser.children_names && loggedInUser.children_names!=='N/A' ? loggedInUser.children_names : ''}"
-    placeholder="e.g. Juan, Maria"
-    style="width:100%; padding:4px; margin-top:4px; display:${loggedInUser.children_names && loggedInUser.children_names!=='N/A'?'block':'none'};">
+          <tr><td style="padding:4px 6px; color:#555; white-space:nowrap; vertical-align:top; padding-top:10px;">Children:</td><td>
+  <div style="display:flex; gap:8px; margin-bottom:8px;">
+    <button type="button" onclick="setChildrenNA()" id="btn-children-na"
+      style="flex:1; padding:6px; border-radius:6px; border:2px solid #1a3f6c; background:#1a3f6c; color:white; font-size:13px; cursor:pointer;">
+      N/A
+    </button>
+    <button type="button" onclick="addChildRow()" id="btn-children-add"
+      style="flex:1; padding:6px; border-radius:6px; border:2px solid #1a3f6c; background:#fff; color:#1a3f6c; font-size:13px; cursor:pointer;">
+      + Add Child
+    </button>
+  </div>
+  <div id="children-list" style="display:flex; flex-direction:column; gap:6px;"></div>
+  <input type="hidden" id="profile-children-names" value="${loggedInUser.children_names || 'N/A'}">
 </td></tr>
-<script>
-document.getElementById('profile-children-names-select')?.addEventListener('change', function(){
-  const txt = document.getElementById('profile-children-names');
-  txt.style.display = this.value === 'custom' ? 'block' : 'none';
-  if(this.value !== 'custom') txt.value = '';
-});
-</script>
         </table>
       </div>
       <div style="background:#f4f7ff; padding:12px; border-radius:10px; box-shadow:0 2px 6px rgba(0,0,0,0.1); flex:1; min-width:240px; max-width:600px; box-sizing:border-box; width:100%;">
@@ -915,6 +913,7 @@ document.getElementById('profile-children-names-select')?.addEventListener('chan
       </div>
     </div>
   `;
+  setTimeout(initChildrenList, 0);
 }
 
 function updateProfile(){
@@ -957,10 +956,7 @@ function updateProfile(){
   const spouse          = spouseSelect === 'custom'
     ? (document.getElementById('profile-spouse-text')?.value?.trim() || null)
     : 'N/A';
-  const childrenSelect  = document.getElementById('profile-children-names-select')?.value;
-  const children_names  = childrenSelect === 'custom'
-    ? (document.getElementById('profile-children-names')?.value?.trim() || null)
-    : 'N/A';
+  const children_names  = document.getElementById('profile-children-names')?.value?.trim() || 'N/A';
   const emergency_contact_name   = document.getElementById('profile-emergency-name')?.value?.trim() || null;
   const emergency_contact_number = document.getElementById('profile-emergency-number')?.value?.trim() || null;
 
@@ -1053,6 +1049,98 @@ function showProfileBanner(type, message) {
   }
 
   setTimeout(() => { if (banner.parentNode) banner.remove(); }, 4000);
+}
+
+function initChildrenList() {
+  const raw = document.getElementById('profile-children-names')?.value || 'N/A';
+  const list = document.getElementById('children-list');
+  if (!list) return;
+  list.innerHTML = '';
+  if (raw === 'N/A' || raw.trim() === '') {
+    _highlightChildrenBtn('na');
+    return;
+  }
+  _highlightChildrenBtn('add');
+  // Parse stored format: "Name(Gender,Age); Name(Gender,Age)"
+  raw.split(';').forEach(entry => {
+    entry = entry.trim();
+    if (!entry) return;
+    const match = entry.match(/^(.+?)\(([^,]+),\s*(\d+)\)$/);
+    if (match) {
+      _appendChildRow(match[1].trim(), match[2].trim(), match[3].trim());
+    } else {
+      _appendChildRow(entry, '', '');
+    }
+  });
+  _syncChildrenHidden();
+}
+
+function setChildrenNA() {
+  document.getElementById('children-list').innerHTML = '';
+  document.getElementById('profile-children-names').value = 'N/A';
+  _highlightChildrenBtn('na');
+}
+
+function addChildRow() {
+  _highlightChildrenBtn('add');
+  _appendChildRow('', '', '');
+  _syncChildrenHidden();
+}
+
+function _appendChildRow(name, gender, age) {
+  const list = document.getElementById('children-list');
+  const idx = list.children.length;
+  const row = document.createElement('div');
+  row.style.cssText = 'display:flex; gap:6px; align-items:center; background:#f4f7ff; padding:6px 8px; border-radius:8px; border:0.5px solid #ddd;';
+  row.innerHTML = `
+    <input type="text" placeholder="Name" value="${name}"
+      style="flex:2; padding:5px 8px; border-radius:6px; border:1px solid #ccc; font-size:13px;"
+      oninput="_syncChildrenHidden()">
+    <select style="flex:1; padding:5px 6px; border-radius:6px; border:1px solid #ccc; font-size:13px;"
+      onchange="_syncChildrenHidden()">
+      <option value="" ${gender===''?'selected':''}>Sex</option>
+      <option value="Male" ${gender==='Male'?'selected':''}>Male</option>
+      <option value="Female" ${gender==='Female'?'selected':''}>Female</option>
+    </select>
+    <input type="number" placeholder="Age" value="${age}" min="0" max="99"
+      style="flex:1; padding:5px 8px; border-radius:6px; border:1px solid #ccc; font-size:13px; width:56px;"
+      oninput="_syncChildrenHidden()">
+    <button type="button" onclick="this.closest('div').remove(); _syncChildrenHidden();"
+      style="background:#c0392b; color:white; border:none; border-radius:6px; padding:5px 10px; font-size:13px; cursor:pointer;">✕</button>
+  `;
+  list.appendChild(row);
+}
+
+function _syncChildrenHidden() {
+  const list = document.getElementById('children-list');
+  const hidden = document.getElementById('profile-children-names');
+  if (!list || !hidden) return;
+  if (list.children.length === 0) {
+    hidden.value = 'N/A';
+    return;
+  }
+  const parts = [];
+  Array.from(list.children).forEach(row => {
+    const inputs = row.querySelectorAll('input, select');
+    const name   = inputs[0]?.value?.trim() || '';
+    const gender = inputs[1]?.value || '';
+    const age    = inputs[2]?.value?.trim() || '';
+    if (name) parts.push(`${name}(${gender},${age})`);
+  });
+  hidden.value = parts.length > 0 ? parts.join('; ') : 'N/A';
+}
+
+function _highlightChildrenBtn(active) {
+  const naBtn  = document.getElementById('btn-children-na');
+  const addBtn = document.getElementById('btn-children-add');
+  if (!naBtn || !addBtn) return;
+  if (active === 'na') {
+    naBtn.style.background  = '#1a3f6c'; naBtn.style.color  = 'white';
+    addBtn.style.background = '#fff';    addBtn.style.color = '#1a3f6c';
+  } else {
+    addBtn.style.background = '#1a3f6c'; addBtn.style.color  = 'white';
+    naBtn.style.background  = '#fff';    naBtn.style.color   = '#1a3f6c';
+  }
 }
 
 function requestDocument() {
