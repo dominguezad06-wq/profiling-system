@@ -384,7 +384,7 @@ function showAgeStats() {
         <div style="flex:1.2; background:#fff; border-radius:12px; border:0.5px solid #e0e0e0; overflow:hidden;">
           <div style="display:flex; align-items:center; justify-content:space-between; padding:18px 22px; border-bottom:0.5px solid #eee;">
             <span style="font-size:17px; font-weight:500; color:#1a1a1a;">Age group breakdown</span>
-            <span style="font-size:13px; color:#aaa;">Select a row to view residents</span>
+            <span style="font-size:18px; color:#aaa;">Select a row to view residents</span>
           </div>
           <div style="display:flex; gap:20px; padding:12px 22px; border-bottom:0.5px solid #f0f0f0;">
             <span style="display:flex; align-items:center; gap:6px; font-size:14px; color:#666;">
