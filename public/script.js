@@ -804,7 +804,7 @@ function showMyProfile() {
             </select>
           </td></tr>
           <tr><td style="padding:4px 6px; color:#555; white-space:nowrap;">Place of Birth:</td><td><input type="text" id="profile-place-of-birth" value="${loggedInUser.place_of_birth || ''}" style="width:100%; padding:4px;"></td></tr>
-          <tr><td style="padding:4px 6px; color:#555; white-space:nowrap;">Nationality:</td><td><input type="text" id="profile-nationality" value="${loggedInUser.nationality || ''}" style="width:100%; padding:4px;"></td></tr>
+
           <tr><td style="padding:4px 6px; color:#555; white-space:nowrap;">Blood Type:</td><td>
             <select id="profile-blood-type" style="width:100%; padding:4px;">
               <option value="">-- Select --</option>
@@ -843,8 +843,39 @@ function showMyProfile() {
                 `<option ${loggedInUser.household_role===r?'selected':''}>${r}</option>`).join('')}
             </select>
           </td></tr>
-          <tr><td style="padding:4px 6px; color:#555; white-space:nowrap;">Spouse Name:</td><td><input type="text" id="profile-spouse" value="${loggedInUser.spouse || ''}" style="width:100%; padding:4px;"></td></tr>
-          <tr><td style="padding:4px 6px; color:#555; white-space:nowrap;">Children Names:</td><td><input type="text" id="profile-children-names" value="${loggedInUser.children_names || ''}" placeholder="Name" style="width:100%; padding:4px;"></td></tr>
+          <tr><td style="padding:4px 6px; color:#555; white-space:nowrap;">Spouse Name:</td><td>
+  <select id="profile-spouse" style="width:100%; padding:4px;">
+    <option value="N/A" ${!loggedInUser.spouse || loggedInUser.spouse==='N/A'?'selected':''}>N/A</option>
+    <option value="custom" ${loggedInUser.spouse && loggedInUser.spouse!=='N/A'?'selected':''}>Enter name...</option>
+  </select>
+  <input type="text" id="profile-spouse-text" value="${loggedInUser.spouse && loggedInUser.spouse!=='N/A' ? loggedInUser.spouse : ''}"
+    placeholder="Spouse name"
+    style="width:100%; padding:4px; margin-top:4px; display:${loggedInUser.spouse && loggedInUser.spouse!=='N/A'?'block':'none'};"
+    oninput="">
+</td></tr>
+<script>
+document.getElementById('profile-spouse')?.addEventListener('change', function(){
+  const txt = document.getElementById('profile-spouse-text');
+  txt.style.display = this.value === 'custom' ? 'block' : 'none';
+  if(this.value !== 'custom') txt.value = '';
+});
+</script>
+          <tr><td style="padding:4px 6px; color:#555; white-space:nowrap;">Children Names:</td><td>
+  <select id="profile-children-names-select" style="width:100%; padding:4px;">
+    <option value="N/A" ${!loggedInUser.children_names || loggedInUser.children_names==='N/A'?'selected':''}>N/A</option>
+    <option value="custom" ${loggedInUser.children_names && loggedInUser.children_names!=='N/A'?'selected':''}>Enter names...</option>
+  </select>
+  <input type="text" id="profile-children-names" value="${loggedInUser.children_names && loggedInUser.children_names!=='N/A' ? loggedInUser.children_names : ''}"
+    placeholder="e.g. Juan, Maria"
+    style="width:100%; padding:4px; margin-top:4px; display:${loggedInUser.children_names && loggedInUser.children_names!=='N/A'?'block':'none'};">
+</td></tr>
+<script>
+document.getElementById('profile-children-names-select')?.addEventListener('change', function(){
+  const txt = document.getElementById('profile-children-names');
+  txt.style.display = this.value === 'custom' ? 'block' : 'none';
+  if(this.value !== 'custom') txt.value = '';
+});
+</script>
         </table>
       </div>
       <div style="background:#f4f7ff; padding:12px; border-radius:10px; box-shadow:0 2px 6px rgba(0,0,0,0.1); flex:1; min-width:240px; max-width:600px; box-sizing:border-box; width:100%;">
@@ -917,13 +948,19 @@ function updateProfile(){
   }
 
   const place_of_birth  = document.getElementById('profile-place-of-birth')?.value?.trim() || null;
-  const nationality     = document.getElementById('profile-nationality')?.value?.trim() || null;
+  
   const blood_type      = document.getElementById('profile-blood-type')?.value || null;
   const voter_status    = document.getElementById('profile-voter-status')?.value || null;
   const education       = document.getElementById('profile-education')?.value || null;
   const household_role  = document.getElementById('profile-household-role')?.value || null;
-  const spouse          = document.getElementById('profile-spouse')?.value?.trim() || null;
-  const children_names  = document.getElementById('profile-children-names')?.value?.trim() || null;
+  const spouseSelect    = document.getElementById('profile-spouse')?.value;
+  const spouse          = spouseSelect === 'custom'
+    ? (document.getElementById('profile-spouse-text')?.value?.trim() || null)
+    : 'N/A';
+  const childrenSelect  = document.getElementById('profile-children-names-select')?.value;
+  const children_names  = childrenSelect === 'custom'
+    ? (document.getElementById('profile-children-names')?.value?.trim() || null)
+    : 'N/A';
   const emergency_contact_name   = document.getElementById('profile-emergency-name')?.value?.trim() || null;
   const emergency_contact_number = document.getElementById('profile-emergency-number')?.value?.trim() || null;
 
@@ -933,7 +970,7 @@ function updateProfile(){
     senior: parseInt(age) >= 60 ? 'Yes' : 'No',
     gender, status, barangay, contact, email,
     spouse, sons: 0, daughters: 0, family_members: 0,
-    place_of_birth, nationality, blood_type, voter_status,
+    place_of_birth, blood_type, voter_status,
     educational_attainment: education,
     household_role, children_names,
     emergency_contact_name, emergency_contact_number
