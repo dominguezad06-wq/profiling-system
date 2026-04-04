@@ -1,10 +1,6 @@
 /* =========================
    ROOT THEME
 ========================= */
-#login-page {
-  display: none !important;
-}
-
 :root {
   --primary-red: #c0392b;
   --primary-orange: #e67e22;
@@ -490,7 +486,7 @@ tbody tr:nth-child(even) {
 /* Force login page to always be centered full screen */
 #login-page {
   min-height: 100vh;
-  display: flex !important;
+  display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
