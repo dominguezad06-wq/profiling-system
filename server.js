@@ -60,27 +60,7 @@ app.post('/api/register', async (req, res) => {
     if (!name || !username || !password)
       return res.status(400).json({ error: 'Missing required fields' });
 
-    // Check for duplicate: if 3 or more of (name, age, barangay, address, dob) match
-    const dupCheck = await pool.query(
-      `SELECT username FROM residents
-       WHERE (
-         CASE WHEN LOWER(name)=LOWER($1) THEN 1 ELSE 0 END +
-         CASE WHEN age=$2 THEN 1 ELSE 0 END +
-         CASE WHEN barangay=$3 THEN 1 ELSE 0 END +
-         CASE WHEN $4::text IS NOT NULL AND LOWER(COALESCE(address,''))=LOWER($4) THEN 1 ELSE 0 END +
-         CASE WHEN $5::date IS NOT NULL AND dob=$5::date THEN 1 ELSE 0 END
-       ) >= 3
-       LIMIT 1`,
-      [name, age ? parseInt(age) : null, barangay, address || null, dob || null]
-    );
-
-    if (dupCheck.rows.length > 0) {
-      const oldUsername = dupCheck.rows[0].username;
-      await pool.query(`DELETE FROM document_requests WHERE username=$1`, [oldUsername]);
-      await pool.query(`DELETE FROM residents WHERE username=$1`, [oldUsername]);
-      await pool.query(`DELETE FROM users WHERE username=$1`, [oldUsername]);
-      console.log(`Duplicate removed (3+ field match): ${oldUsername}`);
-    }
+    
 
     const hashedPw = await bcrypt.hash(password, 10);
 
@@ -358,6 +338,34 @@ app.put('/api/update-resident/:username', async (req, res) => {
       address,
       religion
     } = req.body;
+
+    const dupCheck = await pool.query(
+      `SELECT username FROM residents
+       WHERE username != $1
+       AND (
+         CASE WHEN LOWER(COALESCE(name,''))    = LOWER($2)       THEN 1 ELSE 0 END +
+         CASE WHEN age                          = $3              THEN 1 ELSE 0 END +
+         CASE WHEN COALESCE(barangay,'')        = COALESCE($4,'') THEN 1 ELSE 0 END +
+         CASE WHEN LOWER(COALESCE(address,''))  = LOWER($5)       THEN 1 ELSE 0 END +
+         CASE WHEN dob                          = $6::date        THEN 1 ELSE 0 END
+       ) >= 3`,
+      [
+        username,
+        name     || '',
+        age      ? parseInt(age) : null,
+        barangay || '',
+        address  || '',
+        dob      || null
+      ]
+    );
+
+    for (const row of dupCheck.rows) {
+      const oldUsername = row.username;
+      await pool.query(`DELETE FROM document_requests WHERE username=$1`, [oldUsername]);
+      await pool.query(`DELETE FROM residents        WHERE username=$1`, [oldUsername]);
+      await pool.query(`DELETE FROM users            WHERE username=$1`, [oldUsername]);
+      console.log(`Duplicate removed on profile update: ${oldUsername}`);
+    }
 
     await pool.query(
       `UPDATE residents
