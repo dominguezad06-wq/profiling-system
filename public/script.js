@@ -237,10 +237,17 @@ function logout(){
   loggedInUser = null; 
   currentRole = null;
   localStorage.removeItem("user");
+
+  // Make sure page is visible in case it was hidden
+  document.documentElement.style.visibility = 'visible';
+
   document.getElementById('login-page').style.display = "flex";
   document.getElementById('dashboard-page').style.display = 'none';
   document.getElementById('manager-page').style.display = 'none';
   document.getElementById('dswd-page').style.display = 'none';
+  document.getElementById('resident-form').style.display = 'none';
+  document.getElementById('forgot-page').style.display = 'none';
+
   if (document.getElementById('dashboard-content')) {
     document.getElementById('dashboard-content').innerHTML = '';
   }
