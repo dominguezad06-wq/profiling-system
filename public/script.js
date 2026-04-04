@@ -556,7 +556,7 @@ function showBarangayStats() {
         <div style="flex:1.4; background:#fff; border-radius:12px; border:0.5px solid #e0e0e0; overflow:hidden;">
           <div style="display:flex; align-items:center; justify-content:space-between; padding:18px 22px; border-bottom:0.5px solid #eee;">
             <span style="font-size:17px; font-weight:500; color:#1a1a1a;">Barangay breakdown</span>
-            <span style="font-size:18px; color: #000;">Select a row to view residents</span>
+            <span style="font-size:18px; color: #000;Select a row to view residents</span>
           </div>
           <div style="display:flex; gap:20px; padding:12px 22px; border-bottom:0.5px solid #f0f0f0;">
             <span style="display:flex; align-items:center; gap:6px; font-size:14px; color:#666;">
@@ -1762,20 +1762,46 @@ function handleCredentialResponse(response) {
   });
 }
 
+// Hide all pages immediately before anything renders
+(function() {
+  const savedUser = localStorage.getItem("user");
+  if (savedUser) {
+    try {
+      const user = JSON.parse(savedUser);
+      if (user && user.role) {
+        // Immediately hide login page to prevent flash
+        document.addEventListener('DOMContentLoaded', () => {
+          document.getElementById('login-page').style.display = 'none';
+          document.getElementById('resident-form').style.display = 'none';
+          document.getElementById('forgot-page').style.display = 'none';
+        });
+      }
+    } catch(e) {}
+  }
+})();
+
 window.addEventListener('load', () => {
   const savedUser = localStorage.getItem("user");
+
+  // Always hide login page first to prevent flash
+  document.getElementById('login-page').style.display = 'none';
+  document.getElementById('resident-form').style.display = 'none';
+  document.getElementById('forgot-page').style.display = 'none';
+
   if (savedUser) {
     try {
       loggedInUser = JSON.parse(savedUser);
       currentRole = loggedInUser.role;
-      console.log("Restored user:", loggedInUser);
 
       if (currentRole === 'manager') {
         openManagerPage();
       } else if (currentRole === 'dswd') {
         openDSWDPage();
       } else if (currentRole === 'resident') {
-        // Re-fetch fresh profile from server to make sure username is correct
+        // Show dashboard immediately with cached data first
+        showDashboard();
+        renderResidentWelcome();
+        // Then silently refresh profile in background
         fetch(`${API_BASE}/api/residents-profile?username=${loggedInUser.username}`)
           .then(r => r.json())
           .then(profileData => {
@@ -1783,17 +1809,16 @@ window.addEventListener('load', () => {
               loggedInUser = { ...loggedInUser, ...profileData.profile };
               localStorage.setItem("user", JSON.stringify(loggedInUser));
             }
-            showDashboard();
-            renderResidentWelcome();
           })
-          .catch(() => {
-            showDashboard();
-            renderResidentWelcome();
-          });
+          .catch(() => {});
       }
     } catch (e) {
       localStorage.removeItem("user");
+      document.getElementById('login-page').style.display = 'flex';
     }
+  } else {
+    // No saved user, show login
+    document.getElementById('login-page').style.display = 'flex';
   }
 });
 
