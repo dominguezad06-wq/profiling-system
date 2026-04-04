@@ -869,6 +869,8 @@ function updateProfile(){
   if (!barangay) missing.push('Barangay');
   if (!contact)  missing.push('Contact Number');
   if (!email)    missing.push('Email');
+  if (!dob)      missing.push('Birth Date');
+  if (!religion) missing.push('Religion');
 
   if (missing.length > 0) {
     showProfileBanner('error', 'Please fill in the following field/s: ' + missing.join(', '));
