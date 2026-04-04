@@ -326,7 +326,7 @@ app.post('/api/reject-request', async (req, res) => {
 app.get('/api/residents', async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT username, name, gender, status, age, barangay, address
+      `SELECT username, name, gender, status, age, barangay, address, dob, pwd
        FROM residents
        ORDER BY name`
     );
