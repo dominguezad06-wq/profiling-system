@@ -178,7 +178,7 @@ function login() {
         showMyProfile();
       }
     } else {
-      alert(data.error || 'Invalid username or password!');
+      showLoginError('Please check Username and Password!');
     }
   })
   .catch(() => alert('Server connection error.'));
@@ -190,6 +190,47 @@ function openManagerPage(){
   document.getElementById('dswd-page').style.display = 'none';
   document.getElementById('manager-page').style.display = 'flex';
   showDocRequests();
+}
+
+function showLoginError(message) {
+  const existing = document.getElementById('login-error-banner');
+  if (existing) existing.remove();
+
+  const banner = document.createElement('div');
+  banner.id = 'login-error-banner';
+  banner.style.cssText = `
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #fdecea;
+    border: 1px solid #f5c6c6;
+    color: #c0392b;
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    margin-bottom: 12px;
+    animation: fadeIn 0.2s ease;
+  `;
+
+  banner.innerHTML = `
+    <span style="
+      width: 20px; height: 20px;
+      border-radius: 50%;
+      border: 2px solid #c0392b;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: bold; font-size: 12px; flex-shrink: 0;
+    ">!</span>
+    <span style="flex: 1;">${message}</span>
+    <span onclick="this.parentElement.remove()" style="
+      cursor: pointer; font-size: 16px; line-height: 1;
+      color: #c0392b; opacity: 0.7; padding: 0 2px;
+    ">&times;</span>
+  `;
+
+  const loginBox = document.querySelector('.login-box');
+  const firstInput = loginBox.querySelector('input');
+  loginBox.insertBefore(banner, firstInput);
 }
 
 function logout(){ 
