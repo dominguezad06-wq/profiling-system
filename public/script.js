@@ -850,41 +850,61 @@ function showMyProfile() {
 }
 
 function updateProfile(){
+  const name    = document.getElementById('profile-name')?.value?.trim();
+  const age     = document.getElementById('profile-age')?.value?.trim();
+  const gender  = document.getElementById('profile-gender')?.value;
+  const status  = document.getElementById('profile-status')?.value;
+  const barangay= document.getElementById('profile-barangay')?.value;
+  const contact = document.getElementById('profile-contact')?.value?.trim();
+  const email   = document.getElementById('profile-email')?.value?.trim();
+  const dob     = document.getElementById('profile-dob')?.value || null;
+  const pwd     = document.getElementById('profile-pwd')?.value || 'No';
+  const religion= document.getElementById('profile-religion')?.value?.trim() || null;
+
+  const missing = [];
+  if (!name)     missing.push('Name');
+  if (!age)      missing.push('Age');
+  if (!gender)   missing.push('Sex');
+  if (!status)   missing.push('Status');
+  if (!barangay) missing.push('Barangay');
+  if (!contact)  missing.push('Contact Number');
+  if (!email)    missing.push('Email');
+
+  if (missing.length > 0) {
+    showProfileBanner('error', 'Please fill in the following field/s: ' + missing.join(', '));
+    return;
+  }
+
   const updatedData = {
-    name: document.getElementById('profile-name')?.value || '',
-    age: parseInt(document.getElementById('profile-age')?.value) || 0,
-    senior: parseInt(document.getElementById('profile-age')?.value) >= 60 ? 'Yes' : 'No',
-    gender: document.getElementById('profile-gender')?.value || '',
-    status: document.getElementById('profile-status')?.value || '',
-    barangay: document.getElementById('profile-barangay')?.value || '',
-    spouse: '',
-    sons: 0,
-    daughters: 0,
-    pwd: document.getElementById('profile-pwd')?.value || 'No',
-    dob: document.getElementById('profile-dob')?.value || '',
-    family_members: 0,
-    contact: document.getElementById('profile-contact')?.value || '',
-    email: document.getElementById('profile-email')?.value || '',
-    address: '',
-    religion: document.getElementById('profile-religion')?.value || ''
+    name, religion, pwd, dob,
+    age: parseInt(age),
+    senior: parseInt(age) >= 60 ? 'Yes' : 'No',
+    gender, status, barangay, contact, email,
+    spouse: '', sons: 0, daughters: 0, family_members: 0, address: ''
   };
+
+  const sanitized = {};
+  Object.keys(updatedData).forEach(key => {
+    const val = updatedData[key];
+    sanitized[key] = (val === '' || val === undefined) ? null : val;
+  });
 
   fetch(`${API_BASE}/api/update-resident/${loggedInUser.username}`, {
     method: 'PUT',
-    headers: { 'Content-Type':'application/json' },
-    body: JSON.stringify(updatedData)
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(sanitized)
   })
   .then(res => res.json())
   .then(data => {
-    if(data.success){
-      loggedInUser = { ...loggedInUser, ...updatedData };
+    if (data.success) {
+      loggedInUser = { ...loggedInUser, ...sanitized };
       localStorage.setItem("user", JSON.stringify(loggedInUser));
       showProfileBanner('success', 'Profile updated successfully!');
     } else {
-      showProfileBanner('error', 'Failed to update: ' + (data.message || 'Unknown error'));
+      showProfileBanner('error', data.message || 'Update failed. Please try again.');
     }
   })
-  .catch(() => showProfileBanner('error', 'Server connection error.'));
+  .catch(() => showProfileBanner('error', 'Could not connect to server. Please try again.'));
 }
 
 function showProfileBanner(type, message) {
