@@ -101,6 +101,7 @@ app.post('/api/register', async (req, res) => {
         username || null,
         address || null,
         req.body.place_of_birth || null,
+        req.body.nationality || null,
         req.body.blood_type || null,
         req.body.voter_status || null,
         req.body.household_role || null,
