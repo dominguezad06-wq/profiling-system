@@ -1897,23 +1897,43 @@ function showDuplicateResidents() {
   const residents = window._allResidentsData || [];
   const seen = {};
 
-  residents.forEach(r => {
-    const dobClean = r.dob ? r.dob.split('T')[0] : 'nodob';
-    const addressClean = r.address ? r.address.toLowerCase().trim() : 'noaddress';
-    const key = `${r.name?.toLowerCase()}|${r.barangay}|${r.age}|${dobClean}|${addressClean}`;
-    if (!seen[key]) seen[key] = [];
-    seen[key].push(r);
+  // Group residents where 3 or more of (name, age, barangay, address, dob) match
+  const groups = [];
+  const used = new Set();
+
+  residents.forEach((r, i) => {
+    if (used.has(i)) return;
+    const group = [r];
+    used.add(i);
+
+    residents.forEach((r2, j) => {
+      if (i === j || used.has(j)) return;
+      let score = 0;
+      if ((r.name || '').toLowerCase().trim() === (r2.name || '').toLowerCase().trim()) score++;
+      if (String(r.age) === String(r2.age)) score++;
+      if ((r.barangay || '') === (r2.barangay || '')) score++;
+      const addr1 = (r.address || '').toLowerCase().trim();
+      const addr2 = (r2.address || '').toLowerCase().trim();
+      if (addr1 && addr2 && addr1 === addr2) score++;
+      const dob1 = r.dob ? r.dob.split('T')[0] : null;
+      const dob2 = r2.dob ? r2.dob.split('T')[0] : null;
+      if (dob1 && dob2 && dob1 === dob2) score++;
+      if (score >= 3) {
+        group.push(r2);
+        used.add(j);
+      }
+    });
+
+    if (group.length > 1) groups.push(group);
   });
 
-  const duplicates = Object.keys(seen)
-    .filter(key => seen[key].length > 1)
-    .map(key => ({
-      key,
-      name: seen[key][0].name,
-      barangay: seen[key][0].barangay,
-      age: seen[key][0].age,
-      residents: seen[key]
-    }));
+  const duplicates = groups.map(g => ({
+    key: g[0].username,
+    name: g[0].name,
+    barangay: g[0].barangay,
+    age: g[0].age,
+    residents: g
+  }));
 
   if (duplicates.length === 0) {
     alert('✅ No duplicate residents found!');
