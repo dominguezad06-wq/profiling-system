@@ -902,9 +902,21 @@ function updateProfile(){
   .then(res => res.json())
   .then(data => {
     if (data.success) {
-      loggedInUser = { ...loggedInUser, ...sanitized };
-      localStorage.setItem("user", JSON.stringify(loggedInUser));
-      showProfileBanner('success', 'Profile updated successfully!');
+      // Re-fetch fresh profile from server so all fields are saved correctly
+      fetch(`${API_BASE}/api/residents-profile?username=${loggedInUser.username}`)
+        .then(r => r.json())
+        .then(profileData => {
+          if (profileData.profile) {
+            loggedInUser = { ...loggedInUser, ...profileData.profile };
+            localStorage.setItem("user", JSON.stringify(loggedInUser));
+          }
+          showProfileBanner('success', 'Profile updated successfully!');
+        })
+        .catch(() => {
+          loggedInUser = { ...loggedInUser, ...sanitized };
+          localStorage.setItem("user", JSON.stringify(loggedInUser));
+          showProfileBanner('success', 'Profile updated successfully!');
+        });
     } else {
       showProfileBanner('error', data.message || 'Update failed. Please try again.');
     }
