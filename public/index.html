@@ -11,6 +11,15 @@
   <link rel="icon" type="image/png" href="trapiche.png">
 
   <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script>
+    // Immediately hide login if user is already logged in — prevents flash
+    if (localStorage.getItem("user")) {
+      document.documentElement.style.visibility = 'hidden';
+      window.addEventListener('load', () => {
+        document.documentElement.style.visibility = 'visible';
+      });
+    }
+  </script>
 
   <style>
     /* Logo in header */
