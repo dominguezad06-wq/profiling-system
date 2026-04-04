@@ -844,22 +844,27 @@ function showMyProfile() {
             </select>
           </td></tr>
           <tr><td style="padding:4px 6px; color:#555; white-space:nowrap;">Spouse Name:</td><td>
-  <select id="profile-spouse" style="width:100%; padding:4px;">
-    <option value="N/A" ${!loggedInUser.spouse || loggedInUser.spouse==='N/A'?'selected':''}>N/A</option>
-    <option value="custom" ${loggedInUser.spouse && loggedInUser.spouse!=='N/A'?'selected':''}>Enter name...</option>
-  </select>
-  <input type="text" id="profile-spouse-text" value="${loggedInUser.spouse && loggedInUser.spouse!=='N/A' ? loggedInUser.spouse : ''}"
-    placeholder="Spouse name"
-    style="width:100%; padding:4px; margin-top:4px; display:${loggedInUser.spouse && loggedInUser.spouse!=='N/A'?'block':'none'};"
-    oninput="">
+  <div style="display:flex; gap:8px; margin-bottom:6px;">
+    <button type="button" id="btn-spouse-na" onclick="setSpouseNA()"
+      style="flex:1; padding:7px; border-radius:6px; border:2px solid #1a3f6c;
+             background:${!loggedInUser.spouse || loggedInUser.spouse==='N/A' ? '#1a3f6c' : '#fff'};
+             color:${!loggedInUser.spouse || loggedInUser.spouse==='N/A' ? 'white' : '#1a3f6c'};
+             font-size:13px; cursor:pointer; font-weight:600;">N/A</button>
+    <button type="button" id="btn-spouse-enter" onclick="setSpouseEnter()"
+      style="flex:1; padding:7px; border-radius:6px; border:2px solid #1a3f6c;
+             background:${loggedInUser.spouse && loggedInUser.spouse!=='N/A' ? '#1a3f6c' : '#fff'};
+             color:${loggedInUser.spouse && loggedInUser.spouse!=='N/A' ? 'white' : '#1a3f6c'};
+             font-size:13px; cursor:pointer; font-weight:600;">Enter Name</button>
+  </div>
+  <input type="text" id="profile-spouse-text"
+    value="${loggedInUser.spouse && loggedInUser.spouse!=='N/A' ? loggedInUser.spouse : ''}"
+    placeholder="Type spouse name..."
+    style="width:100%; padding:6px 8px; border-radius:6px; border:1px solid #ccc; font-size:13px;
+           display:${loggedInUser.spouse && loggedInUser.spouse!=='N/A' ? 'block' : 'none'};"
+    oninput="document.getElementById('profile-spouse-hidden').value=this.value">
+  <input type="hidden" id="profile-spouse-hidden"
+    value="${loggedInUser.spouse || 'N/A'}">
 </td></tr>
-<script>
-document.getElementById('profile-spouse')?.addEventListener('change', function(){
-  const txt = document.getElementById('profile-spouse-text');
-  txt.style.display = this.value === 'custom' ? 'block' : 'none';
-  if(this.value !== 'custom') txt.value = '';
-});
-</script>
           <tr><td style="padding:4px 6px; color:#555; white-space:nowrap; vertical-align:top; padding-top:10px;">Children:</td><td>
   <div style="display:flex; gap:8px; margin-bottom:8px;">
     <button type="button" onclick="setChildrenNA()" id="btn-children-na"
@@ -952,10 +957,10 @@ function updateProfile(){
   const voter_status    = document.getElementById('profile-voter-status')?.value || null;
   const education       = document.getElementById('profile-education')?.value || null;
   const household_role  = document.getElementById('profile-household-role')?.value || null;
-  const spouseSelect    = document.getElementById('profile-spouse')?.value;
-  const spouse          = spouseSelect === 'custom'
-    ? (document.getElementById('profile-spouse-text')?.value?.trim() || null)
-    : 'N/A';
+  const spouseTxt = document.getElementById('profile-spouse-text')?.value?.trim();
+  const spouse    = spouseTxt
+    ? spouseTxt
+    : (document.getElementById('profile-spouse-hidden')?.value || 'N/A');
   const children_names  = document.getElementById('profile-children-names')?.value?.trim() || 'N/A';
   const emergency_contact_name   = document.getElementById('profile-emergency-name')?.value?.trim() || null;
   const emergency_contact_number = document.getElementById('profile-emergency-number')?.value?.trim() || null;
@@ -1141,6 +1146,26 @@ function _highlightChildrenBtn(active) {
     addBtn.style.background = '#1a3f6c'; addBtn.style.color  = 'white';
     naBtn.style.background  = '#fff';    naBtn.style.color   = '#1a3f6c';
   }
+}
+
+function setSpouseNA() {
+  document.getElementById('profile-spouse-text').style.display = 'none';
+  document.getElementById('profile-spouse-text').value = '';
+  document.getElementById('profile-spouse-hidden').value = 'N/A';
+  document.getElementById('btn-spouse-na').style.background = '#1a3f6c';
+  document.getElementById('btn-spouse-na').style.color = 'white';
+  document.getElementById('btn-spouse-enter').style.background = '#fff';
+  document.getElementById('btn-spouse-enter').style.color = '#1a3f6c';
+}
+
+function setSpouseEnter() {
+  const txt = document.getElementById('profile-spouse-text');
+  txt.style.display = 'block';
+  txt.focus();
+  document.getElementById('btn-spouse-enter').style.background = '#1a3f6c';
+  document.getElementById('btn-spouse-enter').style.color = 'white';
+  document.getElementById('btn-spouse-na').style.background = '#fff';
+  document.getElementById('btn-spouse-na').style.color = '#1a3f6c';
 }
 
 function requestDocument() {
