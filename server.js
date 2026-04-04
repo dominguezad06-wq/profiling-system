@@ -319,7 +319,7 @@ app.get('/api/residents', async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT username, name, gender, status, age, barangay, address, dob, pwd,
-              place_of_birth, blood_type, voter_status, household_role,
+              place_of_birth, nationality, blood_type, voter_status, household_role,
               children_names, educational_attainment, emergency_contact_name,
               emergency_contact_number, contact, religion, spouse, sons, daughters,
               family_members, email, senior
@@ -400,6 +400,7 @@ app.put('/api/update-resident/:username', async (req, res) => {
         address || null,
         religion || null,
         place_of_birth || null,
+        nationality || null,
         blood_type || null,
         voter_status || null,
         household_role || null,
