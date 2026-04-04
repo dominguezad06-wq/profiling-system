@@ -1764,18 +1764,22 @@ function handleCredentialResponse(response) {
 
 window.addEventListener('load', () => {
   const savedUser = localStorage.getItem("user");
+
   if (savedUser) {
     try {
       loggedInUser = JSON.parse(savedUser);
       currentRole = loggedInUser.role;
-      console.log("Restored user:", loggedInUser);
 
       if (currentRole === 'manager') {
+        document.getElementById('login-page').style.display = 'none';
         openManagerPage();
       } else if (currentRole === 'dswd') {
+        document.getElementById('login-page').style.display = 'none';
         openDSWDPage();
       } else if (currentRole === 'resident') {
-        // Re-fetch fresh profile from server to make sure username is correct
+        document.getElementById('login-page').style.display = 'none';
+        showDashboard();
+        renderResidentWelcome();
         fetch(`${API_BASE}/api/residents-profile?username=${loggedInUser.username}`)
           .then(r => r.json())
           .then(profileData => {
@@ -1783,13 +1787,8 @@ window.addEventListener('load', () => {
               loggedInUser = { ...loggedInUser, ...profileData.profile };
               localStorage.setItem("user", JSON.stringify(loggedInUser));
             }
-            showDashboard();
-            renderResidentWelcome();
           })
-          .catch(() => {
-            showDashboard();
-            renderResidentWelcome();
-          });
+          .catch(() => {});
       }
     } catch (e) {
       localStorage.removeItem("user");
