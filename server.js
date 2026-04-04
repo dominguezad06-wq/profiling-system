@@ -62,20 +62,14 @@ app.post('/api/register', async (req, res) => {
 
     // Check for duplicate: if 3 or more of (name, age, barangay, address, dob) match
     const dupCheck = await pool.query(
-      `SELECT username,
-        (CASE WHEN LOWER(name)=LOWER($1) THEN 1 ELSE 0 END +
+      `SELECT username FROM residents
+       WHERE (
+         CASE WHEN LOWER(name)=LOWER($1) THEN 1 ELSE 0 END +
          CASE WHEN age=$2 THEN 1 ELSE 0 END +
          CASE WHEN barangay=$3 THEN 1 ELSE 0 END +
-         CASE WHEN $4::text IS NOT NULL AND LOWER(address)=LOWER($4) THEN 1 ELSE 0 END +
+         CASE WHEN $4::text IS NOT NULL AND LOWER(COALESCE(address,''))=LOWER($4) THEN 1 ELSE 0 END +
          CASE WHEN $5::date IS NOT NULL AND dob=$5::date THEN 1 ELSE 0 END
-        ) AS match_score
-       FROM residents
-       HAVING (CASE WHEN LOWER(name)=LOWER($1) THEN 1 ELSE 0 END +
-               CASE WHEN age=$2 THEN 1 ELSE 0 END +
-               CASE WHEN barangay=$3 THEN 1 ELSE 0 END +
-               CASE WHEN $4::text IS NOT NULL AND LOWER(address)=LOWER($4) THEN 1 ELSE 0 END +
-               CASE WHEN $5::date IS NOT NULL AND dob=$5::date THEN 1 ELSE 0 END
-              ) >= 3
+       ) >= 3
        LIMIT 1`,
       [name, age ? parseInt(age) : null, barangay, address || null, dob || null]
     );
