@@ -851,21 +851,22 @@ function showMyProfile() {
 
 function updateProfile(){
   const updatedData = {
-    name: document.getElementById('profile-name').value,
-    age: parseInt(document.getElementById('profile-age').value) || 0,
-    senior: parseInt(document.getElementById('profile-age').value) >= 60 ? 'Yes' : 'No',
-    gender: document.getElementById('profile-gender').value,
-    status: document.getElementById('profile-status').value,
-    barangay: document.getElementById('profile-barangay').value,
-    spouse: document.getElementById('profile-spouse')?.value || '',
-    sons: parseInt(document.getElementById('profile-sons').value) || 0,
-    daughters: parseInt(document.getElementById('profile-daughters').value) || 0,
-    pwd: document.getElementById('profile-pwd').value,
-    dob: document.getElementById('profile-dob').value,
-    family_members: parseInt(document.getElementById('profile-family').value) || 0,
-    contact: document.getElementById('profile-contact').value,
-    email: document.getElementById('profile-email').value,
-    address: document.getElementById('profile-address')?.value || ''
+    name: document.getElementById('profile-name')?.value || '',
+    age: parseInt(document.getElementById('profile-age')?.value) || 0,
+    senior: parseInt(document.getElementById('profile-age')?.value) >= 60 ? 'Yes' : 'No',
+    gender: document.getElementById('profile-gender')?.value || '',
+    status: document.getElementById('profile-status')?.value || '',
+    barangay: document.getElementById('profile-barangay')?.value || '',
+    spouse: '',
+    sons: 0,
+    daughters: 0,
+    pwd: document.getElementById('profile-pwd')?.value || 'No',
+    dob: document.getElementById('profile-dob')?.value || '',
+    family_members: 0,
+    contact: document.getElementById('profile-contact')?.value || '',
+    email: document.getElementById('profile-email')?.value || '',
+    address: '',
+    religion: document.getElementById('profile-religion')?.value || ''
   };
 
   fetch(`${API_BASE}/api/update-resident/${loggedInUser.username}`, {
@@ -876,11 +877,57 @@ function updateProfile(){
   .then(res => res.json())
   .then(data => {
     if(data.success){
-      alert("Profile updated successfully!");
+      loggedInUser = { ...loggedInUser, ...updatedData };
+      localStorage.setItem("user", JSON.stringify(loggedInUser));
+      showProfileBanner('success', 'Profile updated successfully!');
     } else {
-      alert("Failed to update profile: " + (data.message || 'Unknown error'));
+      showProfileBanner('error', 'Failed to update: ' + (data.message || 'Unknown error'));
     }
-  });
+  })
+  .catch(() => showProfileBanner('error', 'Server connection error.'));
+}
+
+function showProfileBanner(type, message) {
+  const existing = document.getElementById('profile-banner');
+  if (existing) existing.remove();
+
+  const isSuccess = type === 'success';
+  const banner = document.createElement('div');
+  banner.id = 'profile-banner';
+  banner.style.cssText = `
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    margin-top: 10px;
+    animation: fadeIn 0.25s ease;
+    background: ${isSuccess ? '#eaf6ec' : '#fdecea'};
+    border: 1px solid ${isSuccess ? '#a8d5b0' : '#f5c6c6'};
+    color: ${isSuccess ? '#1e6b30' : '#c0392b'};
+  `;
+
+  banner.innerHTML = `
+    <span style="
+      width: 20px; height: 20px; border-radius: 50%;
+      border: 2px solid ${isSuccess ? '#1e6b30' : '#c0392b'};
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: bold; flex-shrink: 0;
+    ">${isSuccess ? '✓' : '!'}</span>
+    <span style="flex: 1;">${message}</span>
+    <span onclick="this.parentElement.remove()" style="
+      cursor: pointer; font-size: 16px; color: inherit; opacity: 0.6; padding: 0 2px;
+    ">&times;</span>
+  `;
+
+  const updateBtn = document.querySelector('[onclick="updateProfile()"]');
+  if (updateBtn) {
+    updateBtn.parentNode.insertBefore(banner, updateBtn);
+  }
+
+  setTimeout(() => { if (banner.parentNode) banner.remove(); }, 4000);
 }
 
 function requestDocument() {
