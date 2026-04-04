@@ -237,17 +237,10 @@ function logout(){
   loggedInUser = null; 
   currentRole = null;
   localStorage.removeItem("user");
-
-  // Make sure page is visible in case it was hidden
-  document.documentElement.style.visibility = 'visible';
-
   document.getElementById('login-page').style.display = "flex";
   document.getElementById('dashboard-page').style.display = 'none';
   document.getElementById('manager-page').style.display = 'none';
   document.getElementById('dswd-page').style.display = 'none';
-  document.getElementById('resident-form').style.display = 'none';
-  document.getElementById('forgot-page').style.display = 'none';
-
   if (document.getElementById('dashboard-content')) {
     document.getElementById('dashboard-content').innerHTML = '';
   }
@@ -1771,22 +1764,18 @@ function handleCredentialResponse(response) {
 
 window.addEventListener('load', () => {
   const savedUser = localStorage.getItem("user");
-
   if (savedUser) {
     try {
       loggedInUser = JSON.parse(savedUser);
       currentRole = loggedInUser.role;
+      console.log("Restored user:", loggedInUser);
 
       if (currentRole === 'manager') {
-        document.getElementById('login-page').style.display = 'none';
         openManagerPage();
       } else if (currentRole === 'dswd') {
-        document.getElementById('login-page').style.display = 'none';
         openDSWDPage();
       } else if (currentRole === 'resident') {
-        document.getElementById('login-page').style.display = 'none';
-        showDashboard();
-        renderResidentWelcome();
+        // Re-fetch fresh profile from server to make sure username is correct
         fetch(`${API_BASE}/api/residents-profile?username=${loggedInUser.username}`)
           .then(r => r.json())
           .then(profileData => {
@@ -1794,8 +1783,13 @@ window.addEventListener('load', () => {
               loggedInUser = { ...loggedInUser, ...profileData.profile };
               localStorage.setItem("user", JSON.stringify(loggedInUser));
             }
+            showDashboard();
+            renderResidentWelcome();
           })
-          .catch(() => {});
+          .catch(() => {
+            showDashboard();
+            renderResidentWelcome();
+          });
       }
     } catch (e) {
       localStorage.removeItem("user");
