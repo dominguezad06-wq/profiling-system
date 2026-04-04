@@ -75,7 +75,7 @@ app.post('/api/register', async (req, res) => {
       `INSERT INTO residents
        (name, age, senior, gender, status, barangay, spouse, sons, daughters, pwd,
         dob, religion, family_members, contact, email, username, address,
-        place_of_birth, nationality, blood_type, voter_status, household_role,
+        place_of_birth, blood_type, voter_status, household_role,
         children_names, educational_attainment, emergency_contact_name, emergency_contact_number)
        VALUES
        ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,
@@ -101,7 +101,6 @@ app.post('/api/register', async (req, res) => {
         username || null,
         address || null,
         req.body.place_of_birth || null,
-        req.body.nationality || null,
         req.body.blood_type || null,
         req.body.voter_status || null,
         req.body.household_role || null,
@@ -319,7 +318,7 @@ app.get('/api/residents', async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT username, name, gender, status, age, barangay, address, dob, pwd,
-              place_of_birth, nationality, blood_type, voter_status, household_role,
+              place_of_birth, blood_type, voter_status, household_role,
               children_names, educational_attainment, emergency_contact_name,
               emergency_contact_number, contact, religion, spouse, sons, daughters,
               family_members, email, senior
@@ -340,7 +339,7 @@ app.put('/api/update-resident/:username', async (req, res) => {
       name, age, senior, gender, status, barangay,
       spouse, sons, daughters, pwd, dob, family_members,
       contact, email, address, religion,
-      place_of_birth, nationality, blood_type, voter_status,
+      place_of_birth, blood_type, voter_status,
       household_role, children_names, educational_attainment,
       emergency_contact_name, emergency_contact_number
     } = req.body;
@@ -400,7 +399,6 @@ app.put('/api/update-resident/:username', async (req, res) => {
         address || null,
         religion || null,
         place_of_birth || null,
-        nationality || null,
         blood_type || null,
         voter_status || null,
         household_role || null,
