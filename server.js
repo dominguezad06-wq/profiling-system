@@ -354,18 +354,35 @@ app.put('/api/update-resident/:username', async (req, res) => {
       family_members,
       contact,
       email,
-      address
+      address,
+      religion
     } = req.body;
 
     await pool.query(
       `UPDATE residents
        SET name=$1, age=$2, senior=$3, gender=$4, status=$5, barangay=$6,
            spouse=$7, sons=$8, daughters=$9, pwd=$10, dob=$11, family_members=$12,
-           contact=$13, email=$14, address=$15
-       WHERE username=$16`,
-      [name, age, senior, gender, status, barangay,
-       spouse, sons, daughters, pwd, dob, family_members,
-       contact, email, address, username]
+           contact=$13, email=$14, address=$15, religion=$16
+       WHERE username=$17`,
+      [
+        name || null,
+        age ? parseInt(age) : null,
+        senior || null,
+        gender || null,
+        status || null,
+        barangay || null,
+        spouse || null,
+        sons ? parseInt(sons) : 0,
+        daughters ? parseInt(daughters) : 0,
+        pwd || null,
+        dob || null,
+        family_members ? parseInt(family_members) : 0,
+        contact || null,
+        email || null,
+        address || null,
+        religion || null,
+        username
+      ]
     );
 
     res.json({ success: true });
