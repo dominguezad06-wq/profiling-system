@@ -804,6 +804,7 @@ function showMyProfile() {
             </select>
           </td></tr>
           <tr><td>Religion:</td><td><input type="text" id="profile-religion" value="${loggedInUser.religion || ''}" style="width:100%; padding:4px;"></td></tr>
+          <tr><td>House Address:</td><td><input type="text" id="profile-address" value="${loggedInUser.address || ''}" style="width:100%; padding:4px;"></td></tr>
           <tr><td>Barangay:</td><td>
             <select id="profile-barangay" style="width:100%; padding:4px;">
               <option value="Trapiche 1" ${loggedInUser.barangay==='Trapiche 1'?'selected':''}>Trapiche 1</option>
@@ -860,6 +861,7 @@ function updateProfile(){
   const dob     = document.getElementById('profile-dob')?.value || null;
   const pwd     = document.getElementById('profile-pwd')?.value || 'No';
   const religion= document.getElementById('profile-religion')?.value?.trim() || null;
+  const address = document.getElementById('profile-address')?.value?.trim() || null;
 
   const missing = [];
   if (!name)     missing.push('Name');
@@ -871,6 +873,7 @@ function updateProfile(){
   if (!email)    missing.push('Email');
   if (!dob)      missing.push('Birth Date');
   if (!religion) missing.push('Religion');
+  if (!address)  missing.push('House Address');
 
   if (missing.length > 0) {
     showProfileBanner('error', 'Please fill in the following field/s: ' + missing.join(', '));
@@ -878,11 +881,11 @@ function updateProfile(){
   }
 
   const updatedData = {
-    name, religion, pwd, dob,
+    name, religion, pwd, dob, address,
     age: parseInt(age),
     senior: parseInt(age) >= 60 ? 'Yes' : 'No',
     gender, status, barangay, contact, email,
-    spouse: '', sons: 0, daughters: 0, family_members: 0, address: ''
+    spouse: '', sons: 0, daughters: 0, family_members: 0
   };
 
   const sanitized = {};
@@ -1817,7 +1820,7 @@ function showAllResidents() {
                     <th style="padding:12px 18px; text-align:left; font-size:13px; color:#888; font-weight:500; border-bottom:0.5px solid #eee;">Gender</th>
                     <th style="padding:12px 18px; text-align:left; font-size:13px; color:#888; font-weight:500; border-bottom:0.5px solid #eee;">Barangay</th>
                     <th style="padding:12px 18px; text-align:left; font-size:13px; color:#888; font-weight:500; border-bottom:0.5px solid #eee;">Status</th>
-                    <th style="padding:12px 18px; text-align:left; font-size:13px; color:#888; font-weight:500; border-bottom:0.5px solid #eee;">Address</th>
+                    <th style="padding:12px 18px; text-align:left; font-size:13px; color:#888; font-weight:500; border-bottom:0.5px solid #eee;">House Address</th>
                     <th style="padding:12px 18px; text-align:left; font-size:13px; color:#888; font-weight:500; border-bottom:0.5px solid #eee;">Tags</th>
                     <th style="padding:12px 18px; text-align:left; font-size:13px; color:#888; font-weight:500; border-bottom:0.5px solid #eee;">Action</th>
                   </tr>
@@ -1846,7 +1849,7 @@ function allResidentRow(r, i) {
       <td style="padding:12px 18px; font-size:13px; color:#555;">${r.gender || 'N/A'}</td>
       <td style="padding:12px 18px; font-size:13px; color:#555;">${r.barangay || 'N/A'}</td>
       <td style="padding:12px 18px; font-size:13px; color:#555;">${r.status || 'N/A'}</td>
-      <td style="padding:12px 18px; font-size:13px; color:#555;">${r.address || 'N/A'}</td>
+      <td style="padding:12px 18px; font-size:13px; color:#555;">${r.address || '—'}</td>
       <td style="padding:12px 18px;">
         <div style="display:flex; gap:6px; flex-wrap:wrap;">
           ${r.age >= 60 ? `<span style="background:#EAF3DE; color:#27500A; font-size:11px; font-weight:500; padding:3px 10px; border-radius:99px;">Senior</span>` : ''}
