@@ -804,7 +804,7 @@ function showMyProfile() {
             </select>
           </td></tr>
           <tr><td style="padding:4px 6px; color:#555; white-space:nowrap;">Place of Birth:</td><td><input type="text" id="profile-place-of-birth" value="${loggedInUser.place_of_birth || ''}" style="width:100%; padding:4px;"></td></tr>
-        
+          <tr><td style="padding:4px 6px; color:#555; white-space:nowrap;">Nationality:</td><td><input type="text" id="profile-nationality" value="${loggedInUser.nationality || ''}" style="width:100%; padding:4px;"></td></tr>
           <tr><td style="padding:4px 6px; color:#555; white-space:nowrap;">Blood Type:</td><td>
             <select id="profile-blood-type" style="width:100%; padding:4px;">
               <option value="">-- Select --</option>
@@ -917,6 +917,7 @@ function updateProfile(){
   }
 
   const place_of_birth  = document.getElementById('profile-place-of-birth')?.value?.trim() || null;
+  const nationality     = document.getElementById('profile-nationality')?.value?.trim() || null;
   const blood_type      = document.getElementById('profile-blood-type')?.value || null;
   const voter_status    = document.getElementById('profile-voter-status')?.value || null;
   const education       = document.getElementById('profile-education')?.value || null;
@@ -932,7 +933,7 @@ function updateProfile(){
     senior: parseInt(age) >= 60 ? 'Yes' : 'No',
     gender, status, barangay, contact, email,
     spouse, sons: 0, daughters: 0, family_members: 0,
-    place_of_birth, blood_type, voter_status,
+    place_of_birth, nationality, blood_type, voter_status,
     educational_attainment: education,
     household_role, children_names,
     emergency_contact_name, emergency_contact_number
