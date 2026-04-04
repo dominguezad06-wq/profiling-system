@@ -60,16 +60,25 @@ app.post('/api/register', async (req, res) => {
     if (!name || !username || !password)
       return res.status(400).json({ error: 'Missing required fields' });
 
-    // Check for duplicate resident (same name + barangay + age)
+    // Check for duplicate resident (same name + barangay + age + dob + address)
     const duplicate = await pool.query(
-      `SELECT username FROM residents WHERE LOWER(name)=LOWER($1) AND barangay=$2 AND age=$3 LIMIT 1`,
-      [name, barangay, age ? parseInt(age) : null]
+      `SELECT username FROM residents 
+       WHERE LOWER(name)=LOWER($1) 
+       AND barangay=$2 
+       AND age=$3
+       AND ($4::date IS NULL OR dob=$4::date)
+       AND ($5::text IS NULL OR LOWER(address)=LOWER($5))
+       LIMIT 1`,
+      [name, barangay, age ? parseInt(age) : null, dob || null, address || null]
     );
 
     if (duplicate.rows.length > 0) {
-      return res.status(400).json({ 
-        error: `A resident named "${name}" (Age ${age}, ${barangay}) already has an account. Please login instead.` 
-      });
+      const oldUsername = duplicate.rows[0].username;
+      // Delete old duplicate records
+      await pool.query(`DELETE FROM document_requests WHERE username=$1`, [oldUsername]);
+      await pool.query(`DELETE FROM residents WHERE username=$1`, [oldUsername]);
+      await pool.query(`DELETE FROM users WHERE username=$1`, [oldUsername]);
+      console.log(`Duplicate removed: ${oldUsername}`);
     }
 
     const hashedPw = await bcrypt.hash(password, 10);
@@ -392,6 +401,35 @@ app.delete('/api/delete-resident/:username', async (req, res) => {
     await pool.query(`DELETE FROM residents WHERE username=$1`, [username]);
     await pool.query(`DELETE FROM users WHERE username=$1`, [username]);
     res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.json({ success: false, message: err.message });
+  }
+});
+
+// ================= AUTO-REMOVE DUPLICATES =================
+app.post('/api/auto-remove-duplicates', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT name, barangay, age, dob, address,
+             array_agg(username ORDER BY created_at DESC) AS usernames
+      FROM residents
+      GROUP BY name, barangay, age, dob, address
+      HAVING COUNT(*) > 1
+    `);
+
+    let removed = 0;
+    for (const row of result.rows) {
+      const toDelete = row.usernames.slice(1); // keep newest (first), delete rest
+      for (const username of toDelete) {
+        await pool.query(`DELETE FROM document_requests WHERE username=$1`, [username]);
+        await pool.query(`DELETE FROM residents WHERE username=$1`, [username]);
+        await pool.query(`DELETE FROM users WHERE username=$1`, [username]);
+        removed++;
+      }
+    }
+
+    res.json({ success: true, removed });
   } catch (err) {
     console.error(err);
     res.json({ success: false, message: err.message });
