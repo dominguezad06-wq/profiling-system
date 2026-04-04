@@ -1886,7 +1886,9 @@ function showDuplicateResidents() {
   const seen = {};
 
   residents.forEach(r => {
-    const key = `${r.name?.toLowerCase()}|${r.barangay}|${r.age}`;
+    const dobClean = r.dob ? r.dob.split('T')[0] : 'nodob';
+    const addressClean = r.address ? r.address.toLowerCase().trim() : 'noaddress';
+    const key = `${r.name?.toLowerCase()}|${r.barangay}|${r.age}|${dobClean}|${addressClean}`;
     if (!seen[key]) seen[key] = [];
     seen[key].push(r);
   });
@@ -1911,8 +1913,12 @@ function showDuplicateResidents() {
     <div style="padding:24px; background:#f5f6fa; min-height:100%;">
       <button onclick="showAllResidents()" style="margin-bottom:16px; padding:8px 16px; background:#1a3f6c; color:white; border:none; border-radius:8px; cursor:pointer;">← Back to All Residents</button>
       <div style="background:#fff; border-radius:12px; border:0.5px solid #e0e0e0; overflow:hidden;">
-        <div style="padding:18px 22px; border-bottom:0.5px solid #eee; background:#fff3f3;">
+        <div style="padding:18px 22px; border-bottom:0.5px solid #eee; background:#fff3f3; display:flex; align-items:center; justify-content:space-between;">
           <span style="font-size:17px; font-weight:500; color:#c0392b;">⚠️ Duplicate Residents Found: ${duplicates.length} group${duplicates.length > 1 ? 's' : ''}</span>
+          <button onclick="autoRemoveAllDuplicates()"
+            style="padding:8px 18px; background:#c0392b; color:white; border:none; border-radius:8px; font-size:13px; cursor:pointer;">
+            🗑 Remove All Duplicates
+          </button>
         </div>
         ${duplicates.map(d => `
           <div style="padding:18px 22px; border-bottom:0.5px solid #f0f0f0;">
@@ -1957,15 +1963,31 @@ function showDuplicateResidents() {
 }
 
 async function deleteDuplicateResident(username) {
-  if (!confirm(`Delete duplicate account: ${username}?`)) return;
+  if (!confirm(`Delete duplicate account: ${username}? This cannot be undone.`)) return;
   try {
     const res = await fetch(`${API_BASE}/api/delete-resident/${username}`, { method: 'DELETE' });
     const data = await res.json();
     if (data.success) {
-      alert(`✅ Deleted ${username} successfully.`);
+      showProfileBanner('success', `Duplicate account "${username}" removed successfully.`);
       showAllResidents();
     } else {
-      alert('Failed to delete: ' + data.message);
+      showProfileBanner('error', 'Failed to delete: ' + (data.message || 'Unknown error'));
+    }
+  } catch (err) {
+    showProfileBanner('error', 'Server error: ' + err.message);
+  }
+}
+
+async function autoRemoveAllDuplicates() {
+  if (!confirm('This will automatically keep the newest account and delete all older duplicates. Continue?')) return;
+  try {
+    const res = await fetch(`${API_BASE}/api/auto-remove-duplicates`, { method: 'POST' });
+    const data = await res.json();
+    if (data.success) {
+      alert(`✅ Done! ${data.removed} duplicate account(s) removed.`);
+      showAllResidents();
+    } else {
+      alert('Failed: ' + (data.message || 'Unknown error'));
     }
   } catch (err) {
     alert('Server error: ' + err.message);
