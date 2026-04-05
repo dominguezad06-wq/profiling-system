@@ -96,9 +96,13 @@ function createResident() {
   const getChecked = id => document.getElementById(id)?.checked ? 'Yes' : 'No';
 
   const name = getVal('res-name').trim();
-  const username = getVal('res-username').trim();
   const password = getVal('res-password').trim();
-  const confirmPassword = getVal('res-confirm-password').trim();
+const confirmPassword = getVal('res-confirm-password').trim();
+
+if (password !== confirmPassword) {
+  alert("Passwords do not match.");
+  return;
+}
   const email = getVal('res-email').trim();
 
   const age = getInt('res-age');
