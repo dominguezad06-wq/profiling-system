@@ -1,4 +1,3 @@
-
 require('dotenv').config();
 // ================= IMPORTS =================
 const express = require('express');
@@ -8,6 +7,7 @@ const fileUpload = require('express-fileupload');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const { OAuth2Client } = require('google-auth-library');
+const nodemailer = require('nodemailer');  // ← NEW
 
 // ================= INIT APP =================
 const app = express();
@@ -18,18 +18,21 @@ if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
+// In-memory OTP store: { email: { otp, expires, username } }
+const otpStore = {};  // ← NEW
+
 // ================= MIDDLEWARE =================
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(cors());
 app.use(fileUpload());
-app.use(express.static('public')); // serve uploaded files
+app.use(express.static('public'));
 
 // ================= DATABASE =================
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
-  connectionTimeoutMillis: 10000,   // wait 10s for connection
+  connectionTimeoutMillis: 10000,
   idleTimeoutMillis: 30000,
   max: 5
 });
@@ -42,11 +45,10 @@ pool.connect((err, client, release) => {
     release();
   }
 });
+
 // ================= GOOGLE CLIENT =================
 const client = new OAuth2Client(GOOGLE_CLIENT_ID);
 
-// ================= REGISTER =================
-// ================= REGISTER =================
 // ================= REGISTER =================
 app.post('/api/register', async (req, res) => {
   try {
@@ -54,23 +56,19 @@ app.post('/api/register', async (req, res) => {
       name, age, senior, gender, status, barangay,
       spouse, sons, daughters, pwd,
       dob, religion, family_members, contact, email, username, address,
-      password // for login
+      password
     } = req.body;
 
     if (!name || !username || !password)
       return res.status(400).json({ error: 'Missing required fields' });
 
-    
-
     const hashedPw = await bcrypt.hash(password, 10);
 
-    // Insert into users table
     await pool.query(
       `INSERT INTO users(username, password, role, name) VALUES($1,$2,'resident',$3)`,
       [username, hashedPw, name]
     );
 
-    // Insert into residents table
     const result = await pool.query(
       `INSERT INTO residents
        (name, age, senior, gender, status, barangay, spouse, sons, daughters, pwd,
@@ -124,7 +122,6 @@ app.post('/api/login', async (req, res) => {
   try {
     const { username, password } = req.body;
 
-    // Check users table for credentials
     const result = await pool.query('SELECT * FROM users WHERE username=$1', [username]);
     const user = result.rows[0];
     if (!user) return res.status(401).json({ error: 'Invalid username' });
@@ -132,7 +129,6 @@ app.post('/api/login', async (req, res) => {
     const match = await bcrypt.compare(password, user.password);
     if (!match) return res.status(401).json({ error: 'Invalid password' });
 
-    // Fetch resident profile
     const profile = await pool.query('SELECT * FROM residents WHERE username=$1', [username]);
     res.json({ message: 'Login successful', user: user, profile: profile.rows[0] });
   } catch (err) {
@@ -140,13 +136,11 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
-// ================= GOOGLE LOGIN FIXED =================
+// ================= GOOGLE LOGIN =================
 app.post('/api/google-login', async (req, res) => {
   try {
     const { credential } = req.body;
     if (!credential) return res.status(400).json({ success: false, message: 'No Google token provided' });
-
-    console.log('GOOGLE_CLIENT_ID in use:', GOOGLE_CLIENT_ID);
 
     if (!GOOGLE_CLIENT_ID) {
       return res.status(500).json({ success: false, message: 'Server missing Google Client ID config' });
@@ -158,28 +152,131 @@ app.post('/api/google-login', async (req, res) => {
     });
 
     const payload = ticket.getPayload();
-
-
     const email = payload.email;
     const name = payload.name;
 
-    // Check if user already exists
     const result = await pool.query('SELECT * FROM users WHERE username=$1', [email]);
 
     if (result.rows.length > 0) {
-      // Existing user → login
       return res.json({ success: true, user: result.rows[0] });
     } else {
-      // New user → need password
-      return res.json({
-        success: true,
-        newUser: true,
-        user: { email, name }
-      });
+      return res.json({ success: true, newUser: true, user: { email, name } });
     }
   } catch (err) {
     console.error('Google login error:', err);
     res.status(401).json({ success: false, message: 'Google login failed' });
+  }
+});
+
+// ================= SEND OTP =================
+app.post('/api/send-otp', async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.json({ success: false, message: 'Email is required.' });
+
+    // Check if email exists in residents table
+    const result = await pool.query(
+      'SELECT username FROM residents WHERE LOWER(email) = LOWER($1) LIMIT 1',
+      [email]
+    );
+
+    if (result.rows.length === 0) {
+      return res.json({ success: false, message: 'Email not registered in our system.' });
+    }
+
+    // Generate 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+    // Store OTP with 10-minute expiry
+    otpStore[email.toLowerCase()] = {
+      otp,
+      expires: Date.now() + 10 * 60 * 1000,
+      username: result.rows[0].username
+    };
+
+    // Send email
+    const transporter = nodemailer.createTransporter({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
+      }
+    });
+
+    await transporter.sendMail({
+      from: `"Barangay Trapiche" <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: 'Password Reset OTP - Barangay Trapiche Profiling System',
+      html: `
+        <div style="font-family:Arial,sans-serif; max-width:480px; margin:0 auto; padding:32px; border:1px solid #e0e0e0; border-radius:12px;">
+          <div style="text-align:center; margin-bottom:24px;">
+            <h2 style="color:#1a3f6c; margin:0;">Barangay Trapiche</h2>
+            <p style="color:#888; font-size:13px; margin:4px 0 0;">Profiling System – Password Reset</p>
+          </div>
+          <p style="color:#333; font-size:15px;">You requested a password reset. Use the OTP below:</p>
+          <div style="text-align:center; margin:28px 0;">
+            <span style="font-size:42px; font-weight:bold; letter-spacing:10px; color:#c0392b;">${otp}</span>
+          </div>
+          <p style="color:#888; font-size:13px; text-align:center;">This OTP expires in <strong>10 minutes</strong>.</p>
+          <hr style="border:none; border-top:1px solid #eee; margin:24px 0;">
+          <p style="color:#bbb; font-size:12px; text-align:center;">If you did not request this, please ignore this email.</p>
+        </div>
+      `
+    });
+
+    console.log(`OTP sent to ${email}`);
+    res.json({ success: true, message: 'OTP sent to your email.' });
+
+  } catch (err) {
+    console.error('SEND OTP ERROR:', err);
+    res.json({ success: false, message: 'Failed to send OTP. Check EMAIL_USER and EMAIL_PASS in your .env file.' });
+  }
+});
+
+// ================= VERIFY OTP & RESET PASSWORD =================
+app.post('/api/verify-otp', async (req, res) => {
+  try {
+    const { email, otp, newPassword } = req.body;
+
+    if (!email || !otp || !newPassword) {
+      return res.json({ success: false, message: 'All fields are required.' });
+    }
+
+    const key = email.toLowerCase();
+    const record = otpStore[key];
+
+    if (!record) {
+      return res.json({ success: false, message: 'No OTP found for this email. Please request a new one.' });
+    }
+
+    if (Date.now() > record.expires) {
+      delete otpStore[key];
+      return res.json({ success: false, message: 'OTP has expired. Please request a new one.' });
+    }
+
+    if (record.otp !== otp.trim()) {
+      return res.json({ success: false, message: 'Incorrect OTP. Please try again.' });
+    }
+
+    if (newPassword.length < 6) {
+      return res.json({ success: false, message: 'New password must be at least 6 characters.' });
+    }
+
+    // Hash and update password
+    const hashedPw = await bcrypt.hash(newPassword, 10);
+    await pool.query(
+      'UPDATE users SET password = $1 WHERE username = $2',
+      [hashedPw, record.username]
+    );
+
+    // Clear used OTP
+    delete otpStore[key];
+
+    res.json({ success: true, message: 'Password reset successfully!' });
+
+  } catch (err) {
+    console.error('VERIFY OTP ERROR:', err);
+    res.json({ success: false, message: 'Server error. Please try again.' });
   }
 });
 
@@ -276,19 +373,17 @@ app.post('/api/approve-request', async (req, res) => {
     if (!request) return res.json({ success: false, message: 'Request not found or already processed' });
 
     await pool.query(
-      `UPDATE document_requests
-       SET status='Approved', date=$1, time=$2
-       WHERE id=$3`,
+      `UPDATE document_requests SET status='Approved', date=$1, time=$2 WHERE id=$3`,
       [date, time, request.id]
     );
 
-    res.json({ 
-      success: true, 
-      email: request.email, 
-      documentType, 
+    res.json({
+      success: true,
+      email: request.email,
+      documentType,
       purpose: request.purpose,
-      date, 
-      time 
+      date,
+      time
     });
   } catch (err) {
     console.error(err);
@@ -301,8 +396,7 @@ app.post('/api/reject-request', async (req, res) => {
   try {
     const { username, documentType } = req.body;
     await pool.query(
-      `UPDATE document_requests
-       SET status='Rejected'
+      `UPDATE document_requests SET status='Rejected'
        WHERE username=$1 AND document_type=$2 AND status='Pending'`,
       [username, documentType]
     );
@@ -416,6 +510,32 @@ app.put('/api/update-resident/:username', async (req, res) => {
   }
 });
 
+// ================= CHECK DUPLICATE BEFORE PROFILE UPDATE =================
+app.post('/api/check-duplicate-resident', async (req, res) => {
+  try {
+    const { name, dob, barangay, currentUsername } = req.body;
+    if (!name || !dob || !barangay) return res.json({ duplicate: false });
+
+    const result = await pool.query(
+      `SELECT username FROM residents
+       WHERE LOWER(TRIM(name)) = LOWER(TRIM($1))
+         AND dob::date = $2::date
+         AND barangay = $3
+         AND username != $4`,
+      [name, dob, barangay, currentUsername]
+    );
+
+    if (result.rows.length > 0) {
+      res.json({ duplicate: true, existingUsername: result.rows[0].username });
+    } else {
+      res.json({ duplicate: false });
+    }
+  } catch (err) {
+    console.error('Duplicate check error:', err);
+    res.json({ duplicate: false });
+  }
+});
+
 // ================= CREATE TEMP ADMINS =================
 app.get('/create-admins', async (req, res) => {
   try {
@@ -462,7 +582,7 @@ app.post('/api/auto-remove-duplicates', async (req, res) => {
 
     let removed = 0;
     for (const row of result.rows) {
-      const toDelete = row.usernames.slice(1); // keep newest (first), delete rest
+      const toDelete = row.usernames.slice(1);
       for (const username of toDelete) {
         await pool.query(`DELETE FROM document_requests WHERE username=$1`, [username]);
         await pool.query(`DELETE FROM residents WHERE username=$1`, [username]);
@@ -487,7 +607,7 @@ setInterval(() => {
   }).on('error', (err) => {
     console.error('Keep-alive error:', err.message);
   });
-}, 14 * 60 * 1000); // ping every 14 minutes
+}, 14 * 60 * 1000);
 
 // ================= HEALTH CHECK =================
 app.get('/health', (req, res) => {
