@@ -947,7 +947,7 @@ function showMyProfile() {
   setTimeout(initChildrenList, 0);
 }
 
-async function updateProfile() {
+function updateProfile(){
   const name    = document.getElementById('profile-name')?.value?.trim();
   const age     = document.getElementById('profile-age')?.value?.trim();
   const gender  = document.getElementById('profile-gender')?.value;
@@ -959,8 +959,7 @@ async function updateProfile() {
   const pwd     = document.getElementById('profile-pwd')?.value || 'No';
   const religion= document.getElementById('profile-religion')?.value?.trim() || null;
   const address = document.getElementById('profile-address')?.value?.trim() || null;
- 
-  // ── Validation ──────────────────────────────────────────────────────────────
+
   const missing = [];
   if (!name)     missing.push('Name');
   if (!age)      missing.push('Age');
@@ -972,13 +971,14 @@ async function updateProfile() {
   if (!dob)      missing.push('Birth Date');
   if (!religion) missing.push('Religion');
   if (!address)  missing.push('House Address');
- 
+
   if (missing.length > 0) {
     showProfileBanner('error', 'Please fill in the following field/s: ' + missing.join(', '));
     return;
   }
- 
+
   const place_of_birth  = document.getElementById('profile-place-of-birth')?.value?.trim() || null;
+  
   const blood_type      = document.getElementById('profile-blood-type')?.value || null;
   const voter_status    = document.getElementById('profile-voter-status')?.value || null;
   const education       = document.getElementById('profile-education')?.value || null;
@@ -987,10 +987,10 @@ async function updateProfile() {
   const spouse    = spouseTxt
     ? spouseTxt
     : (document.getElementById('profile-spouse-hidden')?.value || 'N/A');
-  const children_names          = document.getElementById('profile-children-names')?.value?.trim() || 'N/A';
+  const children_names  = document.getElementById('profile-children-names')?.value?.trim() || 'N/A';
   const emergency_contact_name   = document.getElementById('profile-emergency-name')?.value?.trim() || null;
   const emergency_contact_number = document.getElementById('profile-emergency-number')?.value?.trim() || null;
- 
+
   const updatedData = {
     name, religion, pwd, dob, address,
     age: parseInt(age),
@@ -1002,97 +1002,41 @@ async function updateProfile() {
     household_role, children_names,
     emergency_contact_name, emergency_contact_number
   };
- 
-  // Sanitize empty strings → null
+
   const sanitized = {};
   Object.keys(updatedData).forEach(key => {
     const val = updatedData[key];
     sanitized[key] = (val === '' || val === undefined) ? null : val;
   });
- 
-  // ── Duplicate check: same name + DOB + barangay but different username ──────
-  try {
-    const dupRes = await fetch(`${API_BASE}/api/check-duplicate-resident`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name,
-        dob,
-        barangay,
-        currentUsername: loggedInUser.username
-      })
-    });
-    const dupData = await dupRes.json();
- 
-    if (dupData.duplicate) {
-      // A resident with the same name + DOB + barangay already exists.
-      // Merge: update THAT existing record instead of the current one,
-      // then re-point loggedInUser to it so nothing is duplicated.
-      const confirmed = confirm(
-        `A resident profile with the same name, date of birth, and barangay already exists ` +
-        `(account: ${dupData.existingUsername}).\n\n` +
-        `Your update will be saved to that existing profile to avoid duplication.\n\n` +
-        `Press OK to continue.`
-      );
-      if (!confirmed) return;
- 
-      // Update the EXISTING duplicate record with the new data
-      const mergeRes = await fetch(`${API_BASE}/api/update-resident/${dupData.existingUsername}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(sanitized)
-      });
-      const mergeData = await mergeRes.json();
- 
-      if (mergeData.success) {
-        // Re-fetch the merged profile so the session reflects it
-        const profileRes = await fetch(`${API_BASE}/api/residents-profile?username=${dupData.existingUsername}`);
-        const profileData = await profileRes.json();
-        if (profileData.profile) {
-          // Keep auth info from current loggedInUser, overlay the merged profile data
-          loggedInUser = { ...loggedInUser, ...profileData.profile };
-          localStorage.setItem('user', JSON.stringify(loggedInUser));
-        }
-        showProfileBanner('success', 'Profile merged with existing record and updated successfully!');
-      } else {
-        showProfileBanner('error', mergeData.message || 'Merge failed. Please try again.');
-      }
-      return;
-    }
-  } catch (dupErr) {
-    // If the duplicate-check endpoint fails, fall through and do a normal update
-    console.warn('Duplicate check failed, proceeding with normal update:', dupErr);
-  }
- 
-  // ── No duplicate found — normal update flow ──────────────────────────────────
-  try {
-    const res = await fetch(`${API_BASE}/api/update-resident/${loggedInUser.username}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(sanitized)
-    });
-    const data = await res.json();
- 
+
+  fetch(`${API_BASE}/api/update-resident/${loggedInUser.username}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(sanitized)
+  })
+  .then(res => res.json())
+  .then(data => {
     if (data.success) {
       // Re-fetch fresh profile from server so all fields are saved correctly
-      try {
-        const profileRes = await fetch(`${API_BASE}/api/residents-profile?username=${loggedInUser.username}`);
-        const profileData = await profileRes.json();
-        if (profileData.profile) {
-          loggedInUser = { ...loggedInUser, ...profileData.profile };
-          localStorage.setItem('user', JSON.stringify(loggedInUser));
-        }
-      } catch (_) {
-        loggedInUser = { ...loggedInUser, ...sanitized };
-        localStorage.setItem('user', JSON.stringify(loggedInUser));
-      }
-      showProfileBanner('success', 'Profile updated successfully!');
+      fetch(`${API_BASE}/api/residents-profile?username=${loggedInUser.username}`)
+        .then(r => r.json())
+        .then(profileData => {
+          if (profileData.profile) {
+            loggedInUser = { ...loggedInUser, ...profileData.profile };
+            localStorage.setItem("user", JSON.stringify(loggedInUser));
+          }
+          showProfileBanner('success', 'Profile updated successfully!');
+        })
+        .catch(() => {
+          loggedInUser = { ...loggedInUser, ...sanitized };
+          localStorage.setItem("user", JSON.stringify(loggedInUser));
+          showProfileBanner('success', 'Profile updated successfully!');
+        });
     } else {
       showProfileBanner('error', data.message || 'Update failed. Please try again.');
     }
-  } catch (err) {
-    showProfileBanner('error', 'Could not connect to server. Please try again.');
-  }
+  })
+  .catch(() => showProfileBanner('error', 'Could not connect to server. Please try again.'));
 }
 
 function showProfileBanner(type, message) {
