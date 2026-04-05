@@ -839,7 +839,7 @@ function showMyProfile() {
           <tr><td style="padding:4px 6px; color:#555; white-space:nowrap;">Household Role:</td><td>
             <select id="profile-household-role" style="width:100%; padding:4px;">
               <option value="">-- Select --</option>
-              ${['Head','Spouse','Child','Parent','Sibling','Grandchild','Grandparent','Relative','Non-Relative'].map(r =>
+              ${['Head','Spouse','Child','Parent','Sibling','Grandchild','Grandparent','Relative'].map(r =>
                 `<option ${loggedInUser.household_role===r?'selected':''}>${r}</option>`).join('')}
             </select>
           </td></tr>
