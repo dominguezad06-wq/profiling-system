@@ -99,7 +99,6 @@ function createResident() {
   const username = getVal('res-username').trim();
   const password = getVal('res-password').trim();
   const email = getVal('res-email').trim();
-
   const age = getInt('res-age');
   const gender = getVal('res-gender');
   const barangay = getVal('res-barangay');
