@@ -98,6 +98,7 @@ function createResident() {
   const name = getVal('res-name').trim();
   const username = getVal('res-username').trim();
   const password = getVal('res-password').trim();
+  const confirmPassword = getVal('res-confirm-password').trim();
   const email = getVal('res-email').trim();
 
   const age = getInt('res-age');
