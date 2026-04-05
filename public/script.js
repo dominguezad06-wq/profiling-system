@@ -906,9 +906,20 @@ function showMyProfile() {
     <td><input type="text" id="profile-emergency-name" value="${loggedInUser.emergency_contact_name || ''}" placeholder="Contact person name" style="width:100%; padding:4px;"></td>
   </tr>
   <tr>
-    <td style="padding:4px 6px; color:#555; white-space:nowrap;">Emergency No.:</td>
-    <td><input type="text" id="profile-emergency-number" value="${loggedInUser.emergency_contact_number || ''}" placeholder="Contact person number" style="width:100%; padding:4px;"></td>
-  </tr>
+  <td style="padding:4px 6px; color:#555; white-space:nowrap;">Emergency No.:</td>
+  <td>
+    <input 
+      type="tel"
+      id="profile-emergency-number"
+      value="${loggedInUser.emergency_contact_number || ''}"
+      placeholder="Contact person number"
+      pattern="[0-9]*"
+      inputmode="numeric"
+      oninput="this.value = this.value.replace(/[^0-9]/g, '')"
+      style="width:100%; padding:4px;"
+    >
+  </td>
+</tr>
 </table>
 
 <button onclick="updateProfile()" 
