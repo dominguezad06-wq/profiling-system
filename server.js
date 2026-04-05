@@ -494,6 +494,32 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', time: new Date() });
 });
 
+// ================= CHECK DUPLICATE BEFORE PROFILE UPDATE =================
+app.post('/api/check-duplicate-resident', async (req, res) => {
+  try {
+    const { name, dob, barangay, currentUsername } = req.body;
+    if (!name || !dob || !barangay) return res.json({ duplicate: false });
+
+    const result = await pool.query(
+      `SELECT username, name, dob, barangay FROM residents
+       WHERE LOWER(TRIM(name)) = LOWER(TRIM($1))
+         AND dob::date = $2::date
+         AND barangay = $3
+         AND username != $4`,
+      [name, dob, barangay, currentUsername]
+    );
+
+    if (result.rows.length > 0) {
+      res.json({ duplicate: true, existingUsername: result.rows[0].username });
+    } else {
+      res.json({ duplicate: false });
+    }
+  } catch (err) {
+    console.error('Duplicate check error:', err);
+    res.json({ duplicate: false });
+  }
+});
+
 // ================= START SERVER =================
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
