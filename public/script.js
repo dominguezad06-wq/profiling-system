@@ -894,10 +894,20 @@ function showMyProfile() {
     </td>
   </tr>
   <tr>
-    <td style="padding:4px 6px; color:#555; white-space:nowrap;">Contact:</td>
-    <td><input type="text" id="profile-contact" value="${loggedInUser.contact || ''}" style="width:100%; padding:4px;"></td>
-  </tr>
-  <tr>
+  <td style="padding:4px 6px; color:#555; white-space:nowrap;">Contact:</td>
+  <td>
+    <input 
+      type="tel"
+      id="profile-contact"
+      value="${loggedInUser.contact || ''}"
+      placeholder="Contact number"
+      pattern="[0-9]*"
+      inputmode="numeric"
+      oninput="this.value = this.value.replace(/[^0-9]/g, '')"
+      style="width:100%; padding:4px;"
+    >
+  </td>
+</tr>
     <td style="padding:4px 6px; color:#555; white-space:nowrap;">Email:</td>
     <td><input type="email" id="profile-email" value="${loggedInUser.email || ''}" style="width:100%; padding:4px;"></td>
   </tr>
