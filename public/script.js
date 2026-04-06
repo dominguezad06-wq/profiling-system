@@ -802,67 +802,225 @@ function filterBgyResidents(input) {
 
 function renderResidentWelcome() {
   const body = document.getElementById('dashboard-body');
+  const u = loggedInUser;
+
+  let children = [];
+  try { children = JSON.parse(u.children_names || '[]'); } catch(e) { children = []; }
+  if (!Array.isArray(children)) children = [];
+
   body.innerHTML = `
-    <div style="display:flex; flex-wrap:wrap; gap:20px;">
-      <div style="flex:1; min-width:300px; background:#f0f8ff; padding:20px; border-radius:12px; box-shadow:0 2px 6px rgba(0,0,0,0.1);">
-        <h3>Welcome, ${loggedInUser.name || 'Resident'}!</h3>
-        <p>Here's a quick summary of your profile:</p>
-        <ul>
-          <li>Age: ${loggedInUser.age || 'N/A'}</li>
-          <li>Barangay: ${loggedInUser.barangay || 'N/A'}</li>
-          <li>Status: ${loggedInUser.status || 'N/A'}</li>
-          <li>Sons: ${loggedInUser.sons || 0}, Daughters: ${loggedInUser.daughters || 0}</li>
-          <li>PWD: ${loggedInUser.pwd || 'No'}</li>
-        </ul>
+    <div style="padding:28px; background:#f5f6fa; min-height:100%;">
+
+      <!-- Hero Banner -->
+      <div style="background:linear-gradient(135deg,#c0392b 0%,#e67e22 100%); border-radius:16px; padding:32px 36px; margin-bottom:24px; position:relative; overflow:hidden; box-shadow:0 8px 32px rgba(192,57,43,0.25);">
+        <div style="position:absolute;top:-30px;right:-30px;width:180px;height:180px;background:rgba(255,255,255,0.07);border-radius:50%;"></div>
+        <div style="position:absolute;bottom:-50px;right:60px;width:120px;height:120px;background:rgba(255,255,255,0.05);border-radius:50%;"></div>
+        <div style="position:relative; z-index:1;">
+          <div style="font-size:13px; color:rgba(255,255,255,0.75); font-weight:500; letter-spacing:0.5px; margin-bottom:6px; text-transform:uppercase;">Welcome back</div>
+          <div style="font-size:28px; font-weight:700; color:#fff; margin-bottom:4px;">${u.name || 'Resident'}</div>
+          <div style="font-size:13px; color:rgba(255,255,255,0.7);">Barangay ${u.barangay || 'Trapiche'} &nbsp;·&nbsp; Tanauan City, Batangas</div>
+        </div>
       </div>
-      <div style="flex:1; min-width:300px; background:#fff0f5; padding:20px; border-radius:12px; box-shadow:0 2px 6px rgba(0,0,0,0.1);">
-        <h3>Quick Actions</h3>
-        <button onclick="showMyProfile()" style="width:100%; padding:10px; margin-bottom:10px; border-radius:8px; background:#1a3f6c; color:white; border:none; cursor:pointer;">My Profile</button>
-        <button onclick="showMyRequests()" style="width:100%; padding:10px; border-radius:8px; background:#1a3f6c; color:white; border:none; cursor:pointer;">My Requests</button>
+
+      <!-- Stat Cards -->
+      <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:14px; margin-bottom:24px;">
+        ${[
+          { label:'Age', value: u.age || '—', icon:'🎂', color:'#1a3f6c' },
+          { label:'Gender', value: u.gender || '—', icon:'👤', color:'#2c5aa0' },
+          { label:'Civil Status', value: u.status || '—', icon:'💍', color:'#c0392b' },
+          { label:'PWD', value: u.pwd === 'Yes' ? 'Yes' : 'No', icon:'♿', color:'#e67e22' },
+          { label:'Senior', value: (u.age >= 60) ? 'Yes' : 'No', icon:'⭐', color:'#27ae60' },
+        ].map(card => `
+          <div style="background:#fff; border-radius:12px; padding:18px 20px; border:1px solid #ebebeb; box-shadow:0 2px 8px rgba(0,0,0,0.04);"
+            onmouseover="this.style.boxShadow='0 6px 20px rgba(0,0,0,0.1)'" onmouseout="this.style.boxShadow='0 2px 8px rgba(0,0,0,0.04)'">
+            <div style="font-size:22px; margin-bottom:10px;">${card.icon}</div>
+            <div style="font-size:18px; font-weight:700; color:${card.color}; margin-bottom:2px;">${card.value}</div>
+            <div style="font-size:12px; color:#999; font-weight:500; text-transform:uppercase; letter-spacing:0.4px;">${card.label}</div>
+          </div>
+        `).join('')}
       </div>
+
+      <!-- Profile Detail Cards -->
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:24px;">
+
+        <!-- Personal Information -->
+        <div style="background:#fff; border-radius:16px; border:1px solid #ebebeb; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+          <div style="padding:16px 22px; border-bottom:1px solid #f0f0f0; background:#fafafa;">
+            <div style="font-size:14px; font-weight:700; color:#c0392b;">🧍 Personal Information</div>
+          </div>
+          <div style="padding:18px 22px; display:flex; flex-direction:column; gap:12px;">
+            ${[
+              { label:'Date of Birth', value: u.dob ? formatDate(u.dob) : '—' },
+              { label:'Place of Birth', value: u.place_of_birth || '—' },
+              { label:'Blood Type', value: u.blood_type || '—' },
+              { label:'Religion', value: u.religion || '—' },
+              { label:'Barangay', value: u.barangay || '—' },
+              { label:'Address', value: u.address || '—' },
+            ].map(row => `
+              <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px;">
+                <span style="font-size:12px; color:#999; font-weight:500; text-transform:uppercase; letter-spacing:0.4px; min-width:130px; padding-top:1px;">${row.label}</span>
+                <span style="font-size:13px; color:#1a1a1a; font-weight:500; text-align:right;">${row.value}</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+
+        <!-- Family Information -->
+        <div style="background:#fff; border-radius:16px; border:1px solid #ebebeb; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+          <div style="padding:16px 22px; border-bottom:1px solid #f0f0f0; background:#fafafa;">
+            <div style="font-size:14px; font-weight:700; color:#1a3f6c;">👨‍👩‍👧‍👦 Family Information</div>
+          </div>
+          <div style="padding:18px 22px; display:flex; flex-direction:column; gap:12px;">
+            ${[
+              { label:'Spouse', value: (u.spouse && u.spouse !== 'N/A') ? u.spouse : '—' },
+              { label:'Sons', value: u.sons ?? '0' },
+              { label:'Daughters', value: u.daughters ?? '0' },
+              { label:'Family Members', value: u.family_members ?? '—' },
+              { label:'Household Role', value: u.household_role || '—' },
+              { label:'Voter Status', value: u.voter_status || '—' },
+            ].map(row => `
+              <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px;">
+                <span style="font-size:12px; color:#999; font-weight:500; text-transform:uppercase; letter-spacing:0.4px; min-width:130px; padding-top:1px;">${row.label}</span>
+                <span style="font-size:13px; color:#1a1a1a; font-weight:500; text-align:right;">${row.value}</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+
+        <!-- Contact & Education -->
+        <div style="background:#fff; border-radius:16px; border:1px solid #ebebeb; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+          <div style="padding:16px 22px; border-bottom:1px solid #f0f0f0; background:#fafafa;">
+            <div style="font-size:14px; font-weight:700; color:#e67e22;">📞 Contact & Education</div>
+          </div>
+          <div style="padding:18px 22px; display:flex; flex-direction:column; gap:12px;">
+            ${[
+              { label:'Contact No.', value: u.contact || '—' },
+              { label:'Email', value: u.email || '—' },
+              { label:'Educational Attainment', value: u.educational_attainment || '—' },
+            ].map(row => `
+              <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px;">
+                <span style="font-size:12px; color:#999; font-weight:500; text-transform:uppercase; letter-spacing:0.4px; min-width:130px; padding-top:1px;">${row.label}</span>
+                <span style="font-size:13px; color:#1a1a1a; font-weight:500; text-align:right; word-break:break-all;">${row.value}</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+
+        <!-- Emergency Contact -->
+        <div style="background:#fff; border-radius:16px; border:1px solid #ebebeb; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+          <div style="padding:16px 22px; border-bottom:1px solid #f0f0f0; background:#fafafa;">
+            <div style="font-size:14px; font-weight:700; color:#c0392b;">🚨 Emergency Contact</div>
+          </div>
+          <div style="padding:18px 22px; display:flex; flex-direction:column; gap:12px;">
+            ${[
+              { label:'Name', value: u.emergency_contact_name || '—' },
+              { label:'Number', value: u.emergency_contact_number || '—' },
+            ].map(row => `
+              <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px;">
+                <span style="font-size:12px; color:#999; font-weight:500; text-transform:uppercase; letter-spacing:0.4px; min-width:130px; padding-top:1px;">${row.label}</span>
+                <span style="font-size:13px; color:#1a1a1a; font-weight:500; text-align:right;">${row.value}</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Children -->
+      ${children.length > 0 ? `
+        <div style="background:#fff; border-radius:16px; border:1px solid #ebebeb; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.04); margin-bottom:24px;">
+          <div style="padding:16px 22px; border-bottom:1px solid #f0f0f0; background:#fafafa;">
+            <div style="font-size:14px; font-weight:700; color:#e67e22;">👶 Children (${children.length})</div>
+          </div>
+          <div style="padding:18px 22px; display:flex; flex-wrap:wrap; gap:10px;">
+            ${children.map(c => `
+              <div style="background:#fff8f0; border:1px solid #fde8c8; border-radius:10px; padding:10px 16px; display:flex; align-items:center; gap:10px;">
+                <span style="font-size:18px;">${c.gender === 'Female' ? '👧' : '👦'}</span>
+                <div>
+                  <div style="font-size:13px; font-weight:600; color:#1a1a1a;">${c.name}</div>
+                  <div style="font-size:12px; color:#999;">Age ${c.age} · ${c.gender}</div>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      ` : ''}
+
+      <!-- Recent Requests -->
+      <div style="background:#fff; border-radius:16px; border:1px solid #ebebeb; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:20px 24px; border-bottom:1px solid #f0f0f0;">
+          <div>
+            <div style="font-size:16px; font-weight:700; color:#1a1a1a;">Recent Requests</div>
+            <div style="font-size:12px; color:#999; margin-top:2px;">Your latest document requests</div>
+          </div>
+          <button onclick="showMyRequests()"
+            style="padding:8px 16px; background:#1a3f6c; color:white; border:none; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer;">
+            View All
+          </button>
+        </div>
+        <div id="recent-requests-container" style="padding:20px 24px;">
+          <div style="display:flex; align-items:center; gap:10px; color:#bbb; font-size:14px;">
+            <div style="width:16px;height:16px;border:2px solid #ddd;border-top-color:#c0392b;border-radius:50%;animation:spin 0.8s linear infinite;"></div>
+            Loading your requests...
+          </div>
+        </div>
+      </div>
+
     </div>
-    <div id="resident-requests-preview" style="margin-top:20px;">
-      <h3>Recent Requests</h3>
-      <div id="recent-requests-container">Loading your requests...</div>
-    </div>
+    <style>@keyframes spin { to { transform:rotate(360deg); } }</style>
   `;
   loadMyRequestsPreview();
 }
 
-// FIX #1: was username (undefined), now loggedInUser.username
 function loadMyRequestsPreview() {
-  if(!loggedInUser || !loggedInUser.username) return;
+  if (!loggedInUser || !loggedInUser.username) return;
 
   fetch(`${API_BASE}/api/my-requests?username=${loggedInUser.username}`)
     .then(res => res.json())
     .then(data => {
       loggedInUser.requests = data.requests || [];
       const container = document.getElementById('recent-requests-container');
-      if(!container) return;
-      if(loggedInUser.requests.length === 0) {
-        container.innerHTML = '<p>No requests yet.</p>';
-      } else {
+      if (!container) return;
+
+      if (loggedInUser.requests.length === 0) {
         container.innerHTML = `
-          ${loggedInUser.requests.slice(-3).map(r => {
-            let bgColor = '#fff3cd';
-            if(r.status === 'Approved') bgColor = '#d4edda';
-            else if(r.status === 'Rejected') bgColor = '#f8d7da';
+          <div style="text-align:center; padding:32px 0;">
+            <div style="font-size:36px; margin-bottom:12px;">📄</div>
+            <div style="font-size:15px; font-weight:500; color:#aaa;">No requests yet</div>
+            <div style="font-size:13px; color:#ccc; margin-top:4px;">Click "My Requests" in the sidebar to file one</div>
+          </div>
+        `;
+        return;
+      }
+
+      const statusConfig = {
+        'Approved': { bg:'#f0fdf4', border:'#86efac', badge:'#16a34a', badgeBg:'#dcfce7', dot:'#22c55e' },
+        'Rejected':  { bg:'#fff5f5', border:'#fca5a5', badge:'#dc2626', badgeBg:'#fee2e2', dot:'#ef4444' },
+        'Pending':   { bg:'#fffbeb', border:'#fcd34d', badge:'#d97706', badgeBg:'#fef3c7', dot:'#f59e0b' },
+      };
+
+      container.innerHTML = `
+        <div style="display:flex; flex-direction:column; gap:12px;">
+          ${loggedInUser.requests.slice(0, 3).map(r => {
+            const cfg = statusConfig[r.status] || statusConfig['Pending'];
             return `
-              <div class="request-card" style="background:${bgColor}">
-                <h4>${r.document_type}</h4>
-                <p><strong>Status:</strong> ${r.status}</p>
-                ${r.status === 'Approved' && r.date && r.time
-                  ? `<p>Pick-up Date: ${formatDate(r.date)}</p>
-                     <p>Pick-up Time: ${formatTime12Hour(r.time)}</p>`
-                  : ''}
-                ${r.status === 'Rejected'
-                  ? `<p style="color:red;">Your request was rejected.</p>`
-                  : ''}
+              <div style="background:${cfg.bg}; border:1px solid ${cfg.border}; border-radius:12px; padding:16px 20px; display:flex; align-items:center; justify-content:space-between; gap:16px;">
+                <div style="display:flex; align-items:center; gap:14px;">
+                  <div style="width:10px;height:10px;border-radius:50%;background:${cfg.dot};flex-shrink:0;box-shadow:0 0 0 3px ${cfg.badgeBg};"></div>
+                  <div>
+                    <div style="font-size:14px; font-weight:600; color:#1a1a1a;">${r.document_type}</div>
+                    ${r.status === 'Approved' && r.date && r.time
+                      ? `<div style="font-size:12px; color:#555; margin-top:2px;">Pick-up: ${formatDate(r.date)} at ${formatTime12Hour(r.time)}</div>`
+                      : `<div style="font-size:12px; color:#888; margin-top:2px;">Status updated recently</div>`
+                    }
+                  </div>
+                </div>
+                <span style="background:${cfg.badgeBg}; color:${cfg.badge}; font-size:12px; font-weight:600; padding:4px 12px; border-radius:99px; white-space:nowrap;">${r.status}</span>
               </div>
             `;
           }).join('')}
-        `;
-      }
+        </div>
+      `;
     })
     .catch(err => console.error('Failed to load requests', err));
 }
