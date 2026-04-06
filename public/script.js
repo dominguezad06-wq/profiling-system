@@ -1929,12 +1929,20 @@ function handleCredentialResponse(response) {
       console.log("Logged in user:", loggedInUser);
       showDashboard();
     } else {
-      alert(data.message || "Google login failed");
+      const errBox = document.getElementById('login-error');
+      if (errBox) {
+        errBox.innerText = data.message || 'Google login failed';
+        errBox.style.display = 'block';
+      }
     }
   })
   .catch(err => {
     console.error("Google login error:", err);
-    alert("Server error during Google login");
+    const errBox = document.getElementById('login-error');
+    if (errBox) {
+      errBox.innerText = 'Google login failed: ' + (err.message || 'Server error');
+      errBox.style.display = 'block';
+    }
   });
 }
 
