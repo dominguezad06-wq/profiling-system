@@ -294,21 +294,21 @@
   </div>
 
   <div style="display:flex; margin-top:56px; min-height:calc(100vh - 56px);">
-    class="sidebar" style="position:fixed; top:56px; left:0; height:calc(100vh - 56px); width:220px; overflow-y:auto; z-index:100; background:#f5f5f5; border-right:1px solid #e0e0e0;">
+    class="sidebar" style="position:fixed; top:56px; left:0; height:calc(100vh - 56px); width:220px; overflow-y:auto; z-index:100; background:#8B0000;">
       <div style="padding:20px 0 10px;">
-        <div style="padding:0 16px 16px; border-bottom:1px solid #e0e0e0; margin-bottom:8px;">
-          <div id="dashboard-title" style="font-size:14px; font-weight:600; color:#8B0000;">My Dashboard</div>
+        <div style="padding:0 16px 16px; border-bottom:1px solid rgba(255,255,255,0.15); margin-bottom:8px;">
+          <div id="dashboard-title" style="font-size:14px; font-weight:600; color:white;">My Dashboard</div>
         </div>
         <ul style="list-style:none; padding:0 8px; margin:0;">
           <li style="margin-bottom:4px;">
-            <a href="#" onclick="showMyProfile()" style="display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:8px; color:#333; text-decoration:none; font-size:13px; transition:0.2s;"
-              onmouseover="this.style.background='#fde8e8'; this.style.color='#8B0000';" onmouseout="this.style.background='transparent'; this.style.color='#333';">
+            <a href="#" onclick="showMyProfile()" style="display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:8px; color:white; text-decoration:none; font-size:13px; transition:0.2s;"
+              onmouseover="this.style.background='rgba(255,255,255,0.2)'" onmouseout="this.style.background='transparent'">
               <span>📋</span> My Profile
             </a>
           </li>
           <li style="margin-bottom:4px;">
-            <a href="#" onclick="showMyRequests()" style="display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:8px; color:#333; text-decoration:none; font-size:13px; transition:0.2s;"
-              onmouseover="this.style.background='#fde8e8'; this.style.color='#8B0000';" onmouseout="this.style.background='transparent'; this.style.color='#333';">
+            <a href="#" onclick="showMyRequests()" style="display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:8px; color:white; text-decoration:none; font-size:13px; transition:0.2s;"
+              onmouseover="this.style.background='rgba(255,255,255,0.2)'" onmouseout="this.style.background='transparent'">
               <span>📄</span> My Requests
             </a>
           </li>
@@ -351,30 +351,30 @@
   </div>
 
   <div style="display:flex; margin-top:56px; min-height:calc(100vh - 56px);">
-    class="sidebar" style="position:fixed; top:56px; left:0; height:calc(100vh - 56px); width:220px; overflow-y:auto; z-index:100; background:#f5f5f5; border-right:1px solid #e0e0e0;">
+    class="sidebar" style="position:fixed; top:56px; left:0; height:calc(100vh - 56px); width:220px; overflow-y:auto; z-index:100; background:#8B0000;">
       <div style="padding:20px 0 10px;">
-        <div style="padding:0 16px 16px; border-bottom:1px solid #e0e0e0; margin-bottom:8px;">
-          <div style="font-size:14px; font-weight:600; color:#8B0000;">Manager Panel</div>
+        <div style="padding:0 16px 16px; border-bottom:1px solid rgba(255,255,255,0.15); margin-bottom:8px;">
+          <div style="font-size:14px; font-weight:600; color:white;">Manager Panel</div>
         </div>
         <ul style="list-style:none; padding:0 8px; margin:0;">
           <li style="margin-bottom:4px;">
             <a href="#" onclick="renderManagerRequests(window.allRequests, 'pending')" style="display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:8px; color:white; text-decoration:none; font-size:13px;"
-              color:#333; text-decoration:none; font-size:13px;"
-              onmouseover="this.style.background='#fde8e8'; this.style.color='#8B0000';" onmouseout="this.style.background='transparent'; this.style.color='#333';">
+              color:white; text-decoration:none; font-size:13px;"
+              onmouseover="this.style.background='rgba(255,255,255,0.2)'" onmouseout="this.style.background='transparent'">
               <span>🕐</span> Pending
             </a>
           </li>
           <li style="margin-bottom:4px;">
             <a href="#" onclick="renderManagerRequests(window.allRequests, 'approved')" style="display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:8px; color:white; text-decoration:none; font-size:13px;"
-              color:#333; text-decoration:none; font-size:13px;"
-              onmouseover="this.style.background='#fde8e8'; this.style.color='#8B0000';" onmouseout="this.style.background='transparent'; this.style.color='#333';">
+              color:white; text-decoration:none; font-size:13px;"
+              onmouseover="this.style.background='rgba(255,255,255,0.2)'" onmouseout="this.style.background='transparent'">
               <span>✅</span> Approved
             </a>
           </li>
           <li style="margin-bottom:4px;">
             <a href="#" onclick="renderManagerRequests(window.allRequests, 'rejected')" style="display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:8px; color:white; text-decoration:none; font-size:13px;"
-              color:#333; text-decoration:none; font-size:13px;"
-              onmouseover="this.style.background='#fde8e8'; this.style.color='#8B0000';" onmouseout="this.style.background='transparent'; this.style.color='#333';">
+              color:white; text-decoration:none; font-size:13px;"
+              onmouseover="this.style.background='rgba(255,255,255,0.2)'" onmouseout="this.style.background='transparent'">
               <span>❌</span> Rejected
             </a>
           </li>
@@ -418,10 +418,10 @@
   </div>
 
   <div style="display:flex; margin-top:56px; min-height:calc(100vh - 56px);">
-    <div class="sidebar" style="position:fixed; top:56px; left:0; height:calc(100vh - 56px); width:220px; overflow-y:auto; z-index:100; background:#f5f5f5; border-right:1px solid #e0e0e0;">
+    <div class="sidebar" style="position:fixed; top:56px; left:0; height:calc(100vh - 56px); width:220px; overflow-y:auto; z-index:100; background:#8B0000;">
       <div style="padding:20px 0 10px;">
-        <div style="padding:0 16px 16px; border-bottom:1px solid #e0e0e0; margin-bottom:8px;">
-          <div style="font-size:14px; font-weight:600; color:#8B0000;">Health Center</div>
+        <div style="padding:0 16px 16px; border-bottom:1px solid rgba(255,255,255,0.15); margin-bottom:8px;">
+          <div style="font-size:14px; font-weight:600; color:white;">Health Center</div>
         </div>
         <ul style="list-style:none; padding:0 8px; margin:0;">
           <li style="margin-bottom:4px;">
@@ -475,6 +475,11 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <script src="script.js"></script>
+
+<!-- Footer -->
+<div id="site-footer" style="display:none; width:100%; background:#f5f5f5; border-top:1px solid #e0e0e0; padding:14px 24px; text-align:center; font-size:12px; color:#888; position:fixed; bottom:0; left:0; z-index:999;">
+  Copyright &copy; 2026. Barangay Trapiche, Tanauan City, Batangas. All Rights Reserved.
+</div>
 
 </body>
 </html>
