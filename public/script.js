@@ -145,16 +145,26 @@ function createResident() {
   .then(res => res.json())
   .then(response => {
     console.log("Server Response:", response);
+    const errBox = document.getElementById('register-error');
+    const successBox = document.getElementById('register-success');
     if (response.user) {
-      alert('Resident account created successfully!');
-      showLogin();
+      errBox.style.display = 'none';
+      successBox.style.display = 'block';
+      successBox.innerText = 'Account created successfully! Redirecting to login...';
+      setTimeout(() => showLogin(), 1800);
     } else {
-      alert('Error: ' + (response.error || 'Unknown error'));
+      successBox.style.display = 'none';
+      errBox.style.display = 'block';
+      errBox.innerText = response.error === 'Username already exists'
+        ? 'That username is already taken. Please choose another.'
+        : (response.error || 'Something went wrong. Please try again.');
     }
   })
   .catch(err => {
     console.error(err);
-    alert("Server connection error");
+    const errBox = document.getElementById('register-error');
+    errBox.style.display = 'block';
+    errBox.innerText = 'Could not connect to server. Please try again.';
   });
 }
 
