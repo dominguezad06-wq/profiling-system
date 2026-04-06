@@ -27,7 +27,7 @@ function formatDate(dateStr) {
 
 // Show Forms
 function showResidentForm(){ document.getElementById('login-page').style.display='none'; document.getElementById('resident-form').style.display='block'; }
-function showLogin(){ document.getElementById('login-page').style.display='block'; document.getElementById('resident-form').style.display='none'; document.getElementById('forgot-page').style.display='none'; }
+function showLogin(){ document.getElementById('login-page').style.display='flex'; document.getElementById('resident-form').style.display='none'; document.getElementById('forgot-page').style.display='none'; }
 function showForgotPassword(){ document.getElementById('login-page').style.display='none'; document.getElementById('forgot-page').style.display='flex'; }
 function sendOTP() {
   const email = document.getElementById('forgot-email').value;
