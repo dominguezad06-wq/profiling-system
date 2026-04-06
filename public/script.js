@@ -3,8 +3,6 @@ let currentRole = null;
 let dswdResidents = [];
 emailjs.init('Ndd7_r9gTrjDBG9-K')
 const API_BASE = "https://profiling-system.onrender.com";
-// Wake up Render on page load
-fetch(`${API_BASE}/health`).catch(() => {});
 
 // 
 function formatTime12Hour(time24){
@@ -28,26 +26,39 @@ function formatDate(dateStr) {
 }
 
 // Show Forms
-function showResidentForm(){ document.getElementById('login-page').style.display='none'; document.getElementById('resident-form').style.display='flex'; }
-function showLogin(){ document.getElementById('login-page').style.display='flex'; document.getElementById('resident-form').style.display='none'; document.getElementById('forgot-page').style.display='none'; }
+function showResidentForm(){ document.getElementById('login-page').style.display='none'; document.getElementById('resident-form').style.display='block'; }
+function showLogin(){ document.getElementById('login-page').style.display='block'; document.getElementById('resident-form').style.display='none'; document.getElementById('forgot-page').style.display='none'; }
 function showForgotPassword(){ document.getElementById('login-page').style.display='none'; document.getElementById('forgot-page').style.display='block'; }
 
 function sendOTP() {
   const email = document.getElementById('forgot-email').value;
   fetch(`${API_BASE}/api/send-otp`, {
     method: 'POST',
-    headers: { 'Content-Type':'application/json' },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email })
   })
   .then(res => res.json())
   .then(data => {
     const msg = document.getElementById('otp-message');
-    if(data.success){
-      generatedOTP = data.otp; 
+    if (data.success) {
+      generatedOTP = data.otp;
       otpUserEmail = email;
-      msg.innerText = "OTP sent to your Gmail.";
-      msg.style.color = "green";
-      document.getElementById('otp-section').style.display = "block";
+
+      emailjs.send("service_9m8vyrc", "template_y8zmwtz", {
+        to_email: email,
+        name: email,
+        otp_code: data.otp
+      })
+      .then(() => {
+        msg.innerText = "OTP sent to your email!";
+        msg.style.color = "green";
+        document.getElementById('otp-section').style.display = "block";
+      })
+      .catch(() => {
+        msg.innerText = "Failed to send OTP email.";
+        msg.style.color = "red";
+      });
+
     } else {
       msg.innerText = data.message || "Email not registered!";
       msg.style.color = "red";
@@ -55,7 +66,7 @@ function sendOTP() {
   })
   .catch(() => {
     const msg = document.getElementById('otp-message');
-    msg.innerText = "Failed to send OTP.";
+    msg.innerText = "Server error.";
     msg.style.color = "red";
   });
 }
@@ -90,71 +101,42 @@ function verifyOTP() {
 }
 
 // Create Resident
-// ─────────────────────────────────────────────────────────────────────────────
-//  REPLACE the entire createResident() function in script.js with this one
-// ─────────────────────────────────────────────────────────────────────────────
-
 function createResident() {
   const getVal = id => document.getElementById(id)?.value || '';
   const getInt = id => parseInt(document.getElementById(id)?.value) || 0;
   const getChecked = id => document.getElementById(id)?.checked ? 'Yes' : 'No';
 
-  const name     = getVal('res-name').trim();
+  const name = getVal('res-name').trim();
   const username = getVal('res-username').trim();
   const password = getVal('res-password').trim();
-  const email    = getVal('res-email').trim();
-  const age      = getInt('res-age');
-  const gender   = getVal('res-gender');
+  const email = getVal('res-email').trim();
+
+  const age = getInt('res-age');
+  const gender = getVal('res-gender');
   const barangay = getVal('res-barangay');
-  const status   = getVal('res-status');
-  const address  = getVal('res-address');
-  const sons     = getInt('res-sons');
-  const daughters= getInt('res-daughters');
-  const pwd      = getChecked('res-pwd');
-  const contact  = getVal('res-contact');
+  const address = getVal('res-address');
+  const status = getVal('res-status');
 
-  // ── Validation ──────────────────────────────────────────────────────────
-  if (!name) {
-    showRegisterBanner('Please enter your full name.'); return;
-  }
-  if (!username) {
-    showRegisterBanner('Please choose a username.'); return;
-  }
-  if (username.length < 4) {
-    showRegisterBanner('Username must be at least 4 characters.'); return;
-  }
-  if (!password) {
-    showRegisterBanner('Please create a password.'); return;
-  }
-  if (password.length < 6) {
-    showRegisterBanner('Password must be at least 6 characters.'); return;
-  }
-  if (!email) {
-    showRegisterBanner('Please enter your email address.'); return;
-  }
-  if (!gender) {
-    showRegisterBanner('Please select your gender.'); return;
-  }
-  if (!barangay) {
-    showRegisterBanner('Please select your barangay.'); return;
-  }
-  if (!status) {
-    showRegisterBanner('Please select your civil status.'); return;
-  }
+  const sons = getInt('res-sons');
+  const daughters = getInt('res-daughters');
+  const pwd = getChecked('res-pwd');
+  const contact = getVal('res-contact');
 
-  // ── Show loading state ───────────────────────────────────────────────────
-  const submitBtn = document.querySelector('[onclick="createResident()"]');
-  if (submitBtn) {
-    submitBtn.disabled = true;
-    submitBtn.innerText = 'Creating account...';
+  const spouse = '';
+  const family_members = 0;
+
+  if (!name || !username || !password || !email) {
+    alert("Please fill required fields.");
+    return;
   }
 
   const data = {
     name, username, password, email, contact, gender, age,
-    address, barangay, status, sons, daughters, pwd,
-    spouse: '', family_members: 0,
-    senior: age >= 60 ? 'Yes' : 'No'
+    address, barangay, status, sons, daughters, pwd, spouse,
+    family_members, senior: age >= 60 ? "Yes" : "No"
   };
+
+  console.log("Register Data:", data);
 
   fetch(`${API_BASE}/api/register`, {
     method: 'POST',
@@ -163,84 +145,18 @@ function createResident() {
   })
   .then(res => res.json())
   .then(response => {
-    if (submitBtn) {
-      submitBtn.disabled = false;
-      submitBtn.innerText = 'Create Account';
-    }
-
+    console.log("Server Response:", response);
     if (response.user) {
-      showRegisterBanner('Account created successfully! Redirecting to login...', 'success');
-      setTimeout(showLogin, 1800);
+      alert('Resident account created successfully!');
+      showLogin();
     } else {
-      // ── Friendly error messages ──────────────────────────────────────────
-      const raw = (response.error || '').toLowerCase();
-      let friendlyMsg = 'Something went wrong. Please try again.';
-
-      if (raw.includes('username already exists') || raw.includes('23505') || raw.includes('duplicate')) {
-        friendlyMsg = 'That username is already taken. Please choose a different one.';
-      } else if (raw.includes('email')) {
-        friendlyMsg = 'That email address is already registered. Try logging in instead.';
-      } else if (raw.includes('missing')) {
-        friendlyMsg = 'Please fill in all required fields.';
-      }
-
-      showRegisterBanner(friendlyMsg);
+      alert('Error: ' + (response.error || 'Unknown error'));
     }
   })
-  .catch(() => {
-    if (submitBtn) {
-      submitBtn.disabled = false;
-      submitBtn.innerText = 'Create Account';
-    }
-    showRegisterBanner('Unable to connect to the server. Please check your internet and try again.');
+  .catch(err => {
+    console.error(err);
+    alert("Server connection error");
   });
-}
-
-// ── Banner helper for the registration form ──────────────────────────────────
-function showRegisterBanner(message, type = 'error') {
-  const existing = document.getElementById('register-banner');
-  if (existing) existing.remove();
-
-  const isSuccess = type === 'success';
-  const banner = document.createElement('div');
-  banner.id = 'register-banner';
-  banner.style.cssText = `
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 10px 14px;
-    border-radius: 8px;
-    font-size: 13px;
-    font-weight: 500;
-    margin-bottom: 14px;
-    animation: fadeIn 0.2s ease;
-    background: ${isSuccess ? '#eaf6ec' : '#fdecea'};
-    border: 1px solid ${isSuccess ? '#a8d5b0' : '#f5c6c6'};
-    color: ${isSuccess ? '#1e6b30' : '#c0392b'};
-  `;
-
-  banner.innerHTML = `
-    <span style="
-      width: 20px; height: 20px; border-radius: 50%;
-      border: 2px solid ${isSuccess ? '#1e6b30' : '#c0392b'};
-      display: flex; align-items: center; justify-content: center;
-      font-size: 11px; font-weight: bold; flex-shrink: 0;
-    ">${isSuccess ? '✓' : '!'}</span>
-    <span style="flex: 1;">${message}</span>
-    ${!isSuccess ? `<span onclick="this.parentElement.remove()" style="
-      cursor: pointer; font-size: 16px; color: inherit; opacity: 0.6; padding: 0 2px;
-    ">&times;</span>` : ''}
-  `;
-
-  // Insert before the Create Account button
-  const btn = document.querySelector('[onclick="createResident()"]');
-  if (btn) {
-    btn.parentNode.insertBefore(banner, btn);
-  }
-
-  if (isSuccess) {
-    setTimeout(() => { if (banner.parentNode) banner.remove(); }, 3000);
-  }
 }
 
 // Login 
@@ -261,9 +177,8 @@ function login() {
   .then(res => res.json())
   .then(data => {
     if(data.message === 'Login successful'){
-      loggedInUser = { ...data.user, ...(data.profile || {}) };
+      loggedInUser = data.user;
       currentRole = data.user.role;
-      localStorage.setItem("user", JSON.stringify(loggedInUser));
       if (data.user.role === 'dswd') {
         openDSWDPage();
       } else if (data.user.role === 'manager') {
@@ -273,7 +188,7 @@ function login() {
         showMyProfile();
       }
     } else {
-      showLoginError('Please check Username and Password!');
+      alert(data.error || 'Invalid username or password!');
     }
   })
   .catch(() => alert('Server connection error.'));
@@ -287,51 +202,9 @@ function openManagerPage(){
   showDocRequests();
 }
 
-function showLoginError(message) {
-  const existing = document.getElementById('login-error-banner');
-  if (existing) existing.remove();
-
-  const banner = document.createElement('div');
-  banner.id = 'login-error-banner';
-  banner.style.cssText = `
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    background: #fdecea;
-    border: 1px solid #f5c6c6;
-    color: #c0392b;
-    padding: 10px 14px;
-    border-radius: 8px;
-    font-size: 13px;
-    font-weight: 500;
-    margin-bottom: 12px;
-    animation: fadeIn 0.2s ease;
-  `;
-
-  banner.innerHTML = `
-    <span style="
-      width: 20px; height: 20px;
-      border-radius: 50%;
-      border: 2px solid #c0392b;
-      display: flex; align-items: center; justify-content: center;
-      font-weight: bold; font-size: 12px; flex-shrink: 0;
-    ">!</span>
-    <span style="flex: 1;">${message}</span>
-    <span onclick="this.parentElement.remove()" style="
-      cursor: pointer; font-size: 16px; line-height: 1;
-      color: #c0392b; opacity: 0.7; padding: 0 2px;
-    ">&times;</span>
-  `;
-
-  const loginBox = document.querySelector('.login-box');
-  const firstInput = loginBox.querySelector('input');
-  loginBox.insertBefore(banner, firstInput);
-}
-
 function logout(){ 
   loggedInUser = null; 
   currentRole = null;
-  localStorage.removeItem("user");
   document.getElementById('login-page').style.display = "flex";
   document.getElementById('dashboard-page').style.display = 'none';
   document.getElementById('manager-page').style.display = 'none';
@@ -368,7 +241,7 @@ function showDashboard(){
   document.getElementById('resident-form').style.display='none';
   document.getElementById('forgot-page').style.display='none';
   document.getElementById('dswd-page').style.display='none';
-  document.getElementById('dashboard-page').style.display='flex';
+  document.getElementById('dashboard-page').style.display='block';
 
   const title =
     currentRole === 'resident' ? 'Resident Dashboard' :
@@ -479,7 +352,7 @@ function showAgeStats() {
         <div style="flex:1.2; background:#fff; border-radius:12px; border:0.5px solid #e0e0e0; overflow:hidden;">
           <div style="display:flex; align-items:center; justify-content:space-between; padding:18px 22px; border-bottom:0.5px solid #eee;">
             <span style="font-size:17px; font-weight:500; color:#1a1a1a;">Age group breakdown</span>
-            <span style="font-size:18px; color: #000;">Select a row to view residents</span>
+            <span style="font-size:13px; color:#aaa;">Select a row to view residents</span>
           </div>
           <div style="display:flex; gap:20px; padding:12px 22px; border-bottom:0.5px solid #f0f0f0;">
             <span style="display:flex; align-items:center; gap:6px; font-size:14px; color:#666;">
@@ -651,7 +524,7 @@ function showBarangayStats() {
         <div style="flex:1.4; background:#fff; border-radius:12px; border:0.5px solid #e0e0e0; overflow:hidden;">
           <div style="display:flex; align-items:center; justify-content:space-between; padding:18px 22px; border-bottom:0.5px solid #eee;">
             <span style="font-size:17px; font-weight:500; color:#1a1a1a;">Barangay breakdown</span>
-            <span style="font-size:18px; color: #000;Select a row to view residents</span>
+            <span style="font-size:13px; color:#aaa;">Select a row to view residents</span>
           </div>
           <div style="display:flex; gap:20px; padding:12px 22px; border-bottom:0.5px solid #f0f0f0;">
             <span style="display:flex; align-items:center; gap:6px; font-size:14px; color:#666;">
@@ -758,6 +631,7 @@ function renderResidentWelcome() {
           <li>Age: ${loggedInUser.age || 'N/A'}</li>
           <li>Barangay: ${loggedInUser.barangay || 'N/A'}</li>
           <li>Status: ${loggedInUser.status || 'N/A'}</li>
+          <li>Sons: ${loggedInUser.sons || 0}, Daughters: ${loggedInUser.daughters || 0}</li>
           <li>PWD: ${loggedInUser.pwd || 'No'}</li>
         </ul>
       </div>
@@ -819,8 +693,8 @@ function showMyRequests() {
 
   body.innerHTML = `
     <button onclick="renderResidentWelcome()" 
-      style="display:inline-block; width:fit-content; padding:6px 10px; margin-bottom:15px; font-size:12px; border:none; border-radius:4px; background:#1a3f6c; color:white; cursor:pointer;">
-      ← Back
+      style="display:inline-block; width:fit-content; padding:4px 10px; margin-bottom:10px; font-size:12px; border:none; border-radius:4px; background:#1a3f6c; color:white; cursor:pointer;">
+      ← Back to Dashboard
     </button>
     <h2>My Requests</h2>
     <div style="display:flex; gap:20px; height:calc(100vh - 140px); align-items:stretch;">
@@ -877,20 +751,20 @@ function showMyProfile() {
       ← Back
     </button>
     <h2 style="margin:5px 0; text-align:center;">My Profile</h2>
-    <div style="display:flex; flex-wrap:wrap; justify-content:center; align-items:flex-start; gap:16px; padding:8px; width:100%; margin:0 auto; box-sizing:border-box;">
-      <div style="background:#f4f7ff; padding:12px; border-radius:10px; box-shadow:0 2px 6px rgba(0,0,0,0.1); flex:1; min-width:240px; max-width:600px; box-sizing:border-box; width:100%;">
+    <div style="display:flex; justify-content:center; align-items:flex-start; gap:30px; padding:10px; width:100%; margin:0 auto;">
+      <div style="background:#f4f7ff; padding:12px; border-radius:10px; box-shadow:0 2px 6px rgba(0,0,0,0.1); flex:1; min-width:400px; max-width:600px;">
         <h3>Personal Info</h3>
         <table style="width:100%; border-collapse:collapse;">
-          <tr><td style="padding:4px 6px; color:#555; white-space:nowrap;">Name:</td><td><input type="text" id="profile-name" value="${loggedInUser.name || ''}" style="width:100%; padding:4px;"></td></tr>
-          <tr><td style="padding:4px 6px; color:#555; white-space:nowrap;">Birth Date:</td><td><input type="date" id="profile-dob" value="${loggedInUser.dob ? loggedInUser.dob.split('T')[0] : ''}" onchange="calculateAge()" style="width:100%; padding:4px;"></td></tr>
-          <tr><td style="padding:4px 6px; color:#555; white-space:nowrap;">Age:</td><td><input type="number" id="profile-age" value="${loggedInUser.age || ''}" style="width:100%; padding:4px;"></td></tr>
-          <tr><td style="padding:4px 6px; color:#555; white-space:nowrap;">Gender:</td><td>
+          <tr><td>Name:</td><td><input type="text" id="profile-name" value="${loggedInUser.name || ''}" style="width:100%; padding:4px;"></td></tr>
+          <tr><td>Birth:</td><td><input type="date" id="profile-dob" value="${loggedInUser.dob || ''}" onchange="calculateAge()" style="width:100%; padding:4px;"></td></tr>
+          <tr><td>Age:</td><td><input type="number" id="profile-age" value="${loggedInUser.age || ''}" style="width:100%; padding:4px;"></td></tr>
+          <tr><td>Sex:</td><td>
             <select id="profile-gender" style="width:100%; padding:4px;">
               <option ${loggedInUser.gender==='Male'?'selected':''}>Male</option>
               <option ${loggedInUser.gender==='Female'?'selected':''}>Female</option>
             </select>
           </td></tr>
-          <tr><td style="padding:4px 6px; color:#555; white-space:nowrap;">Civil Status:</td><td>
+          <tr><td>Status:</td><td>
             <select id="profile-status" style="width:100%; padding:4px;">
               <option ${loggedInUser.status==='Single'?'selected':''}>Single</option>
               <option ${loggedInUser.status==='Married'?'selected':''}>Married</option>
@@ -898,25 +772,8 @@ function showMyProfile() {
               <option ${loggedInUser.status==='Separated'?'selected':''}>Separated</option>
             </select>
           </td></tr>
-          <tr><td style="padding:4px 6px; color:#555; white-space:nowrap;">Place of Birth:</td><td><input type="text" id="profile-place-of-birth" value="${loggedInUser.place_of_birth || ''}" style="width:100%; padding:4px;"></td></tr>
-
-          <tr><td style="padding:4px 6px; color:#555; white-space:nowrap;">Blood Type:</td><td>
-            <select id="profile-blood-type" style="width:100%; padding:4px;">
-              <option value="">-- Select --</option>
-              ${['A+','A-','B+','B-','AB+','AB-','O+','O-','Unknown'].map(bt =>
-                `<option ${loggedInUser.blood_type===bt?'selected':''}>${bt}</option>`).join('')}
-            </select>
-          </td></tr>
-          <tr><td style="padding:4px 6px; color:#555; white-space:nowrap;">Voter Status:</td><td>
-            <select id="profile-voter-status" style="width:100%; padding:4px;">
-              <option value="">-- Select --</option>
-              <option ${loggedInUser.voter_status==='Registered'?'selected':''}>Registered</option>
-              <option ${loggedInUser.voter_status==='Not Registered'?'selected':''}>Not Registered</option>
-            </select>
-          </td></tr>
-          <tr><td style="padding:4px 6px; color:#555; white-space:nowrap;">Religion:</td><td><input type="text" id="profile-religion" value="${loggedInUser.religion || ''}" style="width:100%; padding:4px;"></td></tr>
-          <tr><td style="padding:4px 6px; color:#555; white-space:nowrap;">House Address:</td><td><input type="text" id="profile-address" value="${loggedInUser.address || ''}" style="width:100%; padding:4px;"></td></tr>
-          <tr><td style="padding:4px 6px; color:#555; white-space:nowrap;">Barangay:</td><td>
+          <tr><td>Religion:</td><td><input type="text" id="profile-religion" value="${loggedInUser.religion || ''}" style="width:100%; padding:4px;"></td></tr>
+          <tr><td>Barangay:</td><td>
             <select id="profile-barangay" style="width:100%; padding:4px;">
               <option value="Trapiche 1" ${loggedInUser.barangay==='Trapiche 1'?'selected':''}>Trapiche 1</option>
               <option value="Trapiche 2" ${loggedInUser.barangay==='Trapiche 2'?'selected':''}>Trapiche 2</option>
@@ -924,371 +781,67 @@ function showMyProfile() {
               <option value="Trapiche 4" ${loggedInUser.barangay==='Trapiche 4'?'selected':''}>Trapiche 4</option>
             </select>
           </td></tr>
-          <tr><td style="padding:4px 6px; color:#555; white-space:nowrap;">Education:</td><td>
-            <select id="profile-education" style="width:100%; padding:4px;">
-              <option value="">-- Select --</option>
-              ${['No Formal Education','Elementary','High School','Senior High School','Vocational / Technical','College','Post Graduate'].map(e =>
-                `<option ${loggedInUser.educational_attainment===e?'selected':''}>${e}</option>`).join('')}
-            </select>
-          </td></tr>
-          <tr><td style="padding:4px 6px; color:#555; white-space:nowrap;">Household Role:</td><td>
-            <select id="profile-household-role" style="width:100%; padding:4px;">
-              <option value="">-- Select --</option>
-              ${['Head','Spouse','Child','Parent','Sibling','Grandchild','Grandparent','Relative'].map(r =>
-                `<option ${loggedInUser.household_role===r?'selected':''}>${r}</option>`).join('')}
-            </select>
-          </td></tr>
-          <tr><td style="padding:4px 6px; color:#555; white-space:nowrap;">Spouse Name:</td><td>
-  <div style="display:flex; gap:8px; margin-bottom:6px;">
-    <button type="button" id="btn-spouse-na" onclick="setSpouseNA()"
-      style="flex:1; padding:7px; border-radius:6px; border:2px solid #1a3f6c;
-             background:${!loggedInUser.spouse || loggedInUser.spouse==='N/A' ? '#1a3f6c' : '#fff'};
-             color:${!loggedInUser.spouse || loggedInUser.spouse==='N/A' ? 'white' : '#1a3f6c'};
-             font-size:13px; cursor:pointer; font-weight:600;">N/A</button>
-    <button type="button" id="btn-spouse-enter" onclick="setSpouseEnter()"
-      style="flex:1; padding:7px; border-radius:6px; border:2px solid #1a3f6c;
-             background:${loggedInUser.spouse && loggedInUser.spouse!=='N/A' ? '#1a3f6c' : '#fff'};
-             color:${loggedInUser.spouse && loggedInUser.spouse!=='N/A' ? 'white' : '#1a3f6c'};
-             font-size:13px; cursor:pointer; font-weight:600;">Enter Name</button>
-  </div>
-  <input type="text" id="profile-spouse-text"
-    value="${loggedInUser.spouse && loggedInUser.spouse!=='N/A' ? loggedInUser.spouse : ''}"
-    placeholder="Type spouse name..."
-    style="width:100%; padding:6px 8px; border-radius:6px; border:1px solid #ccc; font-size:13px;
-           display:${loggedInUser.spouse && loggedInUser.spouse!=='N/A' ? 'block' : 'none'};"
-    oninput="document.getElementById('profile-spouse-hidden').value=this.value">
-  <input type="hidden" id="profile-spouse-hidden"
-    value="${loggedInUser.spouse || 'N/A'}">
-</td></tr>
-          <tr><td style="padding:4px 6px; color:#555; white-space:nowrap; vertical-align:top; padding-top:10px;">Children:</td><td>
-  <div style="display:flex; gap:8px; margin-bottom:8px;">
-    <button type="button" onclick="setChildrenNA()" id="btn-children-na"
-      style="flex:1; padding:6px; border-radius:6px; border:2px solid #1a3f6c; background:#1a3f6c; color:white; font-size:13px; cursor:pointer;">
-      N/A
-    </button>
-    <button type="button" onclick="addChildRow()" id="btn-children-add"
-      style="flex:1; padding:6px; border-radius:6px; border:2px solid #1a3f6c; background:#fff; color:#1a3f6c; font-size:13px; cursor:pointer;">
-      + Add Child
-    </button>
-  </div>
-  <div id="children-list" style="display:flex; flex-direction:column; gap:6px;"></div>
-  <input type="hidden" id="profile-children-names" value="${loggedInUser.children_names || 'N/A'}">
-</td></tr>
         </table>
       </div>
-      <div style="background:#f4f7ff; padding:12px; border-radius:10px; box-shadow:0 2px 6px rgba(0,0,0,0.1); flex:1; min-width:240px; max-width:600px; box-sizing:border-box; width:100%;">
+      <div style="background:#f4f7ff; padding:12px; border-radius:10px; box-shadow:0 2px 6px rgba(0,0,0,0.1); flex:1; min-width:400px; max-width:600px;">
         <h3>Family & Contact</h3>
-<table style="width:100%; border-collapse:collapse;">
-  <tr>
-    <td style="padding:4px 6px; color:#555; white-space:nowrap;">PWD:</td>
-    <td>
-      <select id="profile-pwd" style="width:100%; padding:4px;">
-        <option ${loggedInUser.pwd === 'No' ? 'selected' : ''}>No</option>
-        <option ${loggedInUser.pwd === 'Yes' ? 'selected' : ''}>Yes</option>
-      </select>
-    </td>
-  </tr>
-  <tr>
-  <td style="padding:4px 6px; color:#555; white-space:nowrap;">Contact:</td>
-  <td>
-    <input 
-      type="tel"
-      id="profile-contact"
-      value="${loggedInUser.contact || ''}"
-      placeholder="Contact number"
-      pattern="[0-9]*"
-      inputmode="numeric"
-      oninput="this.value = this.value.replace(/[^0-9]/g, '')"
-      style="width:100%; padding:4px;"
-    >
-  </td>
-</tr>
-    <td style="padding:4px 6px; color:#555; white-space:nowrap;">Email:</td>
-    <td><input type="email" id="profile-email" value="${loggedInUser.email || ''}" style="width:100%; padding:4px;"></td>
-  </tr>
-  <tr>
-    <td style="padding:4px 6px; color:#555; white-space:nowrap;">Emergency Contact:</td>
-    <td><input type="text" id="profile-emergency-name" value="${loggedInUser.emergency_contact_name || ''}" placeholder="Contact person name" style="width:100%; padding:4px;"></td>
-  </tr>
-  <tr>
-  <td style="padding:4px 6px; color:#555; white-space:nowrap;">Emergency No.:</td>
-  <td>
-    <input 
-      type="tel"
-      id="profile-emergency-number"
-      value="${loggedInUser.emergency_contact_number || ''}"
-      placeholder="Contact person number"
-      pattern="[0-9]*"
-      inputmode="numeric"
-      oninput="this.value = this.value.replace(/[^0-9]/g, '')"
-      style="width:100%; padding:4px;"
-    >
-  </td>
-</tr>
-</table>
-
-<button onclick="updateProfile()" 
-  style="margin-top:10px; width:100%; padding:8px; background:#1a3f6c; color:white; border:none; border-radius:6px;">
-  Update Profile
-</button>
+        <table style="width:100%; border-collapse:collapse;">
+          <tr><td>Family:</td><td><input type="number" id="profile-family" value="${loggedInUser.family_members || ''}" style="width:100%; padding:4px;"></td></tr>
+          <tr><td>Sons:</td><td><input type="number" id="profile-sons" value="${loggedInUser.sons || ''}" style="width:100%; padding:4px;"></td></tr>
+          <tr><td>Daughters:</td><td><input type="number" id="profile-daughters" value="${loggedInUser.daughters || ''}" style="width:100%; padding:4px;"></td></tr>
+          <tr><td>PWD:</td><td>
+            <select id="profile-pwd" style="width:100%; padding:4px;">
+              <option ${loggedInUser.pwd === 'No' ? 'selected' : ''}>No</option>
+              <option ${loggedInUser.pwd === 'Yes' ? 'selected' : ''}>Yes</option>
+            </select>
+          </td></tr>
+          <tr><td>Contact:</td><td><input type="text" id="profile-contact" value="${loggedInUser.contact || ''}" style="width:100%; padding:4px;"></td></tr>
+          <tr><td>Email:</td><td><input type="email" id="profile-email" value="${loggedInUser.email || ''}" style="width:100%; padding:4px;"></td></tr>
+        </table>
+        <button onclick="updateProfile()" 
+          style="margin-top:10px; width:100%; padding:8px; background:#1a3f6c; color:white; border:none; border-radius:6px;">
+          Update Profile
+        </button>
       </div>
     </div>
   `;
-  setTimeout(initChildrenList, 0);
 }
 
 function updateProfile(){
-  const name    = document.getElementById('profile-name')?.value?.trim();
-  const age     = document.getElementById('profile-age')?.value?.trim();
-  const gender  = document.getElementById('profile-gender')?.value;
-  const status  = document.getElementById('profile-status')?.value;
-  const barangay= document.getElementById('profile-barangay')?.value;
-  const contact = document.getElementById('profile-contact')?.value?.trim();
-  const email   = document.getElementById('profile-email')?.value?.trim();
-  const dob     = document.getElementById('profile-dob')?.value || null;
-  const pwd     = document.getElementById('profile-pwd')?.value || 'No';
-  const religion= document.getElementById('profile-religion')?.value?.trim() || null;
-  const address = document.getElementById('profile-address')?.value?.trim() || null;
-
-  const missing = [];
-  if (!name)     missing.push('Name');
-  if (!age)      missing.push('Age');
-  if (!gender)   missing.push('Sex');
-  if (!status)   missing.push('Status');
-  if (!barangay) missing.push('Barangay');
-  if (!contact)  missing.push('Contact Number');
-  if (!email)    missing.push('Email');
-  if (!dob)      missing.push('Birth Date');
-  if (!religion) missing.push('Religion');
-  if (!address)  missing.push('House Address');
-
-  if (missing.length > 0) {
-    showProfileBanner('error', 'Please fill in the following field/s: ' + missing.join(', '));
-    return;
-  }
-
-  const place_of_birth  = document.getElementById('profile-place-of-birth')?.value?.trim() || null;
-  
-  const blood_type      = document.getElementById('profile-blood-type')?.value || null;
-  const voter_status    = document.getElementById('profile-voter-status')?.value || null;
-  const education       = document.getElementById('profile-education')?.value || null;
-  const household_role  = document.getElementById('profile-household-role')?.value || null;
-  const spouseTxt = document.getElementById('profile-spouse-text')?.value?.trim();
-  const spouse    = spouseTxt
-    ? spouseTxt
-    : (document.getElementById('profile-spouse-hidden')?.value || 'N/A');
-  const children_names  = document.getElementById('profile-children-names')?.value?.trim() || 'N/A';
-  const emergency_contact_name   = document.getElementById('profile-emergency-name')?.value?.trim() || null;
-  const emergency_contact_number = document.getElementById('profile-emergency-number')?.value?.trim() || null;
-
   const updatedData = {
-    name, religion, pwd, dob, address,
-    age: parseInt(age),
-    senior: parseInt(age) >= 60 ? 'Yes' : 'No',
-    gender, status, barangay, contact, email,
-    spouse, sons: 0, daughters: 0, family_members: 0,
-    place_of_birth, blood_type, voter_status,
-    educational_attainment: education,
-    household_role, children_names,
-    emergency_contact_name, emergency_contact_number
+    name: document.getElementById('profile-name').value,
+    age: parseInt(document.getElementById('profile-age').value) || 0,
+    senior: parseInt(document.getElementById('profile-age').value) >= 60 ? 'Yes' : 'No',
+    gender: document.getElementById('profile-gender').value,
+    status: document.getElementById('profile-status').value,
+    barangay: document.getElementById('profile-barangay').value,
+    spouse: document.getElementById('profile-spouse')?.value || '',
+    sons: parseInt(document.getElementById('profile-sons').value) || 0,
+    daughters: parseInt(document.getElementById('profile-daughters').value) || 0,
+    pwd: document.getElementById('profile-pwd').value,
+    dob: document.getElementById('profile-dob').value,
+    family_members: parseInt(document.getElementById('profile-family').value) || 0,
+    contact: document.getElementById('profile-contact').value,
+    email: document.getElementById('profile-email').value,
+    address: document.getElementById('profile-address')?.value || ''
   };
-
-  const sanitized = {};
-  Object.keys(updatedData).forEach(key => {
-    const val = updatedData[key];
-    sanitized[key] = (val === '' || val === undefined) ? null : val;
-  });
 
   fetch(`${API_BASE}/api/update-resident/${loggedInUser.username}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(sanitized)
+    headers: { 'Content-Type':'application/json' },
+    body: JSON.stringify(updatedData)
   })
   .then(res => res.json())
   .then(data => {
-    if (data.success) {
-      // Re-fetch fresh profile from server so all fields are saved correctly
-      fetch(`${API_BASE}/api/residents-profile?username=${loggedInUser.username}`)
-        .then(r => r.json())
-        .then(profileData => {
-          if (profileData.profile) {
-            loggedInUser = { ...loggedInUser, ...profileData.profile };
-            localStorage.setItem("user", JSON.stringify(loggedInUser));
-          }
-          showProfileBanner('success', 'Profile updated successfully!');
-        })
-        .catch(() => {
-          loggedInUser = { ...loggedInUser, ...sanitized };
-          localStorage.setItem("user", JSON.stringify(loggedInUser));
-          showProfileBanner('success', 'Profile updated successfully!');
-        });
+    if(data.success){
+      alert("Profile updated successfully!");
     } else {
-      showProfileBanner('error', data.message || 'Update failed. Please try again.');
-    }
-  })
-  .catch(() => showProfileBanner('error', 'Could not connect to server. Please try again.'));
-}
-
-function showProfileBanner(type, message) {
-  const existing = document.getElementById('profile-banner');
-  if (existing) existing.remove();
-
-  const isSuccess = type === 'success';
-  const banner = document.createElement('div');
-  banner.id = 'profile-banner';
-  banner.style.cssText = `
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 10px 14px;
-    border-radius: 8px;
-    font-size: 13px;
-    font-weight: 500;
-    margin-top: 10px;
-    animation: fadeIn 0.25s ease;
-    background: ${isSuccess ? '#eaf6ec' : '#fdecea'};
-    border: 1px solid ${isSuccess ? '#a8d5b0' : '#f5c6c6'};
-    color: ${isSuccess ? '#1e6b30' : '#c0392b'};
-  `;
-
-  banner.innerHTML = `
-    <span style="
-      width: 20px; height: 20px; border-radius: 50%;
-      border: 2px solid ${isSuccess ? '#1e6b30' : '#c0392b'};
-      display: flex; align-items: center; justify-content: center;
-      font-size: 11px; font-weight: bold; flex-shrink: 0;
-    ">${isSuccess ? '✓' : '!'}</span>
-    <span style="flex: 1;">${message}</span>
-    <span onclick="this.parentElement.remove()" style="
-      cursor: pointer; font-size: 16px; color: inherit; opacity: 0.6; padding: 0 2px;
-    ">&times;</span>
-  `;
-
-  const updateBtn = document.querySelector('[onclick="updateProfile()"]');
-  if (updateBtn) {
-    updateBtn.parentNode.insertBefore(banner, updateBtn);
-  }
-
-  setTimeout(() => { if (banner.parentNode) banner.remove(); }, 4000);
-}
-
-function initChildrenList() {
-  const raw = document.getElementById('profile-children-names')?.value || 'N/A';
-  const list = document.getElementById('children-list');
-  if (!list) return;
-  list.innerHTML = '';
-  if (raw === 'N/A' || raw.trim() === '') {
-    _highlightChildrenBtn('na');
-    return;
-  }
-  _highlightChildrenBtn('add');
-  // Parse stored format: "Name(Gender,Age); Name(Gender,Age)"
-  raw.split(';').forEach(entry => {
-    entry = entry.trim();
-    if (!entry) return;
-    const match = entry.match(/^(.+?)\(([^,]+),\s*(\d+)\)$/);
-    if (match) {
-      _appendChildRow(match[1].trim(), match[2].trim(), match[3].trim());
-    } else {
-      _appendChildRow(entry, '', '');
+      alert("Failed to update profile: " + (data.message || 'Unknown error'));
     }
   });
-  _syncChildrenHidden();
-}
-
-function setChildrenNA() {
-  document.getElementById('children-list').innerHTML = '';
-  document.getElementById('profile-children-names').value = 'N/A';
-  _highlightChildrenBtn('na');
-}
-
-function addChildRow() {
-  _highlightChildrenBtn('add');
-  _appendChildRow('', '', '');
-  _syncChildrenHidden();
-}
-
-function _appendChildRow(name, gender, age) {
-  const list = document.getElementById('children-list');
-  const idx = list.children.length;
-  const row = document.createElement('div');
-  row.style.cssText = 'display:flex; gap:6px; align-items:center; background:#f4f7ff; padding:6px 8px; border-radius:8px; border:0.5px solid #ddd;';
-  row.innerHTML = `
-    <input type="text" placeholder="Name" value="${name}"
-      style="flex:2; padding:5px 8px; border-radius:6px; border:1px solid #ccc; font-size:13px;"
-      oninput="_syncChildrenHidden()">
-    <select style="flex:1; padding:5px 6px; border-radius:6px; border:1px solid #ccc; font-size:13px;"
-      onchange="_syncChildrenHidden()">
-      <option value="" ${gender===''?'selected':''}>Sex</option>
-      <option value="Male" ${gender==='Male'?'selected':''}>Male</option>
-      <option value="Female" ${gender==='Female'?'selected':''}>Female</option>
-    </select>
-    <input type="number" placeholder="Age" value="${age}" min="0" max="99"
-      style="flex:1; padding:5px 8px; border-radius:6px; border:1px solid #ccc; font-size:13px; width:56px;"
-      oninput="_syncChildrenHidden()">
-    <button type="button" onclick="this.closest('div').remove(); _syncChildrenHidden();"
-      style="background:#c0392b; color:white; border:none; border-radius:6px; padding:5px 10px; font-size:13px; cursor:pointer;">✕</button>
-  `;
-  list.appendChild(row);
-}
-
-function _syncChildrenHidden() {
-  const list = document.getElementById('children-list');
-  const hidden = document.getElementById('profile-children-names');
-  if (!list || !hidden) return;
-  if (list.children.length === 0) {
-    hidden.value = 'N/A';
-    return;
-  }
-  const parts = [];
-  Array.from(list.children).forEach(row => {
-    const inputs = row.querySelectorAll('input, select');
-    const name   = inputs[0]?.value?.trim() || '';
-    const gender = inputs[1]?.value || '';
-    const age    = inputs[2]?.value?.trim() || '';
-    if (name) parts.push(`${name}(${gender},${age})`);
-  });
-  hidden.value = parts.length > 0 ? parts.join('; ') : 'N/A';
-}
-
-function _highlightChildrenBtn(active) {
-  const naBtn  = document.getElementById('btn-children-na');
-  const addBtn = document.getElementById('btn-children-add');
-  if (!naBtn || !addBtn) return;
-  if (active === 'na') {
-    naBtn.style.background  = '#1a3f6c'; naBtn.style.color  = 'white';
-    addBtn.style.background = '#fff';    addBtn.style.color = '#1a3f6c';
-  } else {
-    addBtn.style.background = '#1a3f6c'; addBtn.style.color  = 'white';
-    naBtn.style.background  = '#fff';    naBtn.style.color   = '#1a3f6c';
-  }
-}
-
-function setSpouseNA() {
-  document.getElementById('profile-spouse-text').style.display = 'none';
-  document.getElementById('profile-spouse-text').value = '';
-  document.getElementById('profile-spouse-hidden').value = 'N/A';
-  document.getElementById('btn-spouse-na').style.background = '#1a3f6c';
-  document.getElementById('btn-spouse-na').style.color = 'white';
-  document.getElementById('btn-spouse-enter').style.background = '#fff';
-  document.getElementById('btn-spouse-enter').style.color = '#1a3f6c';
-}
-
-function setSpouseEnter() {
-  const txt = document.getElementById('profile-spouse-text');
-  txt.style.display = 'block';
-  txt.focus();
-  document.getElementById('btn-spouse-enter').style.background = '#1a3f6c';
-  document.getElementById('btn-spouse-enter').style.color = 'white';
-  document.getElementById('btn-spouse-na').style.background = '#fff';
-  document.getElementById('btn-spouse-na').style.color = '#1a3f6c';
 }
 
 function requestDocument() {
-  if (!loggedInUser || !loggedInUser.username) {
-    alert('You must be logged in to request a document.');
-    return;
-  }
   const type = document.getElementById('document-type').value;
   const purpose = document.getElementById('document-purpose').value.trim();
   const email = document.getElementById('request-email').value.trim();
@@ -1314,16 +867,12 @@ function requestDocument() {
   })
   .then(res => res.json())
   .then(data => {
-    if (data.success) {
-      alert('Document request submitted successfully!');
-      loadMyRequests();
-    } else {
-      alert('Failed: ' + (data.message || 'Unknown error'));
-    }
+    alert(data.message);
+    loadMyRequests(); 
   })
   .catch(err => {
-    console.error('Full error:', err);
-    alert("Error: " + err.message);
+    console.error(err);
+    alert("Error sending request.");
   });
 }
 
@@ -1410,8 +959,8 @@ function renderManagerRequests(allRequests, filter = 'all') {
            <td><input type="time" id="time-${i}" value="${r.time || ''}" ${r.status!=='Pending'?'readonly':''}></td>
            <td>
              ${r.status === 'Pending' ? `
-               <button class="approve-btn" data-username="${r.username}" data-doc="${r.document_type}" data-index="${i}" data-status="${r.status}">Approve</button>
-               <button class="reject-btn" data-username="${r.username}" data-doc="${r.document_type}" data-status="${r.status}">Reject</button>
+               <button class="approve-btn" data-username="${r.username}" data-doc="${r.document_type}" data-index="${i}">Approve</button>
+               <button class="reject-btn" data-username="${r.username}" data-doc="${r.document_type}">Reject</button>
              ` : ''}
            </td>
           </tr>
@@ -1426,11 +975,6 @@ function renderManagerRequests(allRequests, filter = 'all') {
       const username = btn.getAttribute('data-username');
       const docType = btn.getAttribute('data-doc');
       const index = btn.getAttribute('data-index');
-      const status = btn.getAttribute('data-status');
-      if (status !== 'Pending') {
-        alert('This request is already ' + status);
-        return;
-      }
       approveRequest(username, docType, index);
     });
   });
@@ -2054,21 +1598,11 @@ function handleCredentialResponse(response) {
   .then(res => res.json())
   .then(data => {
     if (data.success) {
-      // Fetch resident profile after Google login
-      fetch(`${API_BASE}/api/residents-profile?username=${data.user.username || data.user.email}`)
-        .then(r => r.json())
-        .then(profileData => {
-          loggedInUser = { ...data.user, ...(profileData.profile || {}) };
-          currentRole = loggedInUser.role || 'resident';
-          localStorage.setItem("user", JSON.stringify(loggedInUser));
-          showDashboard();
-        })
-        .catch(() => {
-          loggedInUser = data.user;
-          currentRole = data.user.role || 'resident';
-          localStorage.setItem("user", JSON.stringify(loggedInUser));
-          showDashboard();
-        });
+      loggedInUser = data.user;
+      currentRole = data.user.role;
+      localStorage.setItem("user", JSON.stringify(data.user));
+      console.log("Logged in user:", loggedInUser);
+      showDashboard();
     } else {
       alert(data.message || "Google login failed");
     }
@@ -2079,267 +1613,11 @@ function handleCredentialResponse(response) {
   });
 }
 
-window.addEventListener('load', () => {
-  const savedUser = localStorage.getItem("user");
-
-  if (savedUser) {
-    try {
-      loggedInUser = JSON.parse(savedUser);
-      currentRole = loggedInUser.role;
-
-      if (currentRole === 'manager') {
-        document.getElementById('login-page').style.display = 'none';
-        openManagerPage();
-      } else if (currentRole === 'dswd') {
-        document.getElementById('login-page').style.display = 'none';
-        openDSWDPage();
-      } else if (currentRole === 'resident') {
-        document.getElementById('login-page').style.display = 'none';
-        showDashboard();
-        renderResidentWelcome();
-        fetch(`${API_BASE}/api/residents-profile?username=${loggedInUser.username}`)
-          .then(r => r.json())
-          .then(profileData => {
-            if (profileData.profile) {
-              loggedInUser = { ...loggedInUser, ...profileData.profile };
-              localStorage.setItem("user", JSON.stringify(loggedInUser));
-            }
-          })
-          .catch(() => {});
-      }
-    } catch (e) {
-      localStorage.removeItem("user");
-    }
-  }
-});
-
-function showAllResidents() {
-  const body = document.getElementById('dashboard-body');
-  body.innerHTML = `<div style="padding:24px;"><p style="color:#888;">Loading residents...</p></div>`;
-
-  fetch(`${API_BASE}/api/residents`)
-    .then(res => res.json())
-    .then(data => {
-      const residents = data.residents || [];
-      window._allResidentsData = residents;
-      body.innerHTML = `
-        <div style="padding:24px; background:#f5f6fa; min-height:100%;">
-          <div style="background:#fff; border-radius:12px; border:0.5px solid #e0e0e0; overflow:hidden;">
-            <div style="display:flex; align-items:center; justify-content:space-between; padding:18px 22px; border-bottom:0.5px solid #eee;">
-              <span style="font-size:17px; font-weight:500; color:#1a1a1a;">All Residents</span>
-              <span style="font-size:13px; color:#aaa;">${residents.length} total</span>
-            </div>
-            <div style="padding:12px 22px; border-bottom:0.5px solid #f0f0f0; display:flex; gap:10px; align-items:center;">
-              <input type="text" placeholder="Search by name, barangay, gender..."
-                oninput="filterAllResidents(this)"
-                style="padding:8px 14px; border-radius:8px; border:0.5px solid #ddd; font-size:14px; flex:1; margin:0;">
-              <button onclick="showDuplicateResidents()"
-                style="padding:8px 18px; background:#c0392b; color:white; border:none; border-radius:8px; font-size:13px; cursor:pointer; white-space:nowrap;">
-                🔍 Check Duplicates
-              </button>
-            </div>
-            <div style="overflow-x:auto;">
-              <table style="width:100%; border-collapse:collapse;">
-                <thead>
-                  <tr style="background:#f8f9fa;">
-                    <th style="padding:12px 18px; text-align:left; font-size:13px; color:#888; font-weight:500; border-bottom:0.5px solid #eee;">#</th>
-                    <th style="padding:12px 18px; text-align:left; font-size:13px; color:#888; font-weight:500; border-bottom:0.5px solid #eee;">Name</th>
-                    <th style="padding:12px 18px; text-align:left; font-size:13px; color:#888; font-weight:500; border-bottom:0.5px solid #eee;">Age</th>
-                    <th style="padding:12px 18px; text-align:left; font-size:13px; color:#888; font-weight:500; border-bottom:0.5px solid #eee;">Gender</th>
-                    <th style="padding:12px 18px; text-align:left; font-size:13px; color:#888; font-weight:500; border-bottom:0.5px solid #eee;">Barangay</th>
-                    <th style="padding:12px 18px; text-align:left; font-size:13px; color:#888; font-weight:500; border-bottom:0.5px solid #eee;">Status</th>
-                    <th style="padding:12px 18px; text-align:left; font-size:13px; color:#888; font-weight:500; border-bottom:0.5px solid #eee;">House Address</th>
-                    <th style="padding:12px 18px; text-align:left; font-size:13px; color:#888; font-weight:500; border-bottom:0.5px solid #eee;">Tags</th>
-                    <th style="padding:12px 18px; text-align:left; font-size:13px; color:#888; font-weight:500; border-bottom:0.5px solid #eee;">Action</th>
-                  </tr>
-                </thead>
-                <tbody id="all-residents-tbody">
-                  ${residents.map((r, i) => allResidentRow(r, i)).join('')}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      `;
-    })
-    .catch(() => {
-      body.innerHTML = `<div style="padding:24px;"><p style="color:red;">Failed to load residents.</p></div>`;
-    });
-}
-
-function allResidentRow(r, i) {
-  return `
-    <tr onmouseover="this.style.background='#f4f7ff'" onmouseout="this.style.background=''"
-      style="border-bottom:0.5px solid #f0f0f0;">
-      <td style="padding:12px 18px; font-size:13px; color:#aaa;">${i + 1}</td>
-      <td style="padding:12px 18px; font-size:14px; font-weight:500; color:#1a1a1a;">${r.name}</td>
-      <td style="padding:12px 18px; font-size:13px; color:#555;">${r.age || 'N/A'}</td>
-      <td style="padding:12px 18px; font-size:13px; color:#555;">${r.gender || 'N/A'}</td>
-      <td style="padding:12px 18px; font-size:13px; color:#555;">${r.barangay || 'N/A'}</td>
-      <td style="padding:12px 18px; font-size:13px; color:#555;">${r.status || 'N/A'}</td>
-      <td style="padding:12px 18px; font-size:13px; color:#555;">${r.address || '—'}</td>
-      <td style="padding:12px 18px;">
-        <div style="display:flex; gap:6px; flex-wrap:wrap;">
-          ${r.age >= 60 ? `<span style="background:#EAF3DE; color:#27500A; font-size:11px; font-weight:500; padding:3px 10px; border-radius:99px;">Senior</span>` : ''}
-          ${r.pwd === 'Yes' ? `<span style="background:#FAECE7; color:#712B13; font-size:11px; font-weight:500; padding:3px 10px; border-radius:99px;">PWD</span>` : ''}
-        </div>
-      </td>
-      <td style="padding:12px 18px;">
-        <button onclick="openDSWDResidentDetail('${r.username}')"
-          style="padding:6px 14px; background:#1a3f6c; color:white; border:none; border-radius:6px; font-size:12px; cursor:pointer;">
-          Edit
-        </button>
-      </td>
-    </tr>
-  `;
-}
-
-function filterAllResidents(input) {
-  const keyword = input.value.toLowerCase();
-  const filtered = (window._allResidentsData || []).filter(r =>
-    (r.name || '').toLowerCase().includes(keyword) ||
-    (r.barangay || '').toLowerCase().includes(keyword) ||
-    (r.gender || '').toLowerCase().includes(keyword) ||
-    (r.status || '').toLowerCase().includes(keyword) ||
-    (r.address || '').toLowerCase().includes(keyword)
-  );
-  document.getElementById('all-residents-tbody').innerHTML =
-    filtered.length === 0
-      ? `<tr><td colspan="9" style="padding:30px; text-align:center; color:#aaa;">No residents match your search.</td></tr>`
-      : filtered.map((r, i) => allResidentRow(r, i)).join('');
-}
-
-function showDuplicateResidents() {
-  const residents = window._allResidentsData || [];
-  const seen = {};
-
-  // Group residents where 3 or more of (name, age, barangay, address, dob) match
-  const groups = [];
-  const used = new Set();
-
-  residents.forEach((r, i) => {
-    if (used.has(i)) return;
-    const group = [r];
-    used.add(i);
-
-    residents.forEach((r2, j) => {
-      if (i === j || used.has(j)) return;
-      let score = 0;
-      if ((r.name || '').toLowerCase().trim() === (r2.name || '').toLowerCase().trim()) score++;
-      if (String(r.age) === String(r2.age)) score++;
-      if ((r.barangay || '') === (r2.barangay || '')) score++;
-      const addr1 = (r.address || '').toLowerCase().trim();
-      const addr2 = (r2.address || '').toLowerCase().trim();
-      if (addr1 && addr2 && addr1 === addr2) score++;
-      const dob1 = r.dob ? r.dob.split('T')[0] : null;
-      const dob2 = r2.dob ? r2.dob.split('T')[0] : null;
-      if (dob1 && dob2 && dob1 === dob2) score++;
-      if (score >= 3) {
-        group.push(r2);
-        used.add(j);
-      }
-    });
-
-    if (group.length > 1) groups.push(group);
-  });
-
-  const duplicates = groups.map(g => ({
-    key: g[0].username,
-    name: g[0].name,
-    barangay: g[0].barangay,
-    age: g[0].age,
-    residents: g
-  }));
-
-  if (duplicates.length === 0) {
-    alert('✅ No duplicate residents found!');
-    return;
-  }
-
-  const body = document.getElementById('dashboard-body');
-  body.innerHTML = `
-    <div style="padding:24px; background:#f5f6fa; min-height:100%;">
-      <button onclick="showAllResidents()" style="margin-bottom:16px; padding:8px 16px; background:#1a3f6c; color:white; border:none; border-radius:8px; cursor:pointer;">← Back to All Residents</button>
-      <div style="background:#fff; border-radius:12px; border:0.5px solid #e0e0e0; overflow:hidden;">
-        <div style="padding:18px 22px; border-bottom:0.5px solid #eee; background:#fff3f3; display:flex; align-items:center; justify-content:space-between;">
-          <span style="font-size:17px; font-weight:500; color:#c0392b;">⚠️ Duplicate Residents Found: ${duplicates.length} group${duplicates.length > 1 ? 's' : ''}</span>
-          <button onclick="autoRemoveAllDuplicates()"
-            style="padding:8px 18px; background:#c0392b; color:white; border:none; border-radius:8px; font-size:13px; cursor:pointer;">
-            🗑 Remove All Duplicates
-          </button>
-        </div>
-        ${duplicates.map(d => `
-          <div style="padding:18px 22px; border-bottom:0.5px solid #f0f0f0;">
-            <div style="font-size:14px; font-weight:600; color:#1a1a1a; margin-bottom:10px;">
-              ${d.name} — Age ${d.age} — ${d.barangay}
-              <span style="margin-left:8px; background:#FAECE7; color:#712B13; font-size:12px; padding:3px 10px; border-radius:99px;">${d.residents.length} duplicates</span>
-            </div>
-            <table style="width:100%; border-collapse:collapse; font-size:13px;">
-              <thead>
-                <tr style="background:#f8f9fa;">
-                  <th style="padding:8px 12px; text-align:left; color:#888;">Username</th>
-                  <th style="padding:8px 12px; text-align:left; color:#888;">Gender</th>
-                  <th style="padding:8px 12px; text-align:left; color:#888;">Status</th>
-                  <th style="padding:8px 12px; text-align:left; color:#888;">Address</th>
-                  <th style="padding:8px 12px; text-align:left; color:#888;">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${d.residents.map((r, i) => `
-                  <tr style="border-bottom:0.5px solid #f0f0f0; background:${i === 0 ? '#f0fff4' : '#fff'}">
-                    <td style="padding:8px 12px;">${r.username} ${i === 0 ? '<span style="background:#d4edda; color:#27500A; font-size:11px; padding:2px 8px; border-radius:99px;">Keep</span>' : ''}</td>
-                    <td style="padding:8px 12px;">${r.gender || 'N/A'}</td>
-                    <td style="padding:8px 12px;">${r.status || 'N/A'}</td>
-                    <td style="padding:8px 12px;">${r.address || 'N/A'}</td>
-                    <td style="padding:8px 12px;">
-                      ${i !== 0 ? `
-                        <button onclick="deleteDuplicateResident('${r.username}')"
-                          style="padding:5px 12px; background:#c0392b; color:white; border:none; border-radius:6px; font-size:12px; cursor:pointer;">
-                          Delete
-                        </button>
-                      ` : '<span style="color:#aaa; font-size:12px;">Original</span>'}
-                    </td>
-                  </tr>
-                `).join('')}
-              </tbody>
-            </table>
-          </div>
-        `).join('')}
-      </div>
-    </div>
-  `;
-}
-
-async function deleteDuplicateResident(username) {
-  if (!confirm(`Delete duplicate account: ${username}? This cannot be undone.`)) return;
-  try {
-    const res = await fetch(`${API_BASE}/api/delete-resident/${username}`, { method: 'DELETE' });
-    const data = await res.json();
-    if (data.success) {
-      showProfileBanner('success', `Duplicate account "${username}" removed successfully.`);
-      showAllResidents();
-    } else {
-      showProfileBanner('error', 'Failed to delete: ' + (data.message || 'Unknown error'));
-    }
-  } catch (err) {
-    showProfileBanner('error', 'Server error: ' + err.message);
-  }
-}
-
-async function autoRemoveAllDuplicates() {
-  if (!confirm('This will automatically keep the newest account and delete all older duplicates. Continue?')) return;
-  try {
-    const res = await fetch(`${API_BASE}/api/auto-remove-duplicates`, { method: 'POST' });
-    const data = await res.json();
-    if (data.success) {
-      alert(`✅ Done! ${data.removed} duplicate account(s) removed.`);
-      showAllResidents();
-    } else {
-      alert('Failed: ' + (data.message || 'Unknown error'));
-    }
-  } catch (err) {
-    alert('Server error: ' + err.message);
-  }
+const savedUser = localStorage.getItem("user");
+if (savedUser) {
+  loggedInUser = JSON.parse(savedUser);
+  currentRole = loggedInUser.role;
+  console.log("Restored user:", loggedInUser);
 }
 
 function confirmGooglePassword(){
