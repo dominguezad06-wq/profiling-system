@@ -211,6 +211,8 @@ function openManagerPage(){
   document.getElementById('dswd-page').style.display = 'none';
   document.getElementById('manager-page').style.display = 'flex';
   showDocRequests();
+  updateHeaderUI();
+  startHeaderClock();
 }
 
 function showMyAccount() {
@@ -436,6 +438,8 @@ function showDashboard(){
   } else {
     updateDashboard(currentRole);
   }
+  updateHeaderUI();
+  startHeaderClock();
 }
 
 function openDSWDPage(){
@@ -443,6 +447,8 @@ function openDSWDPage(){
   document.getElementById('dashboard-page').style.display = 'none';
   document.getElementById('dswd-page').style.display = 'flex';
   showDSWDStats();
+  updateHeaderUI();
+  startHeaderClock();
 }
 
 function showAgeStats() {
@@ -1809,6 +1815,62 @@ if (savedUser) {
   currentRole = loggedInUser.role;
   console.log("Restored user:", loggedInUser);
 }
+
+function toggleAccountMenu() {
+  const d = document.getElementById('account-dropdown');
+  d.style.display = d.style.display === 'none' ? 'block' : 'none';
+}
+
+function toggleManagerAccountMenu() {
+  const d = document.getElementById('manager-account-dropdown');
+  d.style.display = d.style.display === 'none' ? 'block' : 'none';
+}
+
+function toggleDSWDAccountMenu() {
+  const d = document.getElementById('dswd-account-dropdown');
+  d.style.display = d.style.display === 'none' ? 'block' : 'none';
+}
+
+function updateHeaderUI() {
+  if (!loggedInUser) return;
+  const name = loggedInUser.name || loggedInUser.username || 'User';
+  const pic = loggedInUser.profile_pic ||
+    `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=ffffff&color=c0392b&size=64`;
+
+  ['header-name','manager-header-name','dswd-header-name'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerText = name;
+  });
+
+  ['header-profile-pic','manager-header-profile-pic','dswd-header-profile-pic'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.src = pic;
+  });
+}
+
+function startHeaderClock() {
+  function tick() {
+    const now = new Date();
+    const str = now.toLocaleDateString('en-US', { weekday:'short', month:'long', day:'numeric', year:'numeric' })
+      + ' ' + now.toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+    ['header-datetime','manager-header-datetime','dswd-header-datetime'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.innerText = str;
+    });
+  }
+  tick();
+  setInterval(tick, 1000);
+}
+
+// Close dropdown when clicking outside
+document.addEventListener('click', function(e) {
+  ['account-dropdown','manager-account-dropdown','dswd-account-dropdown'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el && !el.contains(e.target) && !e.target.closest('[onclick*="toggleAccountMenu"], [onclick*="toggleManagerAccountMenu"], [onclick*="toggleDSWDAccountMenu"]')) {
+      el.style.display = 'none';
+    }
+  });
+});
 
 function confirmGooglePassword(){
   const user = window.tempGoogleUser;
