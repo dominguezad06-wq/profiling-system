@@ -46,7 +46,7 @@ body {
   width: 220px;
   min-height: 100vh;
   height: 100%;
-  background: linear-gradient(180deg, var(--primary-red), var(--primary-orange));
+  background: #8B0000;
   color: white;
   padding: 15px;
   position: fixed;
@@ -96,10 +96,11 @@ body {
   display: flex;
   align-items: center;
   gap: 12px;
-  background: linear-gradient(135deg, var(--primary-red), var(--primary-orange));
-  color: white;
-  padding: 15px;
-  border-radius: 10px;
+  background: transparent;
+  color: #1a1a1a;
+  padding: 15px 0;
+  border-bottom: 3px solid #8B0000;
+  border-radius: 0;
   margin-bottom: 20px;
 }
 
@@ -444,7 +445,7 @@ tbody tr:nth-child(even) {
   margin-top: 10px;
   padding: 12px;
   border-radius: 8px;
-  background: linear-gradient(135deg, #c0392b, #e67e22);
+  background: #8B0000;
   color: white;
   font-weight: bold;
   border: none;
