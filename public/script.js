@@ -873,9 +873,8 @@ function renderResidentWelcome() {
           <div style="padding:18px 22px; display:flex; flex-direction:column; gap:12px;">
             ${[
               { label:'Spouse', value: (u.spouse && u.spouse !== 'N/A') ? u.spouse : '—' },
-              { label:'Sons', value: u.sons ?? '0' },
-              { label:'Daughters', value: u.daughters ?? '0' },
-              { label:'Family Members', value: u.family_members ?? '—' },
+            
+              
               { label:'Household Role', value: u.household_role || '—' },
               { label:'Voter Status', value: u.voter_status || '—' },
             ].map(row => `
