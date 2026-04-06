@@ -927,86 +927,211 @@ function showMyRequests() {
 
 function showMyProfile() {
   const body = document.getElementById('dashboard-body');
+  const u = loggedInUser;
+
+  // Parse children names JSON if stored
+  let children = [];
+  try { children = JSON.parse(u.children_names || '[]'); } catch(e) { children = []; }
+  if (!Array.isArray(children)) children = [];
+
+  const inputStyle = `width:100%; padding:9px 12px; border-radius:8px; border:1px solid #ddd; font-size:13px; margin:0; box-sizing:border-box;`;
+  const labelStyle = `font-size:13px; color:#555; font-weight:600; display:block; margin-bottom:4px;`;
+  const fieldDiv = (label, input) => `
+    <div style="margin-bottom:14px;">
+      <label style="${labelStyle}">${label}</label>
+      ${input}
+    </div>
+  `;
+
+  const sel = (id, options, val) => `
+    <select id="${id}" style="${inputStyle}">
+      ${options.map(o => `<option value="${o}" ${val===o?'selected':''}>${o}</option>`).join('')}
+    </select>
+  `;
+
   body.innerHTML = `
-    <button onclick="renderResidentWelcome()" 
-      style="display:inline-block; width:fit-content; padding:6px 10px; margin-bottom:15px; font-size:12px; background:#1a3f6c; color:white; border:none; border-radius:4px;">
-      ← Back
-    </button>
-    <h2 style="margin:5px 0; text-align:center;">My Profile</h2>
-    <div style="display:flex; justify-content:center; align-items:flex-start; gap:30px; padding:10px; width:100%; margin:0 auto;">
-      <div style="background:#f4f7ff; padding:12px; border-radius:10px; box-shadow:0 2px 6px rgba(0,0,0,0.1); flex:1; min-width:400px; max-width:600px;">
-        <h3>Personal Info</h3>
-        <table style="width:100%; border-collapse:collapse;">
-          <tr><td>Name:</td><td><input type="text" id="profile-name" value="${loggedInUser.name || ''}" style="width:100%; padding:4px;"></td></tr>
-          <tr><td>Birth:</td><td><input type="date" id="profile-dob" value="${loggedInUser.dob || ''}" onchange="calculateAge()" style="width:100%; padding:4px;"></td></tr>
-          <tr><td>Age:</td><td><input type="number" id="profile-age" value="${loggedInUser.age || ''}" style="width:100%; padding:4px;"></td></tr>
-          <tr><td>Sex:</td><td>
-            <select id="profile-gender" style="width:100%; padding:4px;">
-              <option ${loggedInUser.gender==='Male'?'selected':''}>Male</option>
-              <option ${loggedInUser.gender==='Female'?'selected':''}>Female</option>
-            </select>
-          </td></tr>
-          <tr><td>Status:</td><td>
-            <select id="profile-status" style="width:100%; padding:4px;">
-              <option ${loggedInUser.status==='Single'?'selected':''}>Single</option>
-              <option ${loggedInUser.status==='Married'?'selected':''}>Married</option>
-              <option ${loggedInUser.status==='Widowed'?'selected':''}>Widowed</option>
-              <option ${loggedInUser.status==='Separated'?'selected':''}>Separated</option>
-            </select>
-          </td></tr>
-          <tr><td>Religion:</td><td><input type="text" id="profile-religion" value="${loggedInUser.religion || ''}" style="width:100%; padding:4px;"></td></tr>
-          <tr><td>Barangay:</td><td>
-            <select id="profile-barangay" style="width:100%; padding:4px;">
-              <option value="Trapiche 1" ${loggedInUser.barangay==='Trapiche 1'?'selected':''}>Trapiche 1</option>
-              <option value="Trapiche 2" ${loggedInUser.barangay==='Trapiche 2'?'selected':''}>Trapiche 2</option>
-              <option value="Trapiche 3" ${loggedInUser.barangay==='Trapiche 3'?'selected':''}>Trapiche 3</option>
-              <option value="Trapiche 4" ${loggedInUser.barangay==='Trapiche 4'?'selected':''}>Trapiche 4</option>
-            </select>
-          </td></tr>
-        </table>
+    <div style="max-width:900px; margin:0 auto; padding:20px;">
+      <button onclick="renderResidentWelcome()"
+        style="margin-bottom:16px; padding:8px 16px; background:#1a3f6c; color:white; border:none; border-radius:6px; font-size:13px; cursor:pointer;">
+        ← Back
+      </button>
+      <h2 style="margin:0 0 20px; color:#1a1a1a; font-size:20px;">My Profile</h2>
+
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
+
+        <!-- PERSONAL INFO -->
+        <div style="background:#fff; padding:20px; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,0.08); border-top:4px solid #c0392b;">
+          <h3 style="margin:0 0 16px; font-size:15px; color:#c0392b;">Personal Information</h3>
+          ${fieldDiv('Full Name', `<input type="text" id="profile-name" value="${u.name||''}" style="${inputStyle}">`)}
+          ${fieldDiv('Date of Birth', `<input type="date" id="profile-dob" value="${(u.dob||'').split('T')[0]}" onchange="calcProfileAge()" style="${inputStyle}">`)}
+          ${fieldDiv('Age', `<input type="number" id="profile-age" value="${u.age||''}" style="${inputStyle}">`)}
+          ${fieldDiv('Sex', sel('profile-gender', ['Male','Female'], u.gender))}
+          ${fieldDiv('Civil Status', sel('profile-status', ['Single','Married','Widowed','Separated'], u.status))}
+          ${fieldDiv('Religion', `<input type="text" id="profile-religion" value="${u.religion||''}" style="${inputStyle}">`)}
+          ${fieldDiv('Place of Birth', `<input type="text" id="profile-place-of-birth" value="${u.place_of_birth||''}" style="${inputStyle}">`)}
+          ${fieldDiv('Blood Type', sel('profile-blood-type', ['Unknown','A+','A-','B+','B-','AB+','AB-','O+','O-'], u.blood_type||'Unknown'))}
+          ${fieldDiv('Barangay', sel('profile-barangay', ['Trapiche 1','Trapiche 2','Trapiche 3','Trapiche 4'], u.barangay))}
+          ${fieldDiv('Address', `<input type="text" id="profile-address" value="${u.address||''}" style="${inputStyle}">`)}
+        </div>
+
+        <!-- FAMILY & OTHER INFO -->
+        <div style="background:#fff; padding:20px; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,0.08); border-top:4px solid #1a3f6c;">
+          <h3 style="margin:0 0 16px; font-size:15px; color:#1a3f6c;">Family & Other Info</h3>
+          ${fieldDiv('Voter Status', sel('profile-voter-status', ['Not Registered','Registered Voter'], u.voter_status||'Not Registered'))}
+          ${fieldDiv('Household Role', sel('profile-household-role', ['Head','Spouse','Child','Sibling','Grandparent','Grandchild','Relative','Boarder'], u.household_role||'Head'))}
+          ${fieldDiv('Educational Attainment', sel('profile-educational-attainment', ['No Formal Education','Elementary Level','Elementary Graduate','High School Level','High School Graduate','Vocational','College Level','College Graduate','Post Graduate'], u.educational_attainment||'No Formal Education'))}
+          ${fieldDiv('PWD', sel('profile-pwd', ['No','Yes'], u.pwd==='Yes'?'Yes':'No'))}
+          ${fieldDiv('Number of Sons', `<input type="number" id="profile-sons" value="${u.sons||0}" min="0" style="${inputStyle}">`)}
+          ${fieldDiv('Number of Daughters', `<input type="number" id="profile-daughters" value="${u.daughters||0}" min="0" style="${inputStyle}">`)}
+          ${fieldDiv('Family Members', `<input type="number" id="profile-family" value="${u.family_members||0}" min="0" style="${inputStyle}">`)}
+
+          <!-- SPOUSE -->
+          <div style="margin-bottom:14px;">
+            <label style="${labelStyle}">Spouse</label>
+            <div style="display:flex; gap:8px; align-items:center;">
+              <select id="profile-spouse-toggle" onchange="toggleSpouseInput()" style="width:120px; padding:9px 12px; border-radius:8px; border:1px solid #ddd; font-size:13px;">
+                <option value="N/A" ${(!u.spouse||u.spouse==='N/A')?'selected':''}>N/A</option>
+                <option value="named" ${(u.spouse&&u.spouse!=='N/A')?'selected':''}>Enter Name</option>
+              </select>
+              <input type="text" id="profile-spouse-name" value="${(u.spouse&&u.spouse!=='N/A')?u.spouse:''}"
+                placeholder="Spouse name"
+                style="${inputStyle} flex:1; display:${(u.spouse&&u.spouse!=='N/A')?'block':'none'};">
+            </div>
+          </div>
+
+          ${fieldDiv('Contact Number', `<input type="text" id="profile-contact" value="${u.contact||''}" style="${inputStyle}">`)}
+          ${fieldDiv('Email Address', `<input type="email" id="profile-email" value="${u.email||''}" style="${inputStyle}">`)}
+          ${fieldDiv('Emergency Contact Name', `<input type="text" id="profile-emergency-name" value="${u.emergency_contact_name||''}" style="${inputStyle}">`)}
+          ${fieldDiv('Emergency Contact Number', `<input type="text" id="profile-emergency-number" value="${u.emergency_contact_number||''}" style="${inputStyle}">`)}
+        </div>
+
       </div>
-      <div style="background:#f4f7ff; padding:12px; border-radius:10px; box-shadow:0 2px 6px rgba(0,0,0,0.1); flex:1; min-width:400px; max-width:600px;">
-        <h3>Family & Contact</h3>
-        <table style="width:100%; border-collapse:collapse;">
-          <tr><td>Family:</td><td><input type="number" id="profile-family" value="${loggedInUser.family_members || ''}" style="width:100%; padding:4px;"></td></tr>
-          <tr><td>Sons:</td><td><input type="number" id="profile-sons" value="${loggedInUser.sons || ''}" style="width:100%; padding:4px;"></td></tr>
-          <tr><td>Daughters:</td><td><input type="number" id="profile-daughters" value="${loggedInUser.daughters || ''}" style="width:100%; padding:4px;"></td></tr>
-          <tr><td>PWD:</td><td>
-            <select id="profile-pwd" style="width:100%; padding:4px;">
-              <option ${loggedInUser.pwd === 'No' ? 'selected' : ''}>No</option>
-              <option ${loggedInUser.pwd === 'Yes' ? 'selected' : ''}>Yes</option>
-            </select>
-          </td></tr>
-          <tr><td>Contact:</td><td><input type="text" id="profile-contact" value="${loggedInUser.contact || ''}" style="width:100%; padding:4px;"></td></tr>
-          <tr><td>Email:</td><td><input type="email" id="profile-email" value="${loggedInUser.email || ''}" style="width:100%; padding:4px;"></td></tr>
-        </table>
-        <button onclick="updateProfile()" 
-          style="margin-top:10px; width:100%; padding:8px; background:#1a3f6c; color:white; border:none; border-radius:6px;">
-          Update Profile
+
+      <!-- CHILDREN SECTION -->
+      <div style="background:#fff; padding:20px; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,0.08); border-top:4px solid #e67e22; margin-top:20px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+          <h3 style="margin:0; font-size:15px; color:#e67e22;">Children</h3>
+          <button onclick="addChildRow()" style="padding:7px 16px; background:#e67e22; color:white; border:none; border-radius:6px; font-size:13px; cursor:pointer;">+ Add Child</button>
+        </div>
+        <div id="children-list" style="display:flex; flex-direction:column; gap:10px;">
+          ${children.length === 0
+            ? `<p style="color:#aaa; font-size:13px; text-align:center; padding:20px 0;">No children added yet. Click "+ Add Child" to add one.</p>`
+            : children.map((c, i) => childRow(c.name, c.age, c.gender, i)).join('')
+          }
+        </div>
+      </div>
+
+      <!-- SAVE BUTTON -->
+      <div style="margin-top:20px; text-align:right;">
+        <div id="profile-message" style="font-size:13px; margin-bottom:10px; text-align:center;"></div>
+        <button onclick="updateProfile()"
+          style="padding:12px 40px; background:linear-gradient(135deg,#c0392b,#e67e22); color:white; font-weight:bold; border:none; border-radius:8px; font-size:14px; cursor:pointer;">
+          Save Profile
         </button>
       </div>
     </div>
   `;
 }
 
+function childRow(name='', age='', gender='Male', index) {
+  return `
+    <div id="child-row-${index}" style="display:flex; gap:10px; align-items:center; background:#f8f9fa; padding:10px 14px; border-radius:8px; border:1px solid #eee;">
+      <input type="text" placeholder="Child's name" value="${name}"
+        style="flex:2; padding:8px 12px; border-radius:6px; border:1px solid #ddd; font-size:13px; margin:0;"
+        id="child-name-${index}">
+      <input type="number" placeholder="Age" value="${age}" min="0"
+        style="width:70px; padding:8px 12px; border-radius:6px; border:1px solid #ddd; font-size:13px; margin:0;"
+        id="child-age-${index}">
+      <select id="child-gender-${index}" style="padding:8px 12px; border-radius:6px; border:1px solid #ddd; font-size:13px; margin:0;">
+        <option value="Male" ${gender==='Male'?'selected':''}>Male</option>
+        <option value="Female" ${gender==='Female'?'selected':''}>Female</option>
+      </select>
+      <button onclick="removeChildRow(${index})" style="padding:6px 12px; background:#f8d7da; color:#c0392b; border:none; border-radius:6px; font-size:13px; cursor:pointer;">✕</button>
+    </div>
+  `;
+}
+
+function addChildRow() {
+  const list = document.getElementById('children-list');
+  const index = Date.now();
+  const p = list.querySelector('p');
+  if (p) p.remove();
+  const div = document.createElement('div');
+  div.innerHTML = childRow('', '', 'Male', index);
+  list.appendChild(div.firstElementChild);
+}
+
+function removeChildRow(index) {
+  const row = document.getElementById(`child-row-${index}`);
+  if (row) row.remove();
+  const list = document.getElementById('children-list');
+  if (list.children.length === 0) {
+    list.innerHTML = `<p style="color:#aaa; font-size:13px; text-align:center; padding:20px 0;">No children added yet. Click "+ Add Child" to add one.</p>`;
+  }
+}
+
+function toggleSpouseInput() {
+  const toggle = document.getElementById('profile-spouse-toggle').value;
+  const input = document.getElementById('profile-spouse-name');
+  input.style.display = toggle === 'named' ? 'block' : 'none';
+  if (toggle === 'N/A') input.value = '';
+}
+
+function calcProfileAge() {
+  const dob = document.getElementById('profile-dob').value;
+  if (!dob) return;
+  const age = Math.floor((new Date() - new Date(dob)) / (365.25 * 24 * 60 * 60 * 1000));
+  document.getElementById('profile-age').value = age;
+}
+
 function updateProfile(){
+  // Collect children
+  const childRows = document.querySelectorAll('#children-list [id^="child-row-"]');
+  const children = [];
+  childRows.forEach(row => {
+    const id = row.id.replace('child-row-', '');
+    const name = document.getElementById(`child-name-${id}`)?.value.trim();
+    const age = document.getElementById(`child-age-${id}`)?.value;
+    const gender = document.getElementById(`child-gender-${id}`)?.value;
+    if (name) children.push({ name, age: parseInt(age)||0, gender });
+  });
+
+  // Spouse
+  const spouseToggle = document.getElementById('profile-spouse-toggle')?.value;
+  const spouseName = document.getElementById('profile-spouse-name')?.value.trim();
+  const spouse = spouseToggle === 'named' && spouseName ? spouseName : 'N/A';
+
+  const age = parseInt(document.getElementById('profile-age').value) || 0;
+
   const updatedData = {
     name: document.getElementById('profile-name').value,
-    age: parseInt(document.getElementById('profile-age').value) || 0,
-    senior: parseInt(document.getElementById('profile-age').value) >= 60 ? 'Yes' : 'No',
+    age,
+    senior: age >= 60 ? 'Yes' : 'No',
     gender: document.getElementById('profile-gender').value,
     status: document.getElementById('profile-status').value,
     barangay: document.getElementById('profile-barangay').value,
-    spouse: document.getElementById('profile-spouse')?.value || '',
+    address: document.getElementById('profile-address')?.value || '',
+    dob: document.getElementById('profile-dob').value,
+    religion: document.getElementById('profile-religion').value,
+    place_of_birth: document.getElementById('profile-place-of-birth')?.value || '',
+    blood_type: document.getElementById('profile-blood-type')?.value || '',
+    voter_status: document.getElementById('profile-voter-status')?.value || '',
+    household_role: document.getElementById('profile-household-role')?.value || '',
+    educational_attainment: document.getElementById('profile-educational-attainment')?.value || '',
+    spouse,
     sons: parseInt(document.getElementById('profile-sons').value) || 0,
     daughters: parseInt(document.getElementById('profile-daughters').value) || 0,
     pwd: document.getElementById('profile-pwd').value,
-    dob: document.getElementById('profile-dob').value,
     family_members: parseInt(document.getElementById('profile-family').value) || 0,
     contact: document.getElementById('profile-contact').value,
     email: document.getElementById('profile-email').value,
-    address: document.getElementById('profile-address')?.value || ''
+    emergency_contact_name: document.getElementById('profile-emergency-name')?.value || '',
+    emergency_contact_number: document.getElementById('profile-emergency-number')?.value || '',
+    children_names: JSON.stringify(children)
   };
+
+  const msg = document.getElementById('profile-message');
+  if (msg) { msg.innerText = 'Saving...'; msg.style.color = '#888'; }
 
   fetch(`${API_BASE}/api/update-resident/${loggedInUser.username}`, {
     method: 'PUT',
@@ -1016,10 +1141,14 @@ function updateProfile(){
   .then(res => res.json())
   .then(data => {
     if(data.success){
-      alert("Profile updated successfully!");
+      if (msg) { msg.innerText = 'Profile saved successfully!'; msg.style.color = 'green'; }
+      Object.assign(loggedInUser, updatedData);
     } else {
-      alert("Failed to update profile: " + (data.message || 'Unknown error'));
+      if (msg) { msg.innerText = 'Failed: ' + (data.message || 'Unknown error'); msg.style.color = 'red'; }
     }
+  })
+  .catch(() => {
+    if (msg) { msg.innerText = 'Server error.'; msg.style.color = 'red'; }
   });
 }
 
