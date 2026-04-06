@@ -954,8 +954,22 @@ function renderManagerRequests(allRequests, filter = 'all') {
            <td>${r.document_type}</td>
            <td>${r.purpose}</td>
            <td>${r.status}</td>
-           <td>${r.gov_id ? `<a href="${r.gov_id}" target="_blank">View</a>` : ''}</td>
-           <td>${r.photo ? `<a href="${r.photo}" download="photo-${r.username}.png">Download</a>` : ''}</td>
+           <td>${r.gov_id ? `
+             <a href="${r.gov_id}" target="_blank">
+               <img src="${r.gov_id}"
+                 style="width:60px; height:60px; object-fit:cover; border-radius:6px; border:1px solid #ddd; cursor:pointer;"
+                 onerror="this.style.display='none'; this.nextElementSibling.style.display='inline';">
+               <span style="display:none; font-size:12px; color:#c0392b;">View</span>
+             </a>` : '<span style="color:#bbb; font-size:12px;">None</span>'}
+           </td>
+           <td>${r.photo ? `
+             <a href="${r.photo}" target="_blank">
+               <img src="${r.photo}"
+                 style="width:60px; height:60px; object-fit:cover; border-radius:6px; border:1px solid #ddd; cursor:pointer;"
+                 onerror="this.style.display='none'; this.nextElementSibling.style.display='inline';">
+               <span style="display:none; font-size:12px; color:#c0392b;">View</span>
+             </a>` : '<span style="color:#bbb; font-size:12px;">None</span>'}
+           </td>
            <td><input type="date" id="date-${i}" value="${r.date || ''}" ${r.status!=='Pending'?'readonly':''}></td>
            <td><input type="time" id="time-${i}" value="${r.time || ''}" ${r.status!=='Pending'?'readonly':''}></td>
            <td>
