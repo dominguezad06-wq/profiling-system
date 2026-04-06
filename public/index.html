@@ -294,16 +294,29 @@
   </div>
 
   <div style="display:flex; margin-top:56px; min-height:calc(100vh - 56px);">
-    <div class="sidebar">
-      <h2 id="dashboard-title">My Dashboard</h2>
-      <ul>
-        <li><a href="#" onclick="showMyProfile()">My Profile</a></li>
-        <li><a href="#" onclick="showMyRequests()">My Requests</a></li>
-        
-        
-      </ul>
+    <div class="sidebar" style="position:fixed; top:56px; left:0; height:calc(100vh - 56px); width:220px; overflow-y:auto; z-index:100;">
+      <div style="padding:20px 0 10px;">
+        <div style="padding:0 16px 16px; border-bottom:1px solid rgba(255,255,255,0.15); margin-bottom:8px;">
+          <div style="font-size:11px; color:rgba(255,255,255,0.5); text-transform:uppercase; letter-spacing:1px; margin-bottom:4px;">Navigation</div>
+          <div id="dashboard-title" style="font-size:14px; font-weight:600; color:white;">My Dashboard</div>
+        </div>
+        <ul style="list-style:none; padding:0 8px; margin:0;">
+          <li style="margin-bottom:4px;">
+            <a href="#" onclick="showMyProfile()" style="display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:8px; color:white; text-decoration:none; font-size:13px; transition:0.2s;"
+              onmouseover="this.style.background='rgba(255,255,255,0.2)'" onmouseout="this.style.background='transparent'">
+              <span>📋</span> My Profile
+            </a>
+          </li>
+          <li style="margin-bottom:4px;">
+            <a href="#" onclick="showMyRequests()" style="display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:8px; color:white; text-decoration:none; font-size:13px; transition:0.2s;"
+              onmouseover="this.style.background='rgba(255,255,255,0.2)'" onmouseout="this.style.background='transparent'">
+              <span>📄</span> My Requests
+            </a>
+          </li>
+        </ul>
+      </div>
     </div>
-    <div class="main-content" id="dashboard-content">
+    <div class="main-content" id="dashboard-content" style="margin-left:220px; padding:20px; width:calc(100% - 220px);">
       <div id="resident-requests-preview"></div>
     </div>
   </div>
@@ -339,17 +352,35 @@
   </div>
 
   <div style="display:flex; margin-top:56px; min-height:calc(100vh - 56px);">
-    <div class="sidebar">
-      <h2>Manager Panel</h2>
-      <ul>
-        <li><a href="#" onclick="renderManagerRequests(window.allRequests, 'pending')">Pending</a></li>
-        <li><a href="#" onclick="renderManagerRequests(window.allRequests, 'approved')">Approved</a></li>
-        <li><a href="#" onclick="renderManagerRequests(window.allRequests, 'rejected')">Rejected</a></li>
-        
-        
-      </ul>
+    <div class="sidebar" style="position:fixed; top:56px; left:0; height:calc(100vh - 56px); width:220px; overflow-y:auto; z-index:100;">
+      <div style="padding:20px 0 10px;">
+        <div style="padding:0 16px 16px; border-bottom:1px solid rgba(255,255,255,0.15); margin-bottom:8px;">
+          <div style="font-size:11px; color:rgba(255,255,255,0.5); text-transform:uppercase; letter-spacing:1px; margin-bottom:4px;">Navigation</div>
+          <div style="font-size:14px; font-weight:600; color:white;">Manager Panel</div>
+        </div>
+        <ul style="list-style:none; padding:0 8px; margin:0;">
+          <li style="margin-bottom:4px;">
+            <a href="#" onclick="renderManagerRequests(window.allRequests, 'pending')" style="display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:8px; color:white; text-decoration:none; font-size:13px;"
+              onmouseover="this.style.background='rgba(255,255,255,0.2)'" onmouseout="this.style.background='transparent'">
+              <span>🕐</span> Pending
+            </a>
+          </li>
+          <li style="margin-bottom:4px;">
+            <a href="#" onclick="renderManagerRequests(window.allRequests, 'approved')" style="display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:8px; color:white; text-decoration:none; font-size:13px;"
+              onmouseover="this.style.background='rgba(255,255,255,0.2)'" onmouseout="this.style.background='transparent'">
+              <span>✅</span> Approved
+            </a>
+          </li>
+          <li style="margin-bottom:4px;">
+            <a href="#" onclick="renderManagerRequests(window.allRequests, 'rejected')" style="display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:8px; color:white; text-decoration:none; font-size:13px;"
+              onmouseover="this.style.background='rgba(255,255,255,0.2)'" onmouseout="this.style.background='transparent'">
+              <span>❌</span> Rejected
+            </a>
+          </li>
+        </ul>
+      </div>
     </div>
-    <div class="main-content" style="flex:1; padding:20px;">
+    <div class="main-content" style="margin-left:220px; padding:20px; width:calc(100% - 220px);">
       <div id="manager-table"></div>
     </div>
   </div>
@@ -385,18 +416,36 @@
     </div>
   </div>
 
-  <div class="dswd-layout" style="margin-top:56px;">
-    <div class="sidebar">
-      <h2>Health Center</h2>
-      <ul>
-        <li><a href="#" onclick="showDSWDStats()">Statistics</a></li>
-        <li><a href="#" onclick="showAgeStats()">Age Statistics</a></li>
-        <li><a href="#" onclick="showBarangayStats()">Barangay Statistics</a></li>
-        
-        
-      </ul>
+  <div style="display:flex; margin-top:56px; min-height:calc(100vh - 56px);">
+    <div class="sidebar" style="position:fixed; top:56px; left:0; height:calc(100vh - 56px); width:220px; overflow-y:auto; z-index:100; background:linear-gradient(180deg,#1a3f6c,#2c5aa0);">
+      <div style="padding:20px 0 10px;">
+        <div style="padding:0 16px 16px; border-bottom:1px solid rgba(255,255,255,0.15); margin-bottom:8px;">
+          <div style="font-size:11px; color:rgba(255,255,255,0.5); text-transform:uppercase; letter-spacing:1px; margin-bottom:4px;">Navigation</div>
+          <div style="font-size:14px; font-weight:600; color:white;">Health Center</div>
+        </div>
+        <ul style="list-style:none; padding:0 8px; margin:0;">
+          <li style="margin-bottom:4px;">
+            <a href="#" onclick="showDSWDStats()" style="display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:8px; color:white; text-decoration:none; font-size:13px;"
+              onmouseover="this.style.background='rgba(255,255,255,0.2)'" onmouseout="this.style.background='transparent'">
+              <span>📊</span> Statistics
+            </a>
+          </li>
+          <li style="margin-bottom:4px;">
+            <a href="#" onclick="showAgeStats()" style="display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:8px; color:white; text-decoration:none; font-size:13px;"
+              onmouseover="this.style.background='rgba(255,255,255,0.2)'" onmouseout="this.style.background='transparent'">
+              <span>👥</span> Age Statistics
+            </a>
+          </li>
+          <li style="margin-bottom:4px;">
+            <a href="#" onclick="showBarangayStats()" style="display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:8px; color:white; text-decoration:none; font-size:13px;"
+              onmouseover="this.style.background='rgba(255,255,255,0.2)'" onmouseout="this.style.background='transparent'">
+              <span>🏘️</span> Barangay Statistics
+            </a>
+          </li>
+        </ul>
+      </div>
     </div>
-    <div id="dashboard-body"></div>
+    <div id="dashboard-body" style="margin-left:220px; width:calc(100% - 220px); min-height:calc(100vh - 56px); overflow-y:auto;"></div>
   </div>
 </div>
 
