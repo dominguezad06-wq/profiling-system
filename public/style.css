@@ -65,19 +65,18 @@ body {
 .sidebar button {
   width: 100%;
   margin-bottom: 10px;
-  background: transparent;
-  border: none;
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.2);
   padding: 10px;
   border-radius: 8px;
-  color: #333;
+  color: white;
   font-size: 13px;
   cursor: pointer;
   transition: 0.25s;
 }
 
 .sidebar button:hover {
-  background: #f0e0e0;
-  color: #8B0000;
+  background: rgba(255,255,255,0.3);
   transform: translateX(3px);
 }
 
@@ -402,11 +401,11 @@ tbody tr:nth-child(even) {
 ========================= */
 .login-box {
   width: 100%;
-  max-width: 400px;
+  max-width: 480px;
   background: #ffffff;
-  padding: 32px;
-  border-radius: 16px;
-  box-shadow: 0 20px 45px rgba(0,0,0,0.25);
+  padding: 40px 44px;
+  border-radius: 20px;
+  box-shadow: 0 24px 60px rgba(0,0,0,0.18);
   text-align: center;
 }
 
@@ -447,9 +446,8 @@ tbody tr:nth-child(even) {
   margin-top: 10px;
   padding: 12px;
   border-radius: 8px;
-  background: #f5f5f5;
-  color: #333;
-  border-right: 1px solid #e0e0e0;
+  background: linear-gradient(135deg, #8B0000, #e67e22);
+  color: white;
   font-weight: bold;
   border: none;
   cursor: pointer;
@@ -541,12 +539,30 @@ tbody tr:nth-child(even) {
 .login-header {
   display: flex;
   align-items: center;
-  gap: 15px;
+  gap: 16px;
   background: white;
-  padding: 15px 25px;
-  border-radius: 14px;
-  margin-bottom: 20px;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+  padding: 18px 28px;
+  border-radius: 16px;
+  margin-bottom: 24px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+  max-width: 480px;
+  width: 100%;
+}
+
+.login-header img {
+  height: 68px;
+}
+
+.login-header h1 {
+  font-size: 17px;
+  margin: 0 0 4px;
+  color: #c0392b;
+}
+
+.login-header p {
+  font-size: 12px;
+  margin: 0;
+  color: #666;
 }
 
 .login-header img {
@@ -625,16 +641,15 @@ tbody tr:nth-child(even) {
   display: block;
   padding: 10px;
   border-radius: 8px;
-  color: #333;
+  color: white;
   text-decoration: none;
-  background: transparent;
+  background: rgba(255,255,255,0.1);
   transition: 0.2s;
 }
 
 .sidebar ul li a:hover {
-  background: #f0e0e0;
-  color: #8B0000;
-  transform: translateX(3px);
+  background: rgba(255,255,255,0.3);
+  transform: translateX(5px);
 }
 
 /* ===== DSWD FULL SCREEN LAYOUT ===== */
@@ -1096,4 +1111,243 @@ html, body {
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(-4px); }
   to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ================================
+   RESPONSIVE OVERHAUL
+================================ */
+
+/* Add bottom padding to all pages so footer doesn't overlap */
+#dashboard-page .main-content,
+#manager-page .main-content,
+#dswd-page #dashboard-body {
+  padding-bottom: 50px;
+}
+
+/* ---- TABLET (max 1024px) ---- */
+@media (max-width: 1024px) {
+  .login-box {
+    max-width: 420px;
+    padding: 32px 28px;
+  }
+
+  .login-header {
+    max-width: 420px;
+  }
+}
+
+/* ---- MOBILE (max 768px) ---- */
+@media (max-width: 768px) {
+
+  /* Login page */
+  #login-page {
+    padding: 16px;
+    justify-content: flex-start;
+    padding-top: 40px;
+  }
+
+  .login-header {
+    max-width: 100%;
+    padding: 14px 16px;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .login-header img {
+    height: 48px;
+  }
+
+  .login-header h1 {
+    font-size: 14px;
+  }
+
+  .login-box {
+    max-width: 100%;
+    padding: 24px 20px;
+    border-radius: 14px;
+  }
+
+  /* Top header bar */
+  [style*="height:56px"][style*="position:fixed"] {
+    padding: 0 12px !important;
+  }
+
+  /* Hide datetime on mobile */
+  #header-datetime,
+  #manager-header-datetime,
+  #dswd-header-datetime {
+    display: none !important;
+  }
+
+  /* Sidebar becomes horizontal top strip */
+  .sidebar {
+    position: relative !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: unset !important;
+    top: unset !important;
+    left: unset !important;
+    padding: 8px 12px !important;
+    border-right: none !important;
+    border-bottom: 1px solid #e0e0e0 !important;
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+  }
+
+  .sidebar > div {
+    width: 100%;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .sidebar > div > div:first-child {
+    width: 100%;
+    padding: 0 0 6px !important;
+    border-bottom: 1px solid #e0e0e0 !important;
+    margin-bottom: 4px !important;
+  }
+
+  .sidebar ul {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+    padding: 0 !important;
+  }
+
+  .sidebar ul li {
+    margin: 0 !important;
+  }
+
+  .sidebar ul li a {
+    padding: 7px 12px !important;
+    font-size: 12px !important;
+    border-radius: 20px !important;
+    background: rgba(255,255,255,0.2) !important;
+    color: white !important;
+    white-space: nowrap;
+  }
+
+  /* Main content full width */
+  .main-content {
+    margin-left: 0 !important;
+    width: 100% !important;
+    padding: 12px !important;
+  }
+
+  #dashboard-body {
+    margin-left: 0 !important;
+    width: 100% !important;
+    padding: 12px !important;
+  }
+
+  /* Dashboard layout stacks vertically */
+  #dashboard-page > div:last-child,
+  #manager-page > div:last-child,
+  #dswd-page > div:last-child {
+    flex-direction: column !important;
+    margin-top: 56px !important;
+  }
+
+  /* Profile grid stacks */
+  #dashboard-body > div > div[style*="grid-template-columns:1fr 1fr"],
+  .main-content > div > div[style*="grid-template-columns:1fr 1fr"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Stat cards wrap */
+  div[style*="grid-template-columns:repeat(auto-fit"] {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  div[style*="grid-template-columns:repeat(5"] {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  div[style*="grid-template-columns:repeat(4"] {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  div[style*="grid-template-columns:repeat(3"] {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* Age/barangay panel stacks */
+  div[style*="display:flex; gap:20px; align-items:flex-start"] {
+    flex-direction: column !important;
+  }
+
+  /* Request form stacks */
+  div[style*="height:calc(100vh - 140px)"] {
+    flex-direction: column !important;
+    height: auto !important;
+  }
+
+  div[style*="height:calc(100vh - 140px)"] > div {
+    max-width: 100% !important;
+    height: auto !important;
+  }
+
+  /* Manager table scroll */
+  #manager-table {
+    overflow-x: auto !important;
+  }
+
+  /* Footer */
+  #site-footer {
+    font-size: 11px !important;
+    padding: 10px 12px !important;
+  }
+
+  /* My Account form */
+  div[style*="max-width:520px"] {
+    padding: 12px !important;
+  }
+
+  /* My Profile max-width */
+  div[style*="max-width:900px"] {
+    padding: 10px !important;
+  }
+
+  div[style*="max-width:900px"] > div[style*="grid-template-columns:1fr 1fr"] {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* ---- SMALL MOBILE (max 480px) ---- */
+@media (max-width: 480px) {
+  .login-header {
+    flex-direction: row;
+    gap: 10px;
+  }
+
+  .login-header img {
+    height: 40px;
+  }
+
+  .login-header h1 {
+    font-size: 13px;
+  }
+
+  .login-box h2 {
+    font-size: 18px;
+  }
+
+  div[style*="grid-template-columns:repeat(auto-fit"] {
+    grid-template-columns: 1fr 1fr !important;
+  }
+
+  div[style*="font-size:28px; font-weight:700"] {
+    font-size: 20px !important;
+  }
+
+  /* Hero banner smaller */
+  div[style*="background:#8B0000; border-radius:16px; padding:32px 36px"] {
+    padding: 20px 18px !important;
+  }
 }
