@@ -71,6 +71,46 @@ app.post('/api/register', async (req, res) => {
 
     const hashedPw = await bcrypt.hash(password, 10);
 
+    // Check if resident with same name, dob, and barangay already exists
+    const dupCheck = await pool.query(
+      `SELECT username FROM residents
+       WHERE LOWER(TRIM(name)) = LOWER(TRIM($1))
+         AND dob::date = $2::date
+         AND barangay = $3`,
+      [name, req.body.dob || null, req.body.barangay || null]
+    );
+
+    if (dupCheck.rows.length > 0) {
+      const existingUsername = dupCheck.rows[0].username;
+      // Update password on the users table so they can login with new credentials
+      await pool.query(
+        `UPDATE users SET password=$1, name=$2 WHERE username=$3`,
+        [hashedPw, name, existingUsername]
+      );
+      // Update residents table with any new info
+      await pool.query(
+        `UPDATE residents SET
+           age=$1, senior=$2, gender=$3, status=$4,
+           sons=$5, daughters=$6, pwd=$7, contact=$8, email=$9, address=$10
+         WHERE username=$11`,
+        [
+          req.body.age ? parseInt(req.body.age) : null,
+          (req.body.age && parseInt(req.body.age) >= 60) ? true : false,
+          req.body.gender || null,
+          req.body.status || null,
+          req.body.sons ? parseInt(req.body.sons) : 0,
+          req.body.daughters ? parseInt(req.body.daughters) : 0,
+          req.body.pwd === 'Yes',
+          req.body.contact || null,
+          email || null,
+          req.body.address || null,
+          existingUsername
+        ]
+      );
+      const updated = await pool.query(`SELECT * FROM residents WHERE username=$1`, [existingUsername]);
+      return res.json({ message: 'Resident updated', user: updated.rows[0] });
+    }
+
     await pool.query(
       `INSERT INTO users(username, password, role, name) VALUES($1,$2,'resident',$3)`,
       [username, hashedPw, name]
