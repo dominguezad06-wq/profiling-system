@@ -26,26 +26,38 @@ function formatDate(dateStr) {
 }
 
 // Show Forms
-function showResidentForm(){ document.getElementById('login-page').style.display='none'; document.getElementById('resident-form').style.display='block'; }
-function showLogin(){ document.getElementById('login-page').style.display='block'; document.getElementById('resident-form').style.display='none'; document.getElementById('forgot-page').style.display='none'; }
-function showForgotPassword(){ document.getElementById('login-page').style.display='none'; document.getElementById('forgot-page').style.display='block'; }
-
+function showResidentForm(){ document.getElementById('login-page').style.display='none'; document.getElementById('resident-form').style.display='flex'; }
+function showLogin(){ document.getElementById('login-page').style.display='flex'; document.getElementById('resident-form').style.display='none'; document.getElementById('forgot-page').style.display='none'; }
+function showForgotPassword(){ document.getElementById('login-page').style.display='none'; document.getElementById('forgot-page').style.display='flex'; }
 function sendOTP() {
   const email = document.getElementById('forgot-email').value;
   fetch(`${API_BASE}/api/send-otp`, {
     method: 'POST',
-    headers: { 'Content-Type':'application/json' },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email })
   })
   .then(res => res.json())
   .then(data => {
     const msg = document.getElementById('otp-message');
-    if(data.success){
-      generatedOTP = data.otp; 
+    if (data.success) {
+      generatedOTP = data.otp;
       otpUserEmail = email;
-      msg.innerText = "OTP sent to your Gmail.";
-      msg.style.color = "green";
-      document.getElementById('otp-section').style.display = "block";
+
+      emailjs.send("service_9m8vyrc", "template_y8zmwtz", {
+        to_email: email,
+        name: email,
+        otp_code: data.otp
+      })
+      .then(() => {
+        msg.innerText = "OTP sent to your email!";
+        msg.style.color = "green";
+        document.getElementById('otp-section').style.display = "block";
+      })
+      .catch(() => {
+        msg.innerText = "Failed to send OTP email.";
+        msg.style.color = "red";
+      });
+
     } else {
       msg.innerText = data.message || "Email not registered!";
       msg.style.color = "red";
@@ -53,7 +65,7 @@ function sendOTP() {
   })
   .catch(() => {
     const msg = document.getElementById('otp-message');
-    msg.innerText = "Failed to send OTP.";
+    msg.innerText = "Server error.";
     msg.style.color = "red";
   });
 }
@@ -175,7 +187,9 @@ function login() {
         showMyProfile();
       }
     } else {
-      alert(data.error || 'Invalid username or password!');
+      const errBox = document.getElementById('login-error');
+      errBox.innerText = data.error || 'Invalid username or password!';
+      errBox.style.display = 'block';
     }
   })
   .catch(() => alert('Server connection error.'));
@@ -940,8 +954,22 @@ function renderManagerRequests(allRequests, filter = 'all') {
            <td>${r.document_type}</td>
            <td>${r.purpose}</td>
            <td>${r.status}</td>
-           <td>${r.gov_id ? `<a href="${r.gov_id}" target="_blank">View</a>` : ''}</td>
-           <td>${r.photo ? `<a href="${r.photo}" download="photo-${r.username}.png">Download</a>` : ''}</td>
+           <td>${r.gov_id ? `
+             <a href="${r.gov_id}" target="_blank">
+               <img src="${r.gov_id}"
+                 style="width:60px; height:60px; object-fit:cover; border-radius:6px; border:1px solid #ddd; cursor:pointer;"
+                 onerror="this.style.display='none'; this.nextElementSibling.style.display='inline';">
+               <span style="display:none; font-size:12px; color:#c0392b;">View</span>
+             </a>` : '<span style="color:#bbb; font-size:12px;">None</span>'}
+           </td>
+           <td>${r.photo ? `
+             <a href="${r.photo}" target="_blank">
+               <img src="${r.photo}"
+                 style="width:60px; height:60px; object-fit:cover; border-radius:6px; border:1px solid #ddd; cursor:pointer;"
+                 onerror="this.style.display='none'; this.nextElementSibling.style.display='inline';">
+               <span style="display:none; font-size:12px; color:#c0392b;">View</span>
+             </a>` : '<span style="color:#bbb; font-size:12px;">None</span>'}
+           </td>
            <td><input type="date" id="date-${i}" value="${r.date || ''}" ${r.status!=='Pending'?'readonly':''}></td>
            <td><input type="time" id="time-${i}" value="${r.time || ''}" ${r.status!=='Pending'?'readonly':''}></td>
            <td>

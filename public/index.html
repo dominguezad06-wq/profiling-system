@@ -123,94 +123,112 @@
     </div>
   </div>
 
-  <!-- Resident Registration  -->
-<div id="resident-form" class="container" style="display:none;">
-  <h1>
-    <img src="trapiche.png" alt="Barangay Logo" id="site-logo">
-    Create Resident Account
-  </h1>
-
-  <div class="login-box" style="max-height:500px; overflow-y:auto;">
-
-  <div style="display:flex; gap:20px; flex-wrap:wrap;">
-
-    <!-- LEFT TABLE -->
-    <div style="flex:1; min-width:300px; background:#f4f7ff; padding:15px; border-radius:10px;">
-      <h3>Personal Information</h3>
-      <table style="width:100%;">
-        <tr><td>Full Name:</td><td><input type="text" id="res-name" required></td></tr>
-        <tr><td>Email:</td><td><input type="email" id="res-email" required></td></tr>
-        <tr><td>Contact:</td><td><input type="text" id="res-contact" required></td></tr>
-        <tr><td>Username:</td><td><input type="text" id="res-username" required></td></tr>
-        <tr><td>Password:</td><td><input type="password" id="res-password" required></td></tr>
-
-        <tr><td>Gender:</td>
-          <td>
-            <select id="res-gender" required>
-              <option value="">Select</option>
-              <option value="Male">Male</option>
-              <option value="Female">Female</option>
-            </select>
-          </td>
-        </tr>
-
-        <tr><td>Age:</td><td><input type="number" id="res-age" min="1" required></td></tr>
-
-        <tr><td>Status:</td>
-          <td>
-            <select id="res-status" required>
-              <option value="">Select</option>
-              <option>Single</option>
-              <option>Married</option>
-              <option>Widowed</option>
-              <option>Separated</option>
-            </select>
-          </td>
-        </tr>
-      </table>
+  <!-- Resident Registration -->
+<div id="resident-form" style="display:none; min-height:100vh; background:#f4f6f7; align-items:center; justify-content:center; flex-direction:column;">
+  <div style="background:white; padding:36px 40px; border-radius:16px; box-shadow:0 12px 35px rgba(0,0,0,0.15); width:100%; max-width:440px; border-top:5px solid #c0392b;">
+    
+    <div style="display:flex; align-items:center; gap:12px; margin-bottom:24px; justify-content:center;">
+      <img src="trapiche.png" style="height:48px;">
+      <div>
+        <h2 style="margin:0; color:#c0392b; font-size:18px;">Create Account</h2>
+        <p style="margin:0; font-size:12px; color:#888;">Barangay Trapiche Profiling System</p>
+      </div>
     </div>
 
-    <!-- RIGHT TABLE -->
-    <div style="flex:1; min-width:300px; background:#fff0f5; padding:15px; border-radius:10px;">
-      <h3>Address & Family</h3>
-      <table style="width:100%;">
-        <tr><td>Address:</td><td><input type="text" id="res-address"></td></tr>
+    <table style="width:100%; border-collapse:collapse;">
+      <tr>
+        <td style="padding:8px 0; font-size:13px; color:#555; width:110px;">Full Name</td>
+        <td style="padding:8px 0;">
+          <input type="text" id="res-name" placeholder="Enter full name" required
+            style="width:100%; padding:9px 12px; border-radius:8px; border:1px solid #ddd; font-size:13px; margin:0;">
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:8px 0; font-size:13px; color:#555;">Username</td>
+        <td style="padding:8px 0;">
+          <input type="text" id="res-username" placeholder="Choose a username" required
+            style="width:100%; padding:9px 12px; border-radius:8px; border:1px solid #ddd; font-size:13px; margin:0;">
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:8px 0; font-size:13px; color:#555;">Password</td>
+        <td style="padding:8px 0;">
+          <input type="password" id="res-password" placeholder="Create a password" required
+            style="width:100%; padding:9px 12px; border-radius:8px; border:1px solid #ddd; font-size:13px; margin:0;">
+        </td>
+      </tr>
+      
+      <tr>
+        <td style="padding:8px 0; font-size:13px; color:#555;">Email</td>
+        <td style="padding:8px 0;">
+          <input type="email" id="res-email" placeholder="your@gmail.com" required
+            style="width:100%; padding:9px 12px; border-radius:8px; border:1px solid #ddd; font-size:13px; margin:0;">
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:8px 0; font-size:13px; color:#555;">Age</td>
+        <td style="padding:8px 0;">
+          <input type="number" id="res-age" placeholder="Age" min="1" required
+            style="width:100%; padding:9px 12px; border-radius:8px; border:1px solid #ddd; font-size:13px; margin:0;">
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:8px 0; font-size:13px; color:#555;">Gender</td>
+        <td style="padding:8px 0;">
+          <select id="res-gender" required
+            style="width:100%; padding:9px 12px; border-radius:8px; border:1px solid #ddd; font-size:13px; margin:0;">
+            <option value="">Select gender</option>
+            <option value="Male">Male</option>
+            <option value="Female">Female</option>
+          </select>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:8px 0; font-size:13px; color:#555;">Status</td>
+        <td style="padding:8px 0;">
+          <select id="res-status" required
+            style="width:100%; padding:9px 12px; border-radius:8px; border:1px solid #ddd; font-size:13px; margin:0;">
+            <option value="">Select status</option>
+            <option>Single</option>
+            <option>Married</option>
+            <option>Widowed</option>
+            <option>Separated</option>
+          </select>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:8px 0; font-size:13px; color:#555;">Barangay</td>
+        <td style="padding:8px 0;">
+          <select id="res-barangay" required
+            style="width:100%; padding:9px 12px; border-radius:8px; border:1px solid #ddd; font-size:13px; margin:0;">
+            <option value="">Select barangay</option>
+            <option>Trapiche 1</option>
+            <option>Trapiche 2</option>
+            <option>Trapiche 3</option>
+            <option>Trapiche 4</option>
+          </select>
+        </td>
+      </tr>
+    </table>
 
-        <tr><td>Barangay:</td>
-          <td>
-            <select id="res-barangay" required>
-              <option value="">Select</option>
-              <option>Trapiche 1</option>
-              <option>Trapiche 2</option>
-              <option>Trapiche 3</option>
-              <option>Trapiche 4</option>
-            </select>
-          </td>
-        </tr>
+    <!-- Hidden fields still needed by createResident() -->
+    <input type="hidden" id="res-contact" value="">
+    <input type="hidden" id="res-address" value="">
+    <input type="hidden" id="res-sons" value="0">
+    <input type="hidden" id="res-daughters" value="0">
+    <input type="checkbox" id="res-pwd" style="display:none;">
+    <input type="hidden" id="profile-spouse" value="">
+    <input type="hidden" id="profile-family" value="0">
 
-        <tr><td>Spouse:</td><td><input type="text" id="profile-spouse"></td></tr>
-        <tr><td>Sons:</td><td><input type="number" id="res-sons" min="0"></td></tr>
-        <tr><td>Daughters:</td><td><input type="number" id="res-daughters" min="0"></td></tr>
-        <tr><td>Family Members:</td><td><input type="number" id="profile-family" min="0"></td></tr>
+    <button onclick="createResident()"
+      style="margin-top:20px; width:100%; padding:12px; background:linear-gradient(135deg,#c0392b,#e67e22); color:white; font-weight:bold; border:none; border-radius:8px; font-size:14px; cursor:pointer;">
+      Create Account
+    </button>
 
-        <tr><td>PWD:</td>
-          <td><input type="checkbox" id="res-pwd"> Yes</td>
-        </tr>
-      </table>
-
-      <button onclick="createResident()" 
-        style="margin-top:15px; width:100%; padding:10px; background:#1a3f6c; color:white; border:none; border-radius:8px;">
-        Create Account
-      </button>
-    </div>
-
+    <p style="text-align:center; margin-top:14px; font-size:13px;">
+      <a href="#" onclick="showLogin()" style="color:#c0392b; text-decoration:none;">← Back to Login</a>
+    </p>
   </div>
-
-  <p style="text-align:center; margin-top:10px;">
-    <a href="#" onclick="showLogin()">Back to Login</a>
-  </p>
-
-</div>
 </div>
 
   <!-- Dashboard Page -->

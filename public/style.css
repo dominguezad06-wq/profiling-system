@@ -878,3 +878,217 @@ html, body {
   box-sizing: border-box;
   min-width: 0;        /* ← add this — prevents flex child from overflowing */
 }
+
+/* =========================
+   RESPONSIVE - ALL SCREENS
+========================= */
+
+/* Registration form centering */
+#resident-form {
+  display: none;
+  min-height: 100vh;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  padding: 20px;
+  background: #f4f6f7;
+}
+
+#resident-form > div {
+  width: 100%;
+  max-width: 460px;
+}
+
+/* Login page always centered */
+#login-page {
+  padding: 20px;
+}
+
+.login-header {
+  width: 100%;
+  max-width: 400px;
+}
+
+.login-box {
+  width: 100%;
+  max-width: 400px;
+}
+
+/* Dashboard responsive */
+@media (max-width: 1024px) {
+  .sidebar {
+    width: 180px;
+  }
+  .main-content {
+    margin-left: 180px;
+    width: calc(100% - 180px);
+  }
+}
+
+@media (max-width: 768px) {
+  /* Sidebar becomes top bar on mobile */
+  .sidebar {
+    position: relative;
+    width: 100%;
+    height: auto;
+    min-height: unset;
+    flex-direction: row;
+    padding: 10px 15px;
+  }
+
+  .sidebar ul {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .sidebar ul li {
+    margin: 0;
+  }
+
+  .sidebar ul li a {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+
+  .main-content {
+    margin-left: 0;
+    width: 100%;
+    padding: 12px;
+  }
+
+  #dashboard-page {
+    flex-direction: column;
+  }
+
+  /* Registration form on mobile */
+  #resident-form > div {
+    padding: 24px 18px;
+    margin: 10px;
+  }
+
+  /* Profile panels stack on mobile */
+  #dashboard-content > div > div {
+    min-width: unset !important;
+    max-width: 100% !important;
+  }
+
+  /* Manager table scroll */
+  #manager-table {
+    overflow-x: auto;
+  }
+
+  #manager-table table {
+    min-width: 700px;
+  }
+}
+
+@media (max-width: 480px) {
+  .login-header {
+    flex-direction: column;
+    text-align: center;
+    padding: 12px;
+  }
+
+  .login-box {
+    padding: 20px 16px;
+  }
+
+  #resident-form > div {
+    padding: 20px 14px;
+    border-radius: 10px;
+  }
+}
+
+/* Dashboard page flex layout */
+#dashboard-page {
+  display: none;
+  min-height: 100vh;
+}
+
+#dashboard-page.active,
+#dashboard-page[style*="block"] {
+  display: flex;
+}
+
+/* ==============================
+   MOBILE RESPONSIVE (NO DESKTOP MODE)
+============================== */
+@media (max-width: 768px) {
+
+  /* Sidebar becomes a TOP bar on mobile */
+  #dashboard-page {
+    flex-direction: column !important;
+  }
+
+  .sidebar {
+    position: relative !important;
+    width: 100% !important;
+    min-height: unset !important;
+    height: auto !important;
+    padding: 10px 12px !important;
+    top: unset !important;
+    left: unset !important;
+  }
+
+  .sidebar h2 {
+    font-size: 13px;
+    margin-bottom: 8px;
+  }
+
+  .sidebar ul {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 0;
+  }
+
+  .sidebar ul li {
+    margin: 0;
+  }
+
+  .sidebar ul li a {
+    padding: 6px 10px;
+    font-size: 12px;
+    border-radius: 6px;
+  }
+
+  /* Main content takes full width */
+  .main-content {
+    margin-left: 0 !important;
+    width: 100% !important;
+    padding: 10px !important;
+  }
+
+  /* Profile panels stack vertically */
+  #dashboard-content .profile-wrapper {
+    flex-direction: column !important;
+  }
+
+  /* All flex rows that hold profile panels */
+  #dashboard-content > div,
+  #dashboard-body > div {
+    flex-wrap: wrap !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .sidebar ul li a {
+    font-size: 11px;
+    padding: 5px 8px;
+  }
+
+  .login-header {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .login-box {
+    padding: 20px 14px;
+  }
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
