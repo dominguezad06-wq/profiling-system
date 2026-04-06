@@ -216,7 +216,12 @@ function fetchFullProfileThenRender() {
     .then(res => res.json())
     .then(data => {
       if (data.user) {
-        Object.assign(loggedInUser, data.user);
+        // Merge server data, but never overwrite with undefined/null values
+        Object.keys(data.user).forEach(key => {
+          if (data.user[key] !== undefined && data.user[key] !== null && data.user[key] !== '') {
+            loggedInUser[key] = data.user[key];
+          }
+        });
         localStorage.setItem("user", JSON.stringify(loggedInUser));
       }
     })
@@ -392,6 +397,8 @@ function saveMyAccount() {
     if (data.success) {
       loggedInUser.name = name;
       if (data.profilePicUrl) loggedInUser.profile_pic = data.profilePicUrl;
+      localStorage.setItem("user", JSON.stringify(loggedInUser));
+      updateHeaderUI();
       msg.innerText = 'Account updated successfully!';
       msg.style.color = 'green';
       setTimeout(() => showMyAccount(), 1000);
@@ -1333,8 +1340,10 @@ function updateProfile(){
   .then(res => res.json())
   .then(data => {
     if(data.success){
-      if (msg) { msg.innerText = 'Profile saved successfully!'; msg.style.color = 'green'; }
       Object.assign(loggedInUser, updatedData);
+      localStorage.setItem("user", JSON.stringify(loggedInUser));
+      if (msg) { msg.innerText = 'Profile saved successfully!'; msg.style.color = 'green'; }
+      updateHeaderUI();
     } else {
       if (msg) { msg.innerText = 'Failed: ' + (data.message || 'Unknown error'); msg.style.color = 'red'; }
     }
@@ -2184,9 +2193,12 @@ function toggleDSWDAccountMenu() {
 
 function updateHeaderUI() {
   if (!loggedInUser) return;
-  const name = loggedInUser.name || loggedInUser.username || 'User';
-  const pic = loggedInUser.profile_pic ||
-    `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=ffffff&color=c0392b&size=64`;
+  const name = (loggedInUser.name && loggedInUser.name !== 'undefined' && loggedInUser.name.trim() !== '')
+    ? loggedInUser.name
+    : (loggedInUser.username || 'User');
+  const pic = (loggedInUser.profile_pic && loggedInUser.profile_pic !== 'undefined')
+    ? loggedInUser.profile_pic
+    : `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=ffffff&color=c0392b&size=64`;
 
   ['header-name','manager-header-name','dswd-header-name'].forEach(id => {
     const el = document.getElementById(id);
