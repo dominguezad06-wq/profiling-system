@@ -1273,10 +1273,10 @@ function updateProfile(){
     household_role: document.getElementById('profile-household-role')?.value || '',
     educational_attainment: document.getElementById('profile-educational-attainment')?.value || '',
     spouse,
-    sons: u.sons || 0,
-    daughters: u.daughters || 0,
+    sons: loggedInUser.sons || 0,
+    daughters: loggedInUser.daughters || 0,
     pwd: document.getElementById('profile-pwd').value,
-    family_members: u.family_members || 0,
+    family_members: loggedInUser.family_members || 0,
     contact: document.getElementById('profile-contact').value,
     email: document.getElementById('profile-email').value,
     emergency_contact_name: document.getElementById('profile-emergency-name')?.value || '',
@@ -2113,6 +2113,7 @@ if (savedUser) {
     openManagerPage();
   } else if (currentRole === 'resident') {
     showDashboard();
+    showMyProfile();
   }
 }
 
