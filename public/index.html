@@ -262,85 +262,148 @@
   </div>
 </div>
 
-  <!-- Dashboard Page -->
-<div id="dashboard-page" style="display:none;">
-  <div class="sidebar">
-    <h2 id="dashboard-title">My Dashboard</h2>
-    <ul>
-      
-      <li><a href="#" onclick="showMyProfile()">My Profile</a></li>
-      <li><a href="#" onclick="showMyRequests()">My Requests</a></li>
-      <li><a href="#" onclick="showMyAccount()">My Account</a></li>
-      <li><a href="#" onclick="logout()">Logout</a></li>
-    </ul>
+<!-- Dashboard Page -->
+<div id="dashboard-page" style="display:none; flex-direction:column;">
+
+  <!-- TOP HEADER BAR -->
+  <div style="width:100%; background:linear-gradient(135deg,#c0392b,#e67e22); display:flex; align-items:center; justify-content:space-between; padding:0 24px; height:56px; position:fixed; top:0; left:0; z-index:1000; box-shadow:0 2px 8px rgba(0,0,0,0.15);">
+    <div style="display:flex; align-items:center; gap:12px;">
+      <img src="trapiche.png" style="height:36px;">
+      <span style="color:white; font-weight:600; font-size:15px;">Barangay Trapiche Profiling System</span>
+    </div>
+    <div style="display:flex; align-items:center; gap:12px; position:relative;">
+      <span style="color:white; font-size:12px; text-align:right; line-height:1.4;" id="header-datetime"></span>
+      <div onclick="toggleAccountMenu()" style="display:flex; align-items:center; gap:10px; cursor:pointer; padding:6px 12px; border-radius:8px; background:rgba(255,255,255,0.15);">
+        <img id="header-profile-pic" src="https://ui-avatars.com/api/?name=User&background=ffffff&color=c0392b&size=64" style="width:34px; height:34px; border-radius:50%; object-fit:cover; border:2px solid white;">
+        <div style="text-align:left;">
+          <div id="header-name" style="color:white; font-size:13px; font-weight:600;">User</div>
+          <div id="header-role" style="color:rgba(255,255,255,0.8); font-size:11px; text-transform:uppercase;">Resident</div>
+        </div>
+        <span style="color:white; font-size:10px; margin-left:4px;">▼</span>
+      </div>
+      <!-- Dropdown Menu -->
+      <div id="account-dropdown" style="display:none; position:absolute; top:52px; right:0; background:#fff; border-radius:10px; box-shadow:0 8px 24px rgba(0,0,0,0.15); min-width:180px; overflow:hidden; z-index:999;">
+        <a href="#" onclick="showMyAccount(); toggleAccountMenu();" style="display:flex; align-items:center; gap:10px; padding:12px 16px; color:#333; text-decoration:none; font-size:13px; border-bottom:1px solid #f0f0f0;">
+          <span>👤</span> My Account
+        </a>
+        <a href="#" onclick="showMyProfile(); toggleAccountMenu();" style="display:flex; align-items:center; gap:10px; padding:12px 16px; color:#333; text-decoration:none; font-size:13px; border-bottom:1px solid #f0f0f0;">
+          <span>📋</span> My Profile
+        </a>
+        <a href="#" onclick="showMyRequests(); toggleAccountMenu();" style="display:flex; align-items:center; gap:10px; padding:12px 16px; color:#333; text-decoration:none; font-size:13px; border-bottom:1px solid #f0f0f0;">
+          <span>📄</span> My Requests
+        </a>
+        <a href="#" onclick="logout()" style="display:flex; align-items:center; gap:10px; padding:12px 16px; color:#c0392b; text-decoration:none; font-size:13px;">
+          <span>🚪</span> Logout
+        </a>
+      </div>
+    </div>
   </div>
 
-  <div class="main-content" id="dashboard-content">
-    <div class="page-header">
-      <img src="trapiche.png" alt="Barangay Logo">
-      <h2>Dashboard</h2>
+  <div style="display:flex; margin-top:56px; min-height:calc(100vh - 56px);">
+    <div class="sidebar">
+      <h2 id="dashboard-title">My Dashboard</h2>
+      <ul>
+        <li><a href="#" onclick="showMyProfile()">My Profile</a></li>
+        <li><a href="#" onclick="showMyRequests()">My Requests</a></li>
+        <li><a href="#" onclick="showMyAccount()">My Account</a></li>
+        <li><a href="#" onclick="logout()">Logout</a></li>
+      </ul>
     </div>
-    <!-- Resident Requests Preview -->
-    <div id="resident-requests-preview">
+    <div class="main-content" id="dashboard-content">
+      <div id="resident-requests-preview"></div>
     </div>
   </div>
 </div>
-</div>
 
-  <div id="manager-page" style="display:none;">
+  <div id="manager-page" style="display:none; flex-direction:column;">
 
-  <div style="display:flex; min-height:100vh;">
+  <!-- TOP HEADER BAR -->
+  <div style="width:100%; background:linear-gradient(135deg,#c0392b,#e67e22); display:flex; align-items:center; justify-content:space-between; padding:0 24px; height:56px; position:fixed; top:0; left:0; z-index:1000; box-shadow:0 2px 8px rgba(0,0,0,0.15);">
+    <div style="display:flex; align-items:center; gap:12px;">
+      <img src="trapiche.png" style="height:36px;">
+      <span style="color:white; font-weight:600; font-size:15px;">Barangay Trapiche Profiling System</span>
+    </div>
+    <div style="display:flex; align-items:center; gap:12px; position:relative;">
+      <span style="color:white; font-size:12px; text-align:right; line-height:1.4;" id="manager-header-datetime"></span>
+      <div onclick="toggleManagerAccountMenu()" style="display:flex; align-items:center; gap:10px; cursor:pointer; padding:6px 12px; border-radius:8px; background:rgba(255,255,255,0.15);">
+        <img id="manager-header-profile-pic" src="https://ui-avatars.com/api/?name=Manager&background=ffffff&color=c0392b&size=64" style="width:34px; height:34px; border-radius:50%; object-fit:cover; border:2px solid white;">
+        <div style="text-align:left;">
+          <div id="manager-header-name" style="color:white; font-size:13px; font-weight:600;">Manager</div>
+          <div style="color:rgba(255,255,255,0.8); font-size:11px; text-transform:uppercase;">Manager</div>
+        </div>
+        <span style="color:white; font-size:10px; margin-left:4px;">▼</span>
+      </div>
+      <div id="manager-account-dropdown" style="display:none; position:absolute; top:52px; right:0; background:#fff; border-radius:10px; box-shadow:0 8px 24px rgba(0,0,0,0.15); min-width:180px; overflow:hidden; z-index:999;">
+        <a href="#" onclick="showMyAccount(); toggleManagerAccountMenu();" style="display:flex; align-items:center; gap:10px; padding:12px 16px; color:#333; text-decoration:none; font-size:13px; border-bottom:1px solid #f0f0f0;">
+          <span>👤</span> My Account
+        </a>
+        <a href="#" onclick="logout()" style="display:flex; align-items:center; gap:10px; padding:12px 16px; color:#c0392b; text-decoration:none; font-size:13px;">
+          <span>🚪</span> Logout
+        </a>
+      </div>
+    </div>
+  </div>
 
-    <!-- SIDEBAR -->
+  <div style="display:flex; margin-top:56px; min-height:calc(100vh - 56px);">
     <div class="sidebar">
       <h2>Manager Panel</h2>
       <ul>
-  <li><a href="#" onclick="renderManagerRequests(window.allRequests, 'pending')">Pending</a></li>
-  <li><a href="#" onclick="renderManagerRequests(window.allRequests, 'approved')">Approved</a></li>
-  <li><a href="#" onclick="renderManagerRequests(window.allRequests, 'rejected')">Rejected</a></li>
-  <li><a href="#" onclick="showMyAccount()">My Account</a></li>
-  <li><a href="#" onclick="logout()">Logout</a></li>
-</ul>
+        <li><a href="#" onclick="renderManagerRequests(window.allRequests, 'pending')">Pending</a></li>
+        <li><a href="#" onclick="renderManagerRequests(window.allRequests, 'approved')">Approved</a></li>
+        <li><a href="#" onclick="renderManagerRequests(window.allRequests, 'rejected')">Rejected</a></li>
+        <li><a href="#" onclick="showMyAccount()">My Account</a></li>
+        <li><a href="#" onclick="logout()">Logout</a></li>
+      </ul>
     </div>
-
-    <!-- MAIN CONTENT -->
     <div class="main-content" style="flex:1; padding:20px;">
-
-      <div class="page-header">
-        <img src="trapiche.png">
-        <h2>Manager Dashboard</h2>
-      </div>
-
       <div id="manager-table"></div>
-
     </div>
-
   </div>
-
 </div>
 
  <!-- DSWD Page -->
-<div id="dswd-page" style="display:none;">
+<div id="dswd-page" style="display:none; flex-direction:column;">
 
-  <div class="dswd-layout">
+  <!-- TOP HEADER BAR -->
+  <div style="width:100%; background:linear-gradient(135deg,#1a3f6c,#2c5aa0); display:flex; align-items:center; justify-content:space-between; padding:0 24px; height:56px; position:fixed; top:0; left:0; z-index:1000; box-shadow:0 2px 8px rgba(0,0,0,0.15);">
+    <div style="display:flex; align-items:center; gap:12px;">
+      <img src="trapiche.png" style="height:36px;">
+      <span style="color:white; font-weight:600; font-size:15px;">Barangay Trapiche Profiling System</span>
+    </div>
+    <div style="display:flex; align-items:center; gap:12px; position:relative;">
+      <span style="color:white; font-size:12px; text-align:right; line-height:1.4;" id="dswd-header-datetime"></span>
+      <div onclick="toggleDSWDAccountMenu()" style="display:flex; align-items:center; gap:10px; cursor:pointer; padding:6px 12px; border-radius:8px; background:rgba(255,255,255,0.15);">
+        <img id="dswd-header-profile-pic" src="https://ui-avatars.com/api/?name=DSWD&background=ffffff&color=1a3f6c&size=64" style="width:34px; height:34px; border-radius:50%; object-fit:cover; border:2px solid white;">
+        <div style="text-align:left;">
+          <div id="dswd-header-name" style="color:white; font-size:13px; font-weight:600;">DSWD</div>
+          <div style="color:rgba(255,255,255,0.8); font-size:11px; text-transform:uppercase;">Health Center</div>
+        </div>
+        <span style="color:white; font-size:10px; margin-left:4px;">▼</span>
+      </div>
+      <div id="dswd-account-dropdown" style="display:none; position:absolute; top:52px; right:0; background:#fff; border-radius:10px; box-shadow:0 8px 24px rgba(0,0,0,0.15); min-width:180px; overflow:hidden; z-index:999;">
+        <a href="#" onclick="showMyAccount(); toggleDSWDAccountMenu();" style="display:flex; align-items:center; gap:10px; padding:12px 16px; color:#333; text-decoration:none; font-size:13px; border-bottom:1px solid #f0f0f0;">
+          <span>👤</span> My Account
+        </a>
+        <a href="#" onclick="logout()" style="display:flex; align-items:center; gap:10px; padding:12px 16px; color:#c0392b; text-decoration:none; font-size:13px;">
+          <span>🚪</span> Logout
+        </a>
+      </div>
+    </div>
+  </div>
 
-    <!-- Sidebar -->
+  <div class="dswd-layout" style="margin-top:56px;">
     <div class="sidebar">
       <h2>Health Center</h2>
       <ul>
-        <li><a href="#" onclick="showDSWDStats()">Statistics</a></li> 
+        <li><a href="#" onclick="showDSWDStats()">Statistics</a></li>
         <li><a href="#" onclick="showAgeStats()">Age Statistics</a></li>
         <li><a href="#" onclick="showBarangayStats()">Barangay Statistics</a></li>
         <li><a href="#" onclick="showMyAccount()">My Account</a></li>
         <li><a href="#" onclick="logout()">Logout</a></li>
       </ul>
     </div>
-
-    <!-- Main Content -->
     <div id="dashboard-body"></div>
-
   </div>
-
 </div>
 
   <!-- EmailJS SDK -->
