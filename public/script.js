@@ -200,9 +200,8 @@ function login() {
       } else if (data.user.role === 'manager') {
         openManagerPage();
       } else {
-        showDashboard();
-        renderResidentWelcome();
-      }
+  fetchFullProfileThenRender();
+}
     } else {
       const errBox = document.getElementById('login-error');
       errBox.innerText = data.error || 'Invalid username or password!';
@@ -210,6 +209,22 @@ function login() {
     }
   })
   .catch(() => alert('Server connection error.'));
+}
+
+function fetchFullProfileThenRender() {
+  fetch(`${API_BASE}/api/resident/${loggedInUser.username}`)
+    .then(res => res.json())
+    .then(data => {
+      if (data.user) {
+        Object.assign(loggedInUser, data.user);
+        localStorage.setItem("user", JSON.stringify(loggedInUser));
+      }
+    })
+    .catch(err => console.warn('Could not fetch full profile:', err))
+    .finally(() => {
+      showDashboard();
+      renderResidentWelcome();
+    });
 }
 
 function openManagerPage(){
@@ -2102,12 +2117,18 @@ function handleCredentialResponse(response) {
   .then(res => res.json())
   .then(data => {
     if (data.success) {
-      loggedInUser = data.user;
-      currentRole = data.user.role;
-      localStorage.setItem("user", JSON.stringify(data.user));
-      console.log("Logged in user:", loggedInUser);
-      showDashboard();
-    } else {
+  loggedInUser = data.user;
+  currentRole = data.user.role;
+  localStorage.setItem("user", JSON.stringify(data.user));
+  console.log("Logged in user:", loggedInUser);
+  if (data.user.role === 'dswd') {
+    openDSWDPage();
+  } else if (data.user.role === 'manager') {
+    openManagerPage();
+  } else {
+    fetchFullProfileThenRender();
+  }
+} else {
       const errBox = document.getElementById('login-error');
       if (errBox) {
         errBox.innerText = data.message || 'Google login failed';
@@ -2139,9 +2160,8 @@ if (savedUser) {
     } else if (currentRole === 'manager') {
       openManagerPage();
     } else if (currentRole === 'resident') {
-      showDashboard();
-      renderResidentWelcome();
-    }
+  fetchFullProfileThenRender();
+}
   } catch(e) {
     localStorage.removeItem("user");
   }
