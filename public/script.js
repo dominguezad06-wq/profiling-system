@@ -188,6 +188,7 @@ function login() {
     if(data.message === 'Login successful'){
       loggedInUser = data.user;
       currentRole = data.user.role;
+      localStorage.setItem("user", JSON.stringify(data.user));
       if (data.user.role === 'dswd') {
         openDSWDPage();
       } else if (data.user.role === 'manager') {
@@ -383,6 +384,7 @@ function saveMyAccount() {
 function logout(){ 
   loggedInUser = null; 
   currentRole = null;
+  localStorage.removeItem("user");
   document.getElementById('login-page').style.display = "flex";
   document.getElementById('dashboard-page').style.display = 'none';
   document.getElementById('manager-page').style.display = 'none';
@@ -2105,6 +2107,13 @@ if (savedUser) {
   loggedInUser = JSON.parse(savedUser);
   currentRole = loggedInUser.role;
   console.log("Restored user:", loggedInUser);
+  if (currentRole === 'dswd') {
+    openDSWDPage();
+  } else if (currentRole === 'manager') {
+    openManagerPage();
+  } else if (currentRole === 'resident') {
+    showDashboard();
+  }
 }
 
 function toggleAccountMenu() {
