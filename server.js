@@ -7,7 +7,14 @@ const fileUpload = require('express-fileupload');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const { OAuth2Client } = require('google-auth-library');
-const nodemailer = require('nodemailer');  // ← NEW
+const nodemailer = require('nodemailer');
+const cloudinary = require('cloudinary').v2;
+
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
+});
 
 // ================= INIT APP =================
 const app = express();
@@ -271,16 +278,27 @@ app.post('/api/request-document', async (req, res) => {
       return res.json({ success: false, message: 'Missing fields' });
     }
 
-    const govIdPath = `/uploads/${Date.now()}_${govIdFile.name}`;
-    const photoPath = `/uploads/${Date.now()}_${photoFile.name}`;
-    await govIdFile.mv(`./public${govIdPath}`);
-    await photoFile.mv(`./public${photoPath}`);
+    // Upload gov_id to Cloudinary
+    const govIdUpload = await new Promise((resolve, reject) => {
+      cloudinary.uploader.upload_stream(
+        { folder: 'profiling-system/gov-ids', resource_type: 'auto' },
+        (error, result) => { if (error) reject(error); else resolve(result); }
+      ).end(govIdFile.data);
+    });
+
+    // Upload photo to Cloudinary
+    const photoUpload = await new Promise((resolve, reject) => {
+      cloudinary.uploader.upload_stream(
+        { folder: 'profiling-system/photos', resource_type: 'auto' },
+        (error, result) => { if (error) reject(error); else resolve(result); }
+      ).end(photoFile.data);
+    });
 
     await pool.query(
       `INSERT INTO document_requests
        (username, document_type, purpose, email, gov_id, photo, date, time, status, created_at)
        VALUES($1, $2, $3, $4, $5, $6, CURRENT_DATE, CURRENT_TIME, 'Pending', CURRENT_TIMESTAMP)`,
-      [username, document_type, purpose, email, govIdPath, photoPath]
+      [username, document_type, purpose, email, govIdUpload.secure_url, photoUpload.secure_url]
     );
 
     res.json({ success: true });
