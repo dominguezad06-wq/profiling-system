@@ -237,7 +237,7 @@ function showMyAccount() {
 
       <div style="background:#fff; border-radius:16px; box-shadow:0 8px 24px rgba(0,0,0,0.1); overflow:hidden; border-top:5px solid #c0392b;">
 
-        <div style="background:linear-gradient(135deg,#c0392b,#e67e22); padding:32px; text-align:center;">
+        <div style="background:#8B0000; padding:32px; text-align:center;">
           <div style="position:relative; display:inline-block;">
             <img id="profile-pic-preview"
               src="${picUrl || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(loggedInUser.name || 'User') + '&background=ffffff&color=c0392b&size=128'}"
@@ -292,7 +292,7 @@ function showMyAccount() {
           <div id="account-message" style="margin-bottom:14px; font-size:13px; text-align:center;"></div>
 
           <button onclick="saveMyAccount()"
-            style="width:100%; padding:13px; background:linear-gradient(135deg,#c0392b,#e67e22); color:white; font-weight:bold; border:none; border-radius:8px; font-size:14px; cursor:pointer;">
+            style="width:100%; padding:13px; background:#8B0000; color:white; font-weight:bold; border:none; border-radius:8px; font-size:14px; cursor:pointer;">
             Save Changes
           </button>
 
@@ -814,7 +814,7 @@ function renderResidentWelcome() {
     <div style="padding:28px; background:#f5f6fa; min-height:100%;">
 
       <!-- Hero Banner -->
-      <div style="background:linear-gradient(135deg,#c0392b 0%,#e67e22 100%); border-radius:16px; padding:32px 36px; margin-bottom:24px; position:relative; overflow:hidden; box-shadow:0 8px 32px rgba(192,57,43,0.25);">
+      <div style="background:#8B0000; border-radius:16px; padding:32px 36px; margin-bottom:24px; position:relative; overflow:hidden; box-shadow:0 8px 32px rgba(139,0,0,0.25);">
         <div style="position:absolute;top:-30px;right:-30px;width:180px;height:180px;background:rgba(255,255,255,0.07);border-radius:50%;"></div>
         <div style="position:absolute;bottom:-50px;right:60px;width:120px;height:120px;background:rgba(255,255,255,0.05);border-radius:50%;"></div>
         <div style="position:relative; z-index:1;">
@@ -1179,7 +1179,7 @@ function showMyProfile() {
       <div style="margin-top:20px; text-align:right;">
         <div id="profile-message" style="font-size:13px; margin-bottom:10px; text-align:center;"></div>
         <button onclick="updateProfile()"
-          style="padding:12px 40px; background:linear-gradient(135deg,#c0392b,#e67e22); color:white; font-weight:bold; border:none; border-radius:8px; font-size:14px; cursor:pointer;">
+          style="padding:12px 40px; background:#8B0000; color:white; font-weight:bold; border:none; border-radius:8px; font-size:14px; cursor:pointer;">
           Save Profile
         </button>
       </div>
