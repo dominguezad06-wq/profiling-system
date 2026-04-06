@@ -215,6 +215,8 @@ function login() {
 function openManagerPage(){
   const f = document.getElementById('site-footer');
   if(f) f.style.display='block';
+  const lf = document.getElementById('login-footer');
+  if(lf) lf.style.display='none';
   document.getElementById('login-page').style.display = 'none';
   document.getElementById('dashboard-page').style.display = 'none';
   document.getElementById('dswd-page').style.display = 'none';
@@ -394,6 +396,8 @@ function logout(){
   currentRole = null;
   const f = document.getElementById('site-footer');
   if(f) f.style.display='none';
+  const lf = document.getElementById('login-footer');
+  if(lf) lf.style.display='block';
   localStorage.removeItem("user");
   document.getElementById('login-page').style.display = "flex";
   document.getElementById('dashboard-page').style.display = 'none';
@@ -428,6 +432,8 @@ function renderDashboardHeader(title){
 function showDashboard(){
   const f = document.getElementById('site-footer');
   if(f) f.style.display='block';
+  const lf = document.getElementById('login-footer');
+  if(lf) lf.style.display='none';
   console.log("Dashboard user:", loggedInUser);
   document.getElementById('login-page').style.display='none';
   document.getElementById('resident-form').style.display='none';
@@ -456,6 +462,8 @@ function showDashboard(){
 function openDSWDPage(){
   const f = document.getElementById('site-footer');
   if(f) f.style.display='block';
+  const lf = document.getElementById('login-footer');
+  if(lf) lf.style.display='none';
   document.getElementById('login-page').style.display = 'none';
   document.getElementById('dashboard-page').style.display = 'none';
   document.getElementById('dswd-page').style.display = 'flex';
