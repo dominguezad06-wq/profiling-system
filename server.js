@@ -174,7 +174,6 @@ app.post('/api/send-otp', async (req, res) => {
     const { email } = req.body;
     if (!email) return res.json({ success: false, message: 'Email is required.' });
 
-    // Check if email exists in residents table
     const result = await pool.query(
       'SELECT username FROM residents WHERE LOWER(email) = LOWER($1) LIMIT 1',
       [email]
@@ -184,52 +183,19 @@ app.post('/api/send-otp', async (req, res) => {
       return res.json({ success: false, message: 'Email not registered in our system.' });
     }
 
-    // Generate 6-digit OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
-    // Store OTP with 10-minute expiry
     otpStore[email.toLowerCase()] = {
       otp,
       expires: Date.now() + 10 * 60 * 1000,
       username: result.rows[0].username
     };
 
-    // Send email
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
-      }
-    });
-
-    await transporter.sendMail({
-      from: `"Barangay Trapiche" <${process.env.EMAIL_USER}>`,
-      to: email,
-      subject: 'Password Reset OTP - Barangay Trapiche Profiling System',
-      html: `
-        <div style="font-family:Arial,sans-serif; max-width:480px; margin:0 auto; padding:32px; border:1px solid #e0e0e0; border-radius:12px;">
-          <div style="text-align:center; margin-bottom:24px;">
-            <h2 style="color:#1a3f6c; margin:0;">Barangay Trapiche</h2>
-            <p style="color:#888; font-size:13px; margin:4px 0 0;">Profiling System – Password Reset</p>
-          </div>
-          <p style="color:#333; font-size:15px;">You requested a password reset. Use the OTP below:</p>
-          <div style="text-align:center; margin:28px 0;">
-            <span style="font-size:42px; font-weight:bold; letter-spacing:10px; color:#c0392b;">${otp}</span>
-          </div>
-          <p style="color:#888; font-size:13px; text-align:center;">This OTP expires in <strong>10 minutes</strong>.</p>
-          <hr style="border:none; border-top:1px solid #eee; margin:24px 0;">
-          <p style="color:#bbb; font-size:12px; text-align:center;">If you did not request this, please ignore this email.</p>
-        </div>
-      `
-    });
-
-    console.log(`OTP sent to ${email}`);
-    res.json({ success: true, message: 'OTP sent to your email.' });
+    res.json({ success: true, otp });
 
   } catch (err) {
     console.error('SEND OTP ERROR:', err);
-    res.json({ success: false, message: 'Failed to send OTP. Check EMAIL_USER and EMAIL_PASS in your .env file.' });
+    res.json({ success: false, message: 'Server error.' });
   }
 });
 
