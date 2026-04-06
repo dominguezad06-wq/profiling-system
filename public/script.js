@@ -203,6 +203,171 @@ function openManagerPage(){
   showDocRequests();
 }
 
+function showMyAccount() {
+  const isManager = currentRole === 'manager';
+  const isDSWD = currentRole === 'dswd';
+  const isResident = currentRole === 'resident';
+
+  let body;
+  if (isManager) {
+    body = document.getElementById('manager-table');
+  } else if (isDSWD) {
+    body = document.getElementById('dashboard-body');
+  } else {
+    body = document.getElementById('dashboard-body');
+  }
+
+  const picUrl = loggedInUser.profile_pic || null;
+
+  body.innerHTML = `
+    <div style="max-width:520px; margin:0 auto; padding:24px;">
+
+      <div style="background:#fff; border-radius:16px; box-shadow:0 8px 24px rgba(0,0,0,0.1); overflow:hidden; border-top:5px solid #c0392b;">
+
+        <div style="background:linear-gradient(135deg,#c0392b,#e67e22); padding:32px; text-align:center;">
+          <div style="position:relative; display:inline-block;">
+            <img id="profile-pic-preview"
+              src="${picUrl || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(loggedInUser.name || 'User') + '&background=ffffff&color=c0392b&size=128'}"
+              style="width:100px; height:100px; border-radius:50%; border:4px solid white; object-fit:cover;">
+            <label for="profile-pic-input" style="position:absolute; bottom:0; right:0; background:#fff; border-radius:50%; width:30px; height:30px; display:flex; align-items:center; justify-content:center; cursor:pointer; box-shadow:0 2px 6px rgba(0,0,0,0.2);">
+              <span style="font-size:14px;">✏️</span>
+            </label>
+            <input type="file" id="profile-pic-input" accept="image/*" style="display:none;" onchange="previewProfilePic(this)">
+          </div>
+          <div style="margin-top:12px; color:white;">
+            <div style="font-size:18px; font-weight:600;">${loggedInUser.name || 'User'}</div>
+            <div style="font-size:13px; opacity:0.85; margin-top:4px; text-transform:capitalize;">${currentRole} Account</div>
+            <div style="font-size:12px; opacity:0.7; margin-top:2px;">@${loggedInUser.username}</div>
+          </div>
+        </div>
+
+        <div style="padding:28px;">
+
+          <div style="margin-bottom:18px;">
+            <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:6px;">Full Name</label>
+            <input type="text" id="account-name" value="${loggedInUser.name || ''}"
+              style="width:100%; padding:11px 14px; border-radius:8px; border:1px solid #ddd; font-size:14px; margin:0;">
+          </div>
+
+          <div style="margin-bottom:18px;">
+            <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:6px;">Username</label>
+            <input type="text" value="${loggedInUser.username}" disabled
+              style="width:100%; padding:11px 14px; border-radius:8px; border:1px solid #eee; font-size:14px; margin:0; background:#f8f8f8; color:#aaa;">
+          </div>
+
+          <hr style="border:none; border-top:1px solid #eee; margin:20px 0;">
+          <div style="font-size:14px; font-weight:600; color:#333; margin-bottom:16px;">Change Password <span style="font-size:12px; color:#aaa; font-weight:400;">(leave blank to keep current)</span></div>
+
+          <div style="margin-bottom:14px;">
+            <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:6px;">Old Password</label>
+            <input type="password" id="account-old-password" placeholder="Enter current password"
+              style="width:100%; padding:11px 14px; border-radius:8px; border:1px solid #ddd; font-size:14px; margin:0;">
+          </div>
+
+          <div style="margin-bottom:14px;">
+            <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:6px;">New Password</label>
+            <input type="password" id="account-new-password" placeholder="Enter new password"
+              style="width:100%; padding:11px 14px; border-radius:8px; border:1px solid #ddd; font-size:14px; margin:0;">
+          </div>
+
+          <div style="margin-bottom:24px;">
+            <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:6px;">Confirm New Password</label>
+            <input type="password" id="account-confirm-password" placeholder="Confirm new password"
+              style="width:100%; padding:11px 14px; border-radius:8px; border:1px solid #ddd; font-size:14px; margin:0;">
+          </div>
+
+          <div id="account-message" style="margin-bottom:14px; font-size:13px; text-align:center;"></div>
+
+          <button onclick="saveMyAccount()"
+            style="width:100%; padding:13px; background:linear-gradient(135deg,#c0392b,#e67e22); color:white; font-weight:bold; border:none; border-radius:8px; font-size:14px; cursor:pointer;">
+            Save Changes
+          </button>
+
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function previewProfilePic(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    document.getElementById('profile-pic-preview').src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function saveMyAccount() {
+  const name = document.getElementById('account-name').value.trim();
+  const oldPassword = document.getElementById('account-old-password').value;
+  const newPassword = document.getElementById('account-new-password').value;
+  const confirmPassword = document.getElementById('account-confirm-password').value;
+  const profilePicFile = document.getElementById('profile-pic-input').files[0];
+  const msg = document.getElementById('account-message');
+
+  if (!name) {
+    msg.innerText = 'Name cannot be empty.';
+    msg.style.color = 'red';
+    return;
+  }
+
+  if (newPassword && newPassword !== confirmPassword) {
+    msg.innerText = 'New passwords do not match.';
+    msg.style.color = 'red';
+    return;
+  }
+
+  if (newPassword && newPassword.length < 6) {
+    msg.innerText = 'New password must be at least 6 characters.';
+    msg.style.color = 'red';
+    return;
+  }
+
+  if (newPassword && !oldPassword) {
+    msg.innerText = 'Please enter your old password.';
+    msg.style.color = 'red';
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append('username', loggedInUser.username);
+  formData.append('name', name);
+  if (newPassword) {
+    formData.append('oldPassword', oldPassword);
+    formData.append('newPassword', newPassword);
+  }
+  if (profilePicFile) {
+    formData.append('profile_pic', profilePicFile);
+  }
+
+  msg.innerText = 'Saving...';
+  msg.style.color = '#888';
+
+  fetch(`${API_BASE}/api/update-account`, {
+    method: 'POST',
+    body: formData
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (data.success) {
+      loggedInUser.name = name;
+      if (data.profilePicUrl) loggedInUser.profile_pic = data.profilePicUrl;
+      msg.innerText = 'Account updated successfully!';
+      msg.style.color = 'green';
+      setTimeout(() => showMyAccount(), 1000);
+    } else {
+      msg.innerText = data.message || 'Failed to update.';
+      msg.style.color = 'red';
+    }
+  })
+  .catch(() => {
+    msg.innerText = 'Server error.';
+    msg.style.color = 'red';
+  });
+}
+
 function logout(){ 
   loggedInUser = null; 
   currentRole = null;
