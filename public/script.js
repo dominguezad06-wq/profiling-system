@@ -192,9 +192,9 @@ function login() {
   .then(res => res.json())
   .then(data => {
     if(data.message === 'Login successful'){
-      loggedInUser = data.user;
+      loggedInUser = data.profile ? Object.assign({}, data.user, data.profile) : data.user;
       currentRole = data.user.role;
-      localStorage.setItem("user", JSON.stringify(data.user));
+      localStorage.setItem("user", JSON.stringify(loggedInUser));
       if (data.user.role === 'dswd') {
         openDSWDPage();
       } else if (data.user.role === 'manager') {
