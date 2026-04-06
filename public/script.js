@@ -187,7 +187,9 @@ function login() {
         showMyProfile();
       }
     } else {
-      alert(data.error || 'Invalid username or password!');
+      const errBox = document.getElementById('login-error');
+      errBox.innerText = data.error || 'Invalid username or password!';
+      errBox.style.display = 'block';
     }
   })
   .catch(() => alert('Server connection error.'));
