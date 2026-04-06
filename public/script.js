@@ -435,8 +435,6 @@ function showDashboard(){
   if(currentRole === 'resident'){
     renderResidentWelcome();
     loadMyRequests(); 
-  } else {
-    updateDashboard(currentRole);
   }
   updateHeaderUI();
   startHeaderClock();
