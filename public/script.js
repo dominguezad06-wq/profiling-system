@@ -201,7 +201,7 @@ function login() {
         openManagerPage();
       } else {
         showDashboard();
-        showMyProfile();
+        renderResidentWelcome();
       }
     } else {
       const errBox = document.getElementById('login-error');
@@ -448,7 +448,6 @@ function showDashboard(){
 
   if(currentRole === 'resident'){
     renderResidentWelcome();
-    loadMyRequests(); 
   }
   updateHeaderUI();
   startHeaderClock();
@@ -2127,7 +2126,7 @@ if (savedUser) {
     openManagerPage();
   } else if (currentRole === 'resident') {
     showDashboard();
-    showMyProfile();
+    renderResidentWelcome();
   }
 }
 
