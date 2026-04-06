@@ -90,41 +90,71 @@ function verifyOTP() {
 }
 
 // Create Resident
+// ─────────────────────────────────────────────────────────────────────────────
+//  REPLACE the entire createResident() function in script.js with this one
+// ─────────────────────────────────────────────────────────────────────────────
+
 function createResident() {
   const getVal = id => document.getElementById(id)?.value || '';
   const getInt = id => parseInt(document.getElementById(id)?.value) || 0;
   const getChecked = id => document.getElementById(id)?.checked ? 'Yes' : 'No';
 
-  const name = getVal('res-name').trim();
+  const name     = getVal('res-name').trim();
   const username = getVal('res-username').trim();
   const password = getVal('res-password').trim();
-  const email = getVal('res-email').trim();
-  const age = getInt('res-age');
-  const gender = getVal('res-gender');
+  const email    = getVal('res-email').trim();
+  const age      = getInt('res-age');
+  const gender   = getVal('res-gender');
   const barangay = getVal('res-barangay');
-  const address = getVal('res-address');
-  const status = getVal('res-status');
+  const status   = getVal('res-status');
+  const address  = getVal('res-address');
+  const sons     = getInt('res-sons');
+  const daughters= getInt('res-daughters');
+  const pwd      = getChecked('res-pwd');
+  const contact  = getVal('res-contact');
 
-  const sons = getInt('res-sons');
-  const daughters = getInt('res-daughters');
-  const pwd = getChecked('res-pwd');
-  const contact = getVal('res-contact');
+  // ── Validation ──────────────────────────────────────────────────────────
+  if (!name) {
+    showRegisterBanner('Please enter your full name.'); return;
+  }
+  if (!username) {
+    showRegisterBanner('Please choose a username.'); return;
+  }
+  if (username.length < 4) {
+    showRegisterBanner('Username must be at least 4 characters.'); return;
+  }
+  if (!password) {
+    showRegisterBanner('Please create a password.'); return;
+  }
+  if (password.length < 6) {
+    showRegisterBanner('Password must be at least 6 characters.'); return;
+  }
+  if (!email) {
+    showRegisterBanner('Please enter your email address.'); return;
+  }
+  if (!gender) {
+    showRegisterBanner('Please select your gender.'); return;
+  }
+  if (!barangay) {
+    showRegisterBanner('Please select your barangay.'); return;
+  }
+  if (!status) {
+    showRegisterBanner('Please select your civil status.'); return;
+  }
 
-  const spouse = '';
-  const family_members = 0;
-
-  if (!name || !username || !password || !email) {
-    alert("Please fill required fields.");
-    return;
+  // ── Show loading state ───────────────────────────────────────────────────
+  const submitBtn = document.querySelector('[onclick="createResident()"]');
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.innerText = 'Creating account...';
   }
 
   const data = {
     name, username, password, email, contact, gender, age,
-    address, barangay, status, sons, daughters, pwd, spouse,
-    family_members, senior: age >= 60 ? "Yes" : "No"
+    address, barangay, status, sons, daughters, pwd,
+    spouse: '', family_members: 0,
+    senior: age >= 60 ? 'Yes' : 'No'
   };
-
-  console.log("Register Data:", data);
 
   fetch(`${API_BASE}/api/register`, {
     method: 'POST',
@@ -133,18 +163,84 @@ function createResident() {
   })
   .then(res => res.json())
   .then(response => {
-    console.log("Server Response:", response);
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.innerText = 'Create Account';
+    }
+
     if (response.user) {
-      alert('Resident account created successfully!');
-      showLogin();
+      showRegisterBanner('Account created successfully! Redirecting to login...', 'success');
+      setTimeout(showLogin, 1800);
     } else {
-      alert('Error: ' + (response.error || 'Unknown error'));
+      // ── Friendly error messages ──────────────────────────────────────────
+      const raw = (response.error || '').toLowerCase();
+      let friendlyMsg = 'Something went wrong. Please try again.';
+
+      if (raw.includes('username already exists') || raw.includes('23505') || raw.includes('duplicate')) {
+        friendlyMsg = 'That username is already taken. Please choose a different one.';
+      } else if (raw.includes('email')) {
+        friendlyMsg = 'That email address is already registered. Try logging in instead.';
+      } else if (raw.includes('missing')) {
+        friendlyMsg = 'Please fill in all required fields.';
+      }
+
+      showRegisterBanner(friendlyMsg);
     }
   })
-  .catch(err => {
-    console.error(err);
-    alert("Server connection error");
+  .catch(() => {
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.innerText = 'Create Account';
+    }
+    showRegisterBanner('Unable to connect to the server. Please check your internet and try again.');
   });
+}
+
+// ── Banner helper for the registration form ──────────────────────────────────
+function showRegisterBanner(message, type = 'error') {
+  const existing = document.getElementById('register-banner');
+  if (existing) existing.remove();
+
+  const isSuccess = type === 'success';
+  const banner = document.createElement('div');
+  banner.id = 'register-banner';
+  banner.style.cssText = `
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    margin-bottom: 14px;
+    animation: fadeIn 0.2s ease;
+    background: ${isSuccess ? '#eaf6ec' : '#fdecea'};
+    border: 1px solid ${isSuccess ? '#a8d5b0' : '#f5c6c6'};
+    color: ${isSuccess ? '#1e6b30' : '#c0392b'};
+  `;
+
+  banner.innerHTML = `
+    <span style="
+      width: 20px; height: 20px; border-radius: 50%;
+      border: 2px solid ${isSuccess ? '#1e6b30' : '#c0392b'};
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: bold; flex-shrink: 0;
+    ">${isSuccess ? '✓' : '!'}</span>
+    <span style="flex: 1;">${message}</span>
+    ${!isSuccess ? `<span onclick="this.parentElement.remove()" style="
+      cursor: pointer; font-size: 16px; color: inherit; opacity: 0.6; padding: 0 2px;
+    ">&times;</span>` : ''}
+  `;
+
+  // Insert before the Create Account button
+  const btn = document.querySelector('[onclick="createResident()"]');
+  if (btn) {
+    btn.parentNode.insertBefore(banner, btn);
+  }
+
+  if (isSuccess) {
+    setTimeout(() => { if (banner.parentNode) banner.remove(); }, 3000);
+  }
 }
 
 // Login 
