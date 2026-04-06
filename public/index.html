@@ -96,30 +96,56 @@
   ← Back
 </button>
   <!-- Forgot Password -->
-  <div id="forgot-page" class="container" style="display:none;">
-    <h1>
-      <img src="trapiche.png" alt="Barangay Logo" id="site-logo">
-      Forgot Password
-    </h1>
+  <div id="forgot-page" style="display:none; min-height:100vh; background:#f4f6f7; align-items:center; justify-content:center; flex-direction:column;">
+    
+    <div style="display:flex; align-items:center; gap:12px; margin-bottom:20px; justify-content:center;">
+      <img src="trapiche.png" style="height:52px;">
+      <div>
+        <h2 style="margin:0; color:#c0392b; font-size:18px;">Forgot Password</h2>
+        <p style="margin:0; font-size:12px; color:#888;">Barangay Trapiche Profiling System</p>
+      </div>
+    </div>
 
-    <div class="login-box">
-      <label>Enter your Gmail address:</label>
-      <input type="email" id="forgot-email" placeholder="example@gmail.com">
+    <div style="background:#fff; padding:32px 36px; border-radius:16px; box-shadow:0 12px 35px rgba(0,0,0,0.15); width:100%; max-width:420px; border-top:5px solid #c0392b;">
 
-      <button onclick="sendOTP()">Send OTP</button>
-
-      <div id="otp-section" style="display:none;">
-        <label>Enter OTP:</label>
-        <input type="text" id="otp-input" placeholder="6-digit OTP">
-
-        <label>New Password:</label>
-        <input type="password" id="new-password" placeholder="New password">
-
-        <button onclick="verifyOTP()">Verify & Reset Password</button>
+      <div style="margin-bottom:20px;">
+        <label style="font-size:13px; color:#555; font-weight:600; display:block; margin-bottom:6px;">Email Address</label>
+        <input type="email" id="forgot-email" placeholder="example@gmail.com"
+          style="width:100%; padding:11px 14px; border-radius:8px; border:1px solid #ddd; font-size:13px; margin:0;">
       </div>
 
-      <p><a href="#" onclick="showLogin()">Back to Login</a></p>
-      <div id="otp-message"></div>
+      <button onclick="sendOTP()"
+        style="width:100%; padding:12px; background:linear-gradient(135deg,#c0392b,#e67e22); color:white; font-weight:bold; border:none; border-radius:8px; font-size:14px; cursor:pointer; transition:0.3s;">
+        Send OTP
+      </button>
+
+      <div id="otp-message" style="margin-top:12px; font-size:13px; text-align:center;"></div>
+
+      <div id="otp-section" style="display:none; margin-top:20px; border-top:1px solid #eee; padding-top:20px;">
+
+        <div style="margin-bottom:14px;">
+          <label style="font-size:13px; color:#555; font-weight:600; display:block; margin-bottom:6px;">Enter OTP</label>
+          <input type="text" id="otp-input" placeholder="6-digit code"
+            style="width:100%; padding:11px 14px; border-radius:8px; border:1px solid #ddd; font-size:13px; margin:0; letter-spacing:4px; text-align:center;">
+        </div>
+
+        <div style="margin-bottom:20px;">
+          <label style="font-size:13px; color:#555; font-weight:600; display:block; margin-bottom:6px;">New Password</label>
+          <input type="password" id="new-password" placeholder="Enter new password"
+            style="width:100%; padding:11px 14px; border-radius:8px; border:1px solid #ddd; font-size:13px; margin:0;">
+        </div>
+
+        <button onclick="verifyOTP()"
+          style="width:100%; padding:12px; background:linear-gradient(135deg,#1a3f6c,#2c5aa0); color:white; font-weight:bold; border:none; border-radius:8px; font-size:14px; cursor:pointer;">
+          Verify & Reset Password
+        </button>
+
+      </div>
+
+      <p style="text-align:center; margin-top:18px; font-size:13px;">
+        <a href="#" onclick="showLogin()" style="color:#c0392b; text-decoration:none;">← Back to Login</a>
+      </p>
+
     </div>
   </div>
 
