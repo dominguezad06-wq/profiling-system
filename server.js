@@ -582,6 +582,85 @@ app.post('/api/auto-remove-duplicates', async (req, res) => {
   }
 });
 
+// ================= GET USER PROFILE =================
+app.get('/api/user-profile', async (req, res) => {
+  try {
+    const { username } = req.query;
+    const result = await pool.query(
+      'SELECT username, name, role, profile_pic FROM users WHERE username=$1',
+      [username]
+    );
+    res.json({ user: result.rows[0] || null });
+  } catch (err) {
+    res.status(500).json({ user: null });
+  }
+});
+
+// ================= UPDATE ACCOUNT =================
+app.post('/api/update-account', async (req, res) => {
+  try {
+    const { username, name, oldPassword, newPassword } = req.body;
+    const profilePicFile = req.files?.profile_pic;
+
+    // Verify old password if changing password
+    if (newPassword) {
+      const result = await pool.query('SELECT password FROM users WHERE username=$1', [username]);
+      const match = await bcrypt.compare(oldPassword, result.rows[0].password);
+      if (!match) return res.json({ success: false, message: 'Old password is incorrect.' });
+    }
+
+    let profilePicUrl = null;
+
+    // Upload profile pic to Cloudinary if provided
+    if (profilePicFile) {
+      const upload = await new Promise((resolve, reject) => {
+        cloudinary.uploader.upload_stream(
+          { folder: 'profiling-system/profile-pics', resource_type: 'auto' },
+          (error, result) => { if (error) reject(error); else resolve(result); }
+        ).end(profilePicFile.data);
+      });
+      profilePicUrl = upload.secure_url;
+    }
+
+    // Build update query
+    if (newPassword && profilePicUrl) {
+      const hashedPw = await bcrypt.hash(newPassword, 10);
+      await pool.query(
+        'UPDATE users SET name=$1, password=$2, profile_pic=$3 WHERE username=$4',
+        [name, hashedPw, profilePicUrl, username]
+      );
+    } else if (newPassword) {
+      const hashedPw = await bcrypt.hash(newPassword, 10);
+      await pool.query(
+        'UPDATE users SET name=$1, password=$2 WHERE username=$3',
+        [name, hashedPw, username]
+      );
+    } else if (profilePicUrl) {
+      await pool.query(
+        'UPDATE users SET name=$1, profile_pic=$2 WHERE username=$3',
+        [name, profilePicUrl, username]
+      );
+    } else {
+      await pool.query(
+        'UPDATE users SET name=$1 WHERE username=$2',
+        [name, username]
+      );
+    }
+
+    // Also update name in residents table if resident
+    await pool.query(
+      'UPDATE residents SET name=$1 WHERE username=$2',
+      [name, username]
+    );
+
+    res.json({ success: true, profilePicUrl });
+
+  } catch (err) {
+    console.error('UPDATE ACCOUNT ERROR:', err);
+    res.json({ success: false, message: err.message });
+  }
+});
+
 // ================= KEEP ALIVE =================
 const https = require('https');
 const RENDER_URL = 'https://profiling-system.onrender.com';
