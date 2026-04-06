@@ -969,19 +969,16 @@ function showMyProfile() {
           ${fieldDiv('Place of Birth', `<input type="text" id="profile-place-of-birth" value="${u.place_of_birth||''}" style="${inputStyle}">`)}
           ${fieldDiv('Blood Type', sel('profile-blood-type', ['Unknown','A+','A-','B+','B-','AB+','AB-','O+','O-'], u.blood_type||'Unknown'))}
           ${fieldDiv('Barangay', sel('profile-barangay', ['Trapiche 1','Trapiche 2','Trapiche 3','Trapiche 4'], u.barangay))}
-          ${fieldDiv('Address', `<input type="text" id="profile-address" value="${u.address||''}" style="${inputStyle}">`)}
+          ${fieldDiv('House No. / Street / Address', `<input type="text" id="profile-address" value="${u.address||''}" placeholder="e.g. 123 Mabini St." style="${inputStyle}">`)}
         </div>
 
         <!-- FAMILY & OTHER INFO -->
         <div style="background:#fff; padding:20px; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,0.08); border-top:4px solid #1a3f6c;">
           <h3 style="margin:0 0 16px; font-size:15px; color:#1a3f6c;">Family & Other Info</h3>
           ${fieldDiv('Voter Status', sel('profile-voter-status', ['Not Registered','Registered Voter'], u.voter_status||'Not Registered'))}
-          ${fieldDiv('Household Role', sel('profile-household-role', ['Head','Spouse','Child','Sibling','Grandparent','Grandchild','Relative','Boarder'], u.household_role||'Head'))}
-          ${fieldDiv('Educational Attainment', sel('profile-educational-attainment', ['No Formal Education','Elementary Level','Elementary Graduate','High School Level','High School Graduate','Vocational','College Level','College Graduate','Post Graduate'], u.educational_attainment||'No Formal Education'))}
+          ${fieldDiv('Household Role', sel('profile-household-role', ['Select Household Role','Head','Spouse','Child','Sibling','Grandparent','Grandchild','Relative'], u.household_role||'Select Household Role'))}
+          ${fieldDiv('Educational Attainment', sel('profile-educational-attainment', ['Select Educational Attainment','Elementary Level','Elementary Graduate','High School Level','High School Graduate','Vocational','College Level','College Graduate','Post Graduate'], u.educational_attainment||'Select Educational Attainment'))}
           ${fieldDiv('PWD', sel('profile-pwd', ['No','Yes'], u.pwd==='Yes'?'Yes':'No'))}
-          ${fieldDiv('Number of Sons', `<input type="number" id="profile-sons" value="${u.sons||0}" min="0" style="${inputStyle}">`)}
-          ${fieldDiv('Number of Daughters', `<input type="number" id="profile-daughters" value="${u.daughters||0}" min="0" style="${inputStyle}">`)}
-          ${fieldDiv('Family Members', `<input type="number" id="profile-family" value="${u.family_members||0}" min="0" style="${inputStyle}">`)}
 
           <!-- SPOUSE -->
           <div style="margin-bottom:14px;">
@@ -997,10 +994,10 @@ function showMyProfile() {
             </div>
           </div>
 
-          ${fieldDiv('Contact Number', `<input type="text" id="profile-contact" value="${u.contact||''}" style="${inputStyle}">`)}
+          ${fieldDiv('Contact Number', `<input type="tel" id="profile-contact" value="${u.contact||''}" placeholder="09XXXXXXXXX" oninput="this.value=this.value.replace(/[^0-9]/g,'')" maxlength="11" style="${inputStyle}">`)}
           ${fieldDiv('Email Address', `<input type="email" id="profile-email" value="${u.email||''}" style="${inputStyle}">`)}
           ${fieldDiv('Emergency Contact Name', `<input type="text" id="profile-emergency-name" value="${u.emergency_contact_name||''}" style="${inputStyle}">`)}
-          ${fieldDiv('Emergency Contact Number', `<input type="text" id="profile-emergency-number" value="${u.emergency_contact_number||''}" style="${inputStyle}">`)}
+          ${fieldDiv('Emergency Contact Number', `<input type="tel" id="profile-emergency-number" value="${u.emergency_contact_number||''}" placeholder="09XXXXXXXXX" oninput="this.value=this.value.replace(/[^0-9]/g,'')" maxlength="11" style="${inputStyle}">`)}
         </div>
 
       </div>
@@ -1117,10 +1114,10 @@ function updateProfile(){
     household_role: document.getElementById('profile-household-role')?.value || '',
     educational_attainment: document.getElementById('profile-educational-attainment')?.value || '',
     spouse,
-    sons: parseInt(document.getElementById('profile-sons').value) || 0,
-    daughters: parseInt(document.getElementById('profile-daughters').value) || 0,
+    sons: u.sons || 0,
+    daughters: u.daughters || 0,
     pwd: document.getElementById('profile-pwd').value,
-    family_members: parseInt(document.getElementById('profile-family').value) || 0,
+    family_members: u.family_members || 0,
     contact: document.getElementById('profile-contact').value,
     email: document.getElementById('profile-email').value,
     emergency_contact_name: document.getElementById('profile-emergency-name')?.value || '',
@@ -1240,19 +1237,20 @@ function renderManagerRequests(allRequests, filter = 'all') {
   }
 
   let tableHTML = `
-    <h2>Document Requests</h2>
-    <table>
+    <h2 style="margin-bottom:12px;">Document Requests</h2>
+    <div style="width:100%; overflow-x:auto;">
+    <table style="width:100%; min-width:900px; border-collapse:collapse;">
       <thead>
         <tr>
-          <th>Resident</th>
-          <th>Document Type</th>
-          <th>Purpose</th>
-          <th>Status</th>
-          <th>Gov ID</th>
-          <th>2x2 Picture</th>
-          <th>Set Date</th>
-          <th>Set Time</th>
-          <th>Actions</th>
+          <th style="white-space:nowrap;">Resident</th>
+          <th style="white-space:nowrap;">Document Type</th>
+          <th style="white-space:nowrap;">Purpose</th>
+          <th style="white-space:nowrap;">Status</th>
+          <th style="white-space:nowrap;">Gov ID</th>
+          <th style="white-space:nowrap;">2x2 Photo</th>
+          <th style="white-space:nowrap;">Date</th>
+          <th style="white-space:nowrap;">Time</th>
+          <th style="white-space:nowrap;">Actions</th>
         </tr>
       </thead>
       <tbody>
@@ -1291,6 +1289,7 @@ function renderManagerRequests(allRequests, filter = 'all') {
       </tbody>
     </table>
   `;
+  tableHTML += `</table></div>`;
   body.innerHTML = tableHTML;
 
   document.querySelectorAll('.approve-btn').forEach(btn => {
