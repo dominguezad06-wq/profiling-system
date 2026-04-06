@@ -444,7 +444,8 @@ function showDashboard(){
   const title =
     currentRole === 'resident' ? 'Resident Dashboard' :
     currentRole === 'manager' ? 'Manager Dashboard' :
-    'DSWD Dashboard';
+    currentRole === 'dswd' ? 'DSWD Dashboard' :
+    'Dashboard';
 
   document.getElementById('dashboard-title').innerText = title;
   document.getElementById('dashboard-content').innerHTML = `
@@ -454,6 +455,7 @@ function showDashboard(){
 
   if(currentRole === 'resident'){
     renderResidentWelcome();
+    loadMyRequestsPreview();
   }
   updateHeaderUI();
   startHeaderClock();
@@ -2125,16 +2127,23 @@ function handleCredentialResponse(response) {
 
 const savedUser = localStorage.getItem("user");
 if (savedUser) {
-  loggedInUser = JSON.parse(savedUser);
-  currentRole = loggedInUser.role;
-  console.log("Restored user:", loggedInUser);
-  if (currentRole === 'dswd') {
-    openDSWDPage();
-  } else if (currentRole === 'manager') {
-    openManagerPage();
-  } else if (currentRole === 'resident') {
-    showDashboard();
-    renderResidentWelcome();
+  try {
+    loggedInUser = JSON.parse(savedUser);
+    currentRole = loggedInUser.role;
+    const lf = document.getElementById('login-footer');
+    if (lf) lf.style.display = 'none';
+    document.getElementById('login-page').style.display = 'none';
+    console.log("Restored user:", loggedInUser);
+    if (currentRole === 'dswd') {
+      openDSWDPage();
+    } else if (currentRole === 'manager') {
+      openManagerPage();
+    } else if (currentRole === 'resident') {
+      showDashboard();
+      renderResidentWelcome();
+    }
+  } catch(e) {
+    localStorage.removeItem("user");
   }
 }
 
