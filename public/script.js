@@ -212,20 +212,32 @@ function login() {
 }
 
 function fetchFullProfileThenRender() {
+  // Always start from what we have in localStorage (most up-to-date after saves)
+  const cached = localStorage.getItem("user");
+  if (cached) {
+    try {
+      const parsed = JSON.parse(cached);
+      if (parsed && parsed.username === loggedInUser.username) {
+        loggedInUser = parsed;
+      }
+    } catch(e) {}
+  }
+
   fetch(`${API_BASE}/api/resident/${loggedInUser.username}`)
     .then(res => res.json())
     .then(data => {
       if (data.user) {
-        // Merge server data, but never overwrite with undefined/null values
+        // Only overwrite fields if server actually has a real value
         Object.keys(data.user).forEach(key => {
-          if (data.user[key] !== undefined && data.user[key] !== null && data.user[key] !== '') {
-            loggedInUser[key] = data.user[key];
+          const serverVal = data.user[key];
+          if (serverVal !== undefined && serverVal !== null && serverVal !== '' && serverVal !== 'undefined') {
+            loggedInUser[key] = serverVal;
           }
         });
         localStorage.setItem("user", JSON.stringify(loggedInUser));
       }
     })
-    .catch(err => console.warn('Could not fetch full profile:', err))
+    .catch(err => console.warn('Could not fetch full profile, using cached data:', err))
     .finally(() => {
       showDashboard();
       renderResidentWelcome();
@@ -1341,7 +1353,9 @@ function updateProfile(){
   .then(data => {
     if(data.success){
       Object.assign(loggedInUser, updatedData);
-      localStorage.setItem("user", JSON.stringify(loggedInUser));
+      // Force full save of every field so nothing is lost on logout
+      const toSave = Object.assign({}, loggedInUser);
+      localStorage.setItem("user", JSON.stringify(toSave));
       if (msg) { msg.innerText = 'Profile saved successfully!'; msg.style.color = 'green'; }
       updateHeaderUI();
     } else {
@@ -2163,14 +2177,33 @@ if (savedUser) {
     const lf = document.getElementById('login-footer');
     if (lf) lf.style.display = 'none';
     document.getElementById('login-page').style.display = 'none';
-    console.log("Restored user:", loggedInUser);
+    console.log("Restored user from localStorage:", loggedInUser);
     if (currentRole === 'dswd') {
       openDSWDPage();
     } else if (currentRole === 'manager') {
       openManagerPage();
     } else if (currentRole === 'resident') {
-  fetchFullProfileThenRender();
-}
+      // Render immediately with cached data so nothing looks blank,
+      // then silently refresh from server in background
+      showDashboard();
+      renderResidentWelcome();
+      // Background sync — only update fields the server actually has
+      fetch(`${API_BASE}/api/resident/${loggedInUser.username}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.user) {
+            Object.keys(data.user).forEach(key => {
+              const serverVal = data.user[key];
+              if (serverVal !== undefined && serverVal !== null && serverVal !== '' && serverVal !== 'undefined') {
+                loggedInUser[key] = serverVal;
+              }
+            });
+            localStorage.setItem("user", JSON.stringify(loggedInUser));
+            renderResidentWelcome(); // re-render with any server-side updates
+          }
+        })
+        .catch(err => console.warn('Background sync failed, showing cached profile:', err));
+    }
   } catch(e) {
     localStorage.removeItem("user");
   }
