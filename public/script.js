@@ -27,7 +27,13 @@ function formatDate(dateStr) {
 
 // Show Forms
 function showResidentForm(){ document.getElementById('login-page').style.display='none'; document.getElementById('resident-form').style.display='flex'; }
-function showLogin(){ document.getElementById('login-page').style.display='flex'; document.getElementById('resident-form').style.display='none'; document.getElementById('forgot-page').style.display='none'; }
+function showLogin(){
+  document.getElementById('login-page').style.display='flex';
+  document.getElementById('resident-form').style.display='none';
+  document.getElementById('forgot-page').style.display='none';
+  const f = document.getElementById('site-footer');
+  if(f) f.style.display='none';
+}
 function showForgotPassword(){ document.getElementById('login-page').style.display='none'; document.getElementById('forgot-page').style.display='flex'; }
 function sendOTP() {
   const email = document.getElementById('forgot-email').value;
@@ -207,6 +213,8 @@ function login() {
 }
 
 function openManagerPage(){
+  const f = document.getElementById('site-footer');
+  if(f) f.style.display='block';
   document.getElementById('login-page').style.display = 'none';
   document.getElementById('dashboard-page').style.display = 'none';
   document.getElementById('dswd-page').style.display = 'none';
@@ -384,6 +392,8 @@ function saveMyAccount() {
 function logout(){ 
   loggedInUser = null; 
   currentRole = null;
+  const f = document.getElementById('site-footer');
+  if(f) f.style.display='none';
   localStorage.removeItem("user");
   document.getElementById('login-page').style.display = "flex";
   document.getElementById('dashboard-page').style.display = 'none';
@@ -416,6 +426,8 @@ function renderDashboardHeader(title){
 
 // Dashboard 
 function showDashboard(){
+  const f = document.getElementById('site-footer');
+  if(f) f.style.display='block';
   console.log("Dashboard user:", loggedInUser);
   document.getElementById('login-page').style.display='none';
   document.getElementById('resident-form').style.display='none';
@@ -443,6 +455,8 @@ function showDashboard(){
 }
 
 function openDSWDPage(){
+  const f = document.getElementById('site-footer');
+  if(f) f.style.display='block';
   document.getElementById('login-page').style.display = 'none';
   document.getElementById('dashboard-page').style.display = 'none';
   document.getElementById('dswd-page').style.display = 'flex';
