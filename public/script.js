@@ -1118,7 +1118,11 @@ function showMyRequests() {
         <label>Upload Government ID:</label>
         <input type="file" id="request-gov-id" style="width:100%; margin-bottom:10px;">
         <label>Upload 2x2 Picture:</label>
-        <input type="file" id="request-photo" style="width:100%; margin-bottom:15px;">
+        <input type="file" id="request-photo" style="width:100%; margin-bottom:10px;">
+        <label>Preferred Pick-up Date:</label>
+        <input type="date" id="request-date" style="width:100%; padding:8px; margin-bottom:10px;" min="${new Date().toISOString().split('T')[0]}">
+        <label>Preferred Pick-up Time:</label>
+        <input type="time" id="request-time" style="width:100%; padding:8px; margin-bottom:15px;">
         <button onclick="requestDocument()" style="width:100%; padding:10px; background:#1a3f6c; color:white; border:none; border-radius:8px; cursor:pointer;">
           Request
         </button>
@@ -1383,8 +1387,11 @@ function requestDocument() {
   const govIdFile = document.getElementById('request-gov-id').files[0];
   const photoFile = document.getElementById('request-photo').files[0];
 
-  if (!type || !purpose || !email || !govIdFile || !photoFile) {
-    alert('Please fill all required fields.');
+  const date = document.getElementById('request-date').value;
+  const time = document.getElementById('request-time').value;
+
+  if (!type || !purpose || !email || !govIdFile || !photoFile || !date || !time) {
+    alert('Please fill all required fields including pick-up date and time.');
     return;
   }
 
@@ -1395,6 +1402,8 @@ function requestDocument() {
   formData.append("email", email);
   formData.append("gov_id", govIdFile);
   formData.append("photo", photoFile);
+  formData.append("date", date);
+  formData.append("time", time);
 
   fetch(`${API_BASE}/api/request-document`, {
     method: 'POST',
