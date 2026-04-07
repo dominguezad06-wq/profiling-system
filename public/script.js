@@ -184,10 +184,18 @@ function login() {
     return;
   }
 
+  const captchaResponse = grecaptcha.getResponse();
+  if (!captchaResponse) {
+    const errBox = document.getElementById('login-error');
+    errBox.innerText = 'Please complete the CAPTCHA verification.';
+    errBox.style.display = 'block';
+    return;
+  }
+
   fetch(`${API_BASE}/api/login`, {
     method: 'POST',
     headers: { 'Content-Type':'application/json' },
-    body: JSON.stringify({ username, password })
+    body: JSON.stringify({ username, password, captchaToken: captchaResponse })
   })
   .then(res => res.json())
   .then(data => {
@@ -206,6 +214,7 @@ function login() {
       const errBox = document.getElementById('login-error');
       errBox.innerText = data.error || 'Invalid username or password!';
       errBox.style.display = 'block';
+      grecaptcha.reset();
     }
   })
   .catch(() => alert('Server connection error.'));
