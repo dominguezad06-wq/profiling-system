@@ -33,6 +33,16 @@ function showLogin(){
   document.getElementById('forgot-page').style.display='none';
   const f = document.getElementById('site-footer');
   if(f) f.style.display='none';
+  // Clear all login fields and errors
+  const uField = document.getElementById('login-username');
+  const pField = document.getElementById('login-password');
+  if (uField) uField.value = '';
+  if (pField) pField.value = '';
+  const errBox = document.getElementById('login-error');
+  if (errBox) { errBox.style.display = 'none'; errBox.innerText = ''; }
+  if (typeof grecaptcha !== 'undefined') {
+    try { grecaptcha.reset(); } catch(e) {}
+  }
 }
 function showForgotPassword(){ document.getElementById('login-page').style.display='none'; document.getElementById('forgot-page').style.display='flex'; }
 function sendOTP() {
