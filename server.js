@@ -1,4 +1,5 @@
 require('dotenv').config();
+const fetch = (...args) => import('node-fetch').then(({default: f}) => f(...args));
 // ================= IMPORTS =================
 const express = require('express');
 const { Pool } = require('pg');
@@ -167,7 +168,21 @@ app.post('/api/register', async (req, res) => {
 // ================= LOGIN =================
 app.post('/api/login', async (req, res) => {
   try {
-    const { username, password } = req.body;
+    const { username, password, captchaToken } = req.body;
+
+    // Verify reCAPTCHA
+    if (!captchaToken) {
+      return res.status(400).json({ error: 'CAPTCHA token missing.' });
+    }
+    const secretKey = process.env.RECAPTCHA_SECRET_KEY;
+    const captchaVerify = await fetch(
+      `https://www.google.com/recaptcha/api/siteverify?secret=${secretKey}&response=${captchaToken}`,
+      { method: 'POST' }
+    );
+    const captchaResult = await captchaVerify.json();
+    if (!captchaResult.success) {
+      return res.status(400).json({ error: 'CAPTCHA verification failed. Please try again.' });
+    }
 
     const result = await pool.query('SELECT * FROM users WHERE username=$1', [username]);
     const user = result.rows[0];
@@ -290,6 +305,17 @@ app.post('/api/verify-otp', async (req, res) => {
   } catch (err) {
     console.error('VERIFY OTP ERROR:', err);
     res.json({ success: false, message: 'Server error. Please try again.' });
+  }
+});
+
+// ================= GET SINGLE RESIDENT BY USERNAME =================
+app.get('/api/resident/:username', async (req, res) => {
+  try {
+    const { username } = req.params;
+    const result = await pool.query('SELECT * FROM residents WHERE username=$1', [username]);
+    res.json({ user: result.rows[0] || null });
+  } catch (err) {
+    res.status(500).json({ user: null });
   }
 });
 
