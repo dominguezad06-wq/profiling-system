@@ -2174,6 +2174,11 @@ if (savedUser) {
   try {
     loggedInUser = JSON.parse(savedUser);
     currentRole = loggedInUser.role;
+    if (!currentRole) {
+      localStorage.removeItem("user");
+      loggedInUser = null;
+      throw new Error("No role found, clearing session.");
+    }
     const lf = document.getElementById('login-footer');
     if (lf) lf.style.display = 'none';
     document.getElementById('login-page').style.display = 'none';
