@@ -465,6 +465,29 @@ function logout(){
   if (document.getElementById('dashboard-body')) {
     document.getElementById('dashboard-body').innerHTML = '';
   }
+  // Clear fields and error
+  const uField = document.getElementById('login-username');
+  const pField = document.getElementById('login-password');
+  if (uField) uField.value = '';
+  if (pField) pField.value = '';
+  const errBox = document.getElementById('login-error');
+  if (errBox) { errBox.style.display = 'none'; errBox.innerText = ''; }
+  // Reset captcha after login page is visible
+  setTimeout(() => {
+    if (typeof grecaptcha !== 'undefined') {
+      try {
+        grecaptcha.reset();
+      } catch(e) {
+        const captchaDiv = document.querySelector('.g-recaptcha');
+        if (captchaDiv) {
+          captchaDiv.innerHTML = '';
+          grecaptcha.render(captchaDiv, {
+            sitekey: '6LfFlaosAAAAAHH5pJgm5lmeQfkTyoaxR2E8OyPE'
+          });
+        }
+      }
+    }
+  }, 300);
 }
 
 function renderDashboardHeader(title){
