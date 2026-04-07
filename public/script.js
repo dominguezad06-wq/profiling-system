@@ -151,7 +151,6 @@ function createResident() {
     family_members, senior: age >= 60 ? "Yes" : "No"
   };
 
-  console.log("Register Data:", data);
 
   fetch(`${API_BASE}/api/register`, {
     method: 'POST',
@@ -160,7 +159,6 @@ function createResident() {
   })
   .then(res => res.json())
   .then(response => {
-    console.log("Server Response:", response);
     const errBox = document.getElementById('register-error');
     const successBox = document.getElementById('register-success');
     if (response.user) {
@@ -510,7 +508,6 @@ function showDashboard(){
   if(f) f.style.display='block';
   const lf = document.getElementById('login-footer');
   if(lf) lf.style.display='none';
-  console.log("Dashboard user:", loggedInUser);
   document.getElementById('login-page').style.display='none';
   document.getElementById('resident-form').style.display='none';
   document.getElementById('forgot-page').style.display='none';
@@ -1438,22 +1435,56 @@ function requestDocument() {
   formData.append("date", date);
   formData.append("time", time);
 
+  const btn = document.querySelector('button[onclick="requestDocument()"]');
+  if (btn) { btn.disabled = true; btn.innerText = 'Submitting...'; }
+
   fetch(`${API_BASE}/api/request-document`, {
     method: 'POST',
     body: formData
   })
   .then(res => res.json())
   .then(data => {
-    alert(data.message);
-    loadMyRequests(); 
+    if (btn) { btn.disabled = false; btn.innerText = 'Request'; }
+    const successBox = document.getElementById('request-result');
+    if (successBox) {
+      successBox.style.display = 'block';
+      successBox.style.background = '#f0fdf4';
+      successBox.style.border = '1px solid #86efac';
+      successBox.style.color = '#16a34a';
+      successBox.style.padding = '14px 18px';
+      successBox.style.borderRadius = '10px';
+      successBox.style.fontSize = '14px';
+      successBox.style.fontWeight = '500';
+      successBox.style.marginTop = '12px';
+      successBox.innerText = '✅ Your request has been submitted successfully! The barangay will review it and notify you by email.';
+      setTimeout(() => { successBox.style.display = 'none'; }, 5000);
+    }
+    fetch(`${API_BASE}/api/my-requests?username=${loggedInUser.username}`)
+      .then(r => r.json())
+      .then(d => {
+        loggedInUser.requests = d.requests || [];
+        const listDiv = document.querySelector('#dashboard-body .flex-2, #dashboard-body div[style*="flex:2"]');
+        if (listDiv) showMyRequests();
+      });
   })
-  .catch(err => {
-    console.error(err);
-    alert("Error sending request.");
+  .catch(() => {
+    if (btn) { btn.disabled = false; btn.innerText = 'Request'; }
+    const successBox = document.getElementById('request-result');
+    if (successBox) {
+      successBox.style.display = 'block';
+      successBox.style.background = '#fff5f5';
+      successBox.style.border = '1px solid #fca5a5';
+      successBox.style.color = '#dc2626';
+      successBox.style.padding = '14px 18px';
+      successBox.style.borderRadius = '10px';
+      successBox.style.fontSize = '14px';
+      successBox.style.fontWeight = '500';
+      successBox.style.marginTop = '12px';
+      successBox.innerText = '❌ Could not connect to the server. Please check your connection and try again.';
+    }
   });
 }
 
-console.log("Logged Resident:", loggedInUser);
 
 // FIX #2: was username (undefined), now loggedInUser.username
 function loadMyRequests() {
@@ -2182,7 +2213,6 @@ window.onload = function () {
 };
 
 function handleCredentialResponse(response) {
-  console.log("Encoded JWT ID token: " + response.credential);
   fetch(`${API_BASE}/api/google-login`, {
     method: 'POST',
     headers: { 'Content-Type':'application/json' },
@@ -2194,7 +2224,6 @@ function handleCredentialResponse(response) {
   loggedInUser = data.user;
   currentRole = data.user.role;
   localStorage.setItem("user", JSON.stringify(data.user));
-  console.log("Logged in user:", loggedInUser);
   if (data.user.role === 'dswd') {
     openDSWDPage();
   } else if (data.user.role === 'manager') {
@@ -2233,7 +2262,6 @@ if (savedUser) {
     const lf = document.getElementById('login-footer');
     if (lf) lf.style.display = 'none';
     document.getElementById('login-page').style.display = 'none';
-    console.log("Restored user from localStorage:", loggedInUser);
     if (currentRole === 'dswd') {
       openDSWDPage();
     } else if (currentRole === 'manager') {
