@@ -336,11 +336,11 @@ app.get('/api/residents-profile', async (req, res) => {
 // ================= REQUEST DOCUMENT =================
 app.post('/api/request-document', async (req, res) => {
   try {
-    const { document_type, purpose, email, username } = req.body;
+    const { document_type, purpose, email, username, date, time } = req.body;
     const govIdFile = req.files?.gov_id;
     const photoFile = req.files?.photo;
 
-    if (!document_type || !purpose || !email || !username || !govIdFile || !photoFile) {
+    if (!document_type || !purpose || !email || !username || !govIdFile || !photoFile || !date || !time) {
       return res.json({ success: false, message: 'Missing fields' });
     }
 
@@ -363,8 +363,8 @@ app.post('/api/request-document', async (req, res) => {
     await pool.query(
       `INSERT INTO document_requests
        (username, document_type, purpose, email, gov_id, photo, date, time, status, created_at)
-       VALUES($1, $2, $3, $4, $5, $6, CURRENT_DATE, CURRENT_TIME, 'Pending', CURRENT_TIMESTAMP)`,
-      [username, document_type, purpose, email, govIdUpload.secure_url, photoUpload.secure_url]
+       VALUES($1, $2, $3, $4, $5, $6, $7, $8, 'Pending', CURRENT_TIMESTAMP)`,
+      [username, document_type, purpose, email, govIdUpload.secure_url, photoUpload.secure_url, date, time]
     );
 
     res.json({ success: true });
@@ -413,7 +413,7 @@ app.post('/api/approve-request', async (req, res) => {
     const { username, documentType, date, time } = req.body;
 
     const checkResult = await pool.query(
-      `SELECT id, status, purpose, email FROM document_requests 
+      `SELECT id, status, purpose, email, date, time FROM document_requests 
        WHERE username=$1 AND document_type=$2 AND status='Pending'
        ORDER BY created_at DESC LIMIT 1`,
       [username, documentType]
@@ -422,9 +422,12 @@ app.post('/api/approve-request', async (req, res) => {
 
     if (!request) return res.json({ success: false, message: 'Request not found or already processed' });
 
+    const finalDate = date || request.date;
+    const finalTime = time || request.time;
+
     await pool.query(
       `UPDATE document_requests SET status='Approved', date=$1, time=$2 WHERE id=$3`,
-      [date, time, request.id]
+      [finalDate, finalTime, request.id]
     );
 
     res.json({
@@ -432,8 +435,8 @@ app.post('/api/approve-request', async (req, res) => {
       email: request.email,
       documentType,
       purpose: request.purpose,
-      date,
-      time
+      date: finalDate,
+      time: finalTime
     });
   } catch (err) {
     console.error(err);
