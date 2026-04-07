@@ -140,8 +140,24 @@ function createResident() {
   const spouse = '';
   const family_members = 0;
 
+  const confirmPassword = document.getElementById('res-confirm-password')?.value.trim();
+
   if (!name || !username || !password || !email) {
-    alert("Please fill required fields.");
+    const errBox = document.getElementById('register-error');
+    errBox.style.display = 'block';
+    errBox.innerText = 'Please fill in all required fields.';
+    return;
+  }
+  if (password !== confirmPassword) {
+    const errBox = document.getElementById('register-error');
+    errBox.style.display = 'block';
+    errBox.innerText = 'Passwords do not match. Please try again.';
+    return;
+  }
+  if (password.length < 6) {
+    const errBox = document.getElementById('register-error');
+    errBox.style.display = 'block';
+    errBox.innerText = 'Password must be at least 6 characters.';
     return;
   }
 
