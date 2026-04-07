@@ -187,8 +187,14 @@ function login() {
   const username = document.getElementById('login-username').value.trim();
   const password = document.getElementById('login-password').value.trim();
 
-  if (!username || !password) {
-    alert('Please enter username and password.');
+  if (!username) {
+    document.getElementById('login-username').focus();
+    document.getElementById('login-username').reportValidity();
+    return;
+  }
+  if (!password) {
+    document.getElementById('login-password').focus();
+    document.getElementById('login-password').reportValidity();
     return;
   }
 
