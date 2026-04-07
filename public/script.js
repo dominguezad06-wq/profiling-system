@@ -142,7 +142,7 @@ function createResident() {
 
   const confirmPassword = document.getElementById('res-confirm-password')?.value.trim();
 
-  if (!name || !username || !password || !email) {
+  if (!name || !username || !password || !email || !document.getElementById('res-dob')?.value) {
     const errBox = document.getElementById('register-error');
     errBox.style.display = 'block';
     errBox.innerText = 'Please fill in all required fields.';
@@ -161,10 +161,12 @@ function createResident() {
     return;
   }
 
+  const dob = document.getElementById('res-dob')?.value || '';
+
   const data = {
     name, username, password, email, contact, gender, age,
     address, barangay, status, sons, daughters, pwd, spouse,
-    family_members, senior: age >= 60 ? "Yes" : "No"
+    family_members, senior: age >= 60 ? "Yes" : "No", dob
   };
 
 
@@ -1351,6 +1353,13 @@ function toggleSpouseInput() {
   const input = document.getElementById('profile-spouse-name');
   input.style.display = toggle === 'named' ? 'block' : 'none';
   if (toggle === 'N/A') input.value = '';
+}
+
+function calcResAge() {
+  const dob = document.getElementById('res-dob').value;
+  if (!dob) return;
+  const age = Math.floor((new Date() - new Date(dob)) / (365.25 * 24 * 60 * 60 * 1000));
+  document.getElementById('res-age').value = age;
 }
 
 function calcProfileAge() {
