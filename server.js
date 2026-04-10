@@ -109,13 +109,13 @@ app.post('/api/register', async (req, res) => {
         ]
       );
       const updated = await pool.query(`SELECT * FROM residents WHERE username=$1`, [existingUsername]);
+      const existingResident = await pool.query(`SELECT id FROM residents WHERE username=$1`, [existingUsername]);
+      await pool.query(
+        `INSERT INTO users(username, password, role, name, resident_id) VALUES($1,$2,'resident',$3,$4)`,
+        [username, hashedPw, name, existingResident.rows[0].id]
+      );
       return res.json({ message: 'Resident updated', user: updated.rows[0] });
     }
-
-    await pool.query(
-      `INSERT INTO users(username, password, role, name) VALUES($1,$2,'resident',$3)`,
-      [username, hashedPw, name]
-    );
 
     const result = await pool.query(
       `INSERT INTO residents
@@ -155,6 +155,11 @@ app.post('/api/register', async (req, res) => {
         req.body.emergency_contact_name || null,
         req.body.emergency_contact_number || null
       ]
+    );
+
+    await pool.query(
+      `INSERT INTO users(username, password, role, name, resident_id) VALUES($1,$2,'resident',$3,$4)`,
+      [username, hashedPw, name, result.rows[0].id]
     );
 
     res.json({ message: 'Resident created', user: result.rows[0] });
@@ -360,11 +365,14 @@ app.post('/api/request-document', async (req, res) => {
       ).end(photoFile.data);
     });
 
+    const userRow = await pool.query(`SELECT resident_id FROM users WHERE username=$1`, [username]);
+    const resident_id = userRow.rows[0]?.resident_id || null;
+
     await pool.query(
       `INSERT INTO document_requests
-       (username, document_type, purpose, email, gov_id, photo, date, time, status, created_at)
-       VALUES($1, $2, $3, $4, $5, $6, $7, $8, 'Pending', CURRENT_TIMESTAMP)`,
-      [username, document_type, purpose, email, govIdUpload.secure_url, photoUpload.secure_url, date, time]
+       (username, resident_id, document_type, purpose, email, gov_id, photo, date, time, status, created_at)
+       VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, 'Pending', CURRENT_TIMESTAMP)`,
+      [username, resident_id, document_type, purpose, email, govIdUpload.secure_url, photoUpload.secure_url, date, time]
     );
 
     res.json({ success: true });
@@ -378,12 +386,15 @@ app.post('/api/request-document', async (req, res) => {
 app.get('/api/my-requests', async (req, res) => {
   try {
     const username = req.query.username;
+    const userRow = await pool.query(`SELECT resident_id FROM users WHERE username=$1`, [username]);
+    const resident_id = userRow.rows[0]?.resident_id;
+
     const result = await pool.query(
       `SELECT document_type AS "document_type", purpose, status, date, time, gov_id, photo
        FROM document_requests
-       WHERE username=$1
+       WHERE resident_id=$1
        ORDER BY created_at DESC`,
-      [username]
+      [resident_id]
     );
     res.json({ requests: result.rows });
   } catch (err) {
