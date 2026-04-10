@@ -525,8 +525,8 @@ app.put('/api/update-resident/:username', async (req, res) => {
     for (const row of dupCheck.rows) {
       const oldUsername = row.username;
       await pool.query(`DELETE FROM document_requests WHERE username=$1`, [oldUsername]);
-      await pool.query(`DELETE FROM residents        WHERE username=$1`, [oldUsername]);
       await pool.query(`DELETE FROM users            WHERE username=$1`, [oldUsername]);
+      await pool.query(`DELETE FROM residents        WHERE username=$1`, [oldUsername]);
       console.log(`Duplicate removed on profile update: ${oldUsername}`);
     }
 
