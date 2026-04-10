@@ -624,8 +624,8 @@ app.delete('/api/delete-resident/:username', async (req, res) => {
   try {
     const { username } = req.params;
     await pool.query(`DELETE FROM document_requests WHERE username=$1`, [username]);
-    await pool.query(`DELETE FROM residents WHERE username=$1`, [username]);
     await pool.query(`DELETE FROM users WHERE username=$1`, [username]);
+    await pool.query(`DELETE FROM residents WHERE username=$1`, [username]);
     res.json({ success: true });
   } catch (err) {
     console.error(err);
@@ -649,8 +649,8 @@ app.post('/api/auto-remove-duplicates', async (req, res) => {
       const toDelete = row.usernames.slice(1);
       for (const username of toDelete) {
         await pool.query(`DELETE FROM document_requests WHERE username=$1`, [username]);
-        await pool.query(`DELETE FROM residents WHERE username=$1`, [username]);
         await pool.query(`DELETE FROM users WHERE username=$1`, [username]);
+        await pool.query(`DELETE FROM residents WHERE username=$1`, [username]);
         removed++;
       }
     }
