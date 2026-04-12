@@ -1689,7 +1689,35 @@ function renderManagerRequests(allRequests, filter = 'all') {
       const docType  = btn.getAttribute('data-doc');
       const date     = btn.getAttribute('data-date');
       const time     = btn.getAttribute('data-time');
-      approveRequest(username, docType, date, time);
+
+      btn.disabled = true;
+      btn.innerText = 'Approving...';
+      btn.style.background = '#aaa';
+
+      fetch(`${API_BASE}/api/approve-request`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, documentType: docType, date, time })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          sendApprovalEmail(data.email, docType, data.purpose || 'General Requirement', data.date || date, data.time || time);
+          showToast(`Approved — notification sent to ${data.email}`, 'success');
+          showDocRequests();
+        } else {
+          showToast(data.message || 'Failed to approve request.', 'error');
+          btn.disabled = false;
+          btn.innerText = '✓ Approve';
+          btn.style.background = '#16a34a';
+        }
+      })
+      .catch(() => {
+        showToast('Server error while approving request.', 'error');
+        btn.disabled = false;
+        btn.innerText = '✓ Approve';
+        btn.style.background = '#16a34a';
+      });
     });
   });
 
@@ -1732,30 +1760,58 @@ function sendRejectionEmail(residentEmail, documentType, purpose) {
   });
 }
 
+function showToast(message, type = 'success') {
+  const existing = document.getElementById('toast-notification');
+  if (existing) existing.remove();
+  const colors = {
+    success: { bg: '#f0fdf4', border: '#86efac', text: '#16a34a' },
+    error:   { bg: '#fff5f5', border: '#fca5a5', text: '#dc2626' },
+    info:    { bg: '#eff6ff', border: '#93c5fd', text: '#1d4ed8' },
+  };
+  const c = colors[type] || colors.info;
+  const toast = document.createElement('div');
+  toast.id = 'toast-notification';
+  toast.style.cssText = `
+    position: fixed; bottom: 28px; right: 28px; z-index: 9999;
+    background: ${c.bg}; border: 1px solid ${c.border}; color: ${c.text};
+    padding: 14px 20px; border-radius: 10px; font-size: 14px; font-weight: 500;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1); max-width: 380px;
+    animation: slideIn 0.2s ease;
+  `;
+  toast.innerText = message;
+  const style = document.createElement('style');
+  style.innerText = `@keyframes slideIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }`;
+  document.head.appendChild(style);
+  document.body.appendChild(toast);
+  setTimeout(() => { if (toast.parentNode) toast.remove(); }, 4000);
+}
+
 function approveRequest(username, documentType, date, time) {
   if (!date || !time) {
-    alert('This request has no pick-up date or time set by the resident. Cannot approve.');
+    showToast('This request has no pick-up date or time set by the resident. Cannot approve.', 'error');
     return;
   }
 
   fetch(`${API_BASE}/api/approve-request`, {
     method: 'POST',
-    headers: { 'Content-Type':'application/json' },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ username, documentType, date, time })
   })
   .then(res => res.json())
   .then(data => {
     if (data.success) {
       const residentEmail = data.email;
-      const purpose = data.purpose || "General Requirement";
-      sendApprovalEmail(residentEmail, documentType, purpose, pickUpDate, pickUpTime);
-      alert(`Request approved and email sent to ${residentEmail}!`);
+      const purpose = data.purpose || 'General Requirement';
+      const finalDate = data.date || date;
+      const finalTime = data.time || time;
+      sendApprovalEmail(residentEmail, documentType, purpose, finalDate, finalTime);
+      showToast(`Approved — notification sent to ${residentEmail}`, 'success');
       showDocRequests();
     } else {
-      alert(data.message || 'Failed to approve request.');
+      showToast(data.message || 'Failed to approve request.', 'error');
     }
   })
-  .catch(() => alert('Server error while approving request.'));
+  .catch(() => showToast('Server error while approving request.', 'error'));
 }
 
 function rejectRequest(username, documentType) {
@@ -1769,10 +1825,10 @@ function rejectRequest(username, documentType) {
   .then(res => res.json())
   .then(data => {
     if (data.success) {
-      alert(`Request rejected and email sent to ${data.email}!`);
+      showToast(`Rejected — notification sent to ${data.email}`, 'error');
       showDocRequests();
     } else {
-      alert(data.message || 'Failed to reject request.');
+      showToast(data.message || 'Failed to reject request.', 'error');
     }
   })
   .catch(() => alert('Server error while rejecting request.'));
