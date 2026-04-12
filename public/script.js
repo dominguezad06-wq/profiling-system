@@ -1728,6 +1728,7 @@ function renderManagerRequests(allRequests, filter = 'all') {
                 <button class="approve-btn"
                   data-username="${r.username}" data-doc="${r.document_type}"
                   data-date="${r.date || ''}" data-time="${r.time || ''}"
+                  data-id="${r.id || ''}"
                   style="width:100%; padding:12px 18px; background:#8B0000; color:#fff; border:none; border-radius:10px; font-size:13px; font-weight:700; cursor:pointer; margin-bottom:8px; transition:all 0.15s; letter-spacing:0.3px;"
                   onmouseover="this.style.background='#6f0000'; this.style.transform='translateY(-1px)'"
                   onmouseout="this.style.background='#8B0000'; this.style.transform='translateY(0)'">
@@ -1736,6 +1737,7 @@ function renderManagerRequests(allRequests, filter = 'all') {
 
                 <button class="reject-btn"
                   data-username="${r.username}" data-doc="${r.document_type}"
+                  data-id="${r.id || ''}"
                   style="width:100%; padding:12px 18px; background:#fff; color:#dc2626; border:1.5px solid #fca5a5; border-radius:10px; font-size:13px; font-weight:700; cursor:pointer; transition:all 0.15s; letter-spacing:0.3px;"
                   onmouseover="this.style.background='#fff5f5'; this.style.borderColor='#ef4444'; this.style.transform='translateY(-1px)'"
                   onmouseout="this.style.background='#fff'; this.style.borderColor='#fca5a5'; this.style.transform='translateY(0)'">
@@ -1810,10 +1812,11 @@ function renderManagerRequests(allRequests, filter = 'all') {
       btn.style.background = '#aaa';
       btn.style.transform = 'none';
 
+      const reqId = btn.getAttribute('data-id');
       fetch(`${API_BASE}/api/approve-request`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, documentType: docType, date, time })
+        body: JSON.stringify({ username, documentType: docType, date, time, requestId: reqId })
       })
       .then(res => res.json())
       .then(data => {
@@ -1839,9 +1842,10 @@ function renderManagerRequests(allRequests, filter = 'all') {
 
   document.querySelectorAll('.reject-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      const username = btn.getAttribute('data-username');
-      const docType  = btn.getAttribute('data-doc');
-      rejectRequest(username, docType);
+      const username  = btn.getAttribute('data-username');
+      const docType   = btn.getAttribute('data-doc');
+      const requestId = btn.getAttribute('data-id');
+      rejectRequest(username, docType, requestId);
     });
   });
 }
@@ -1975,24 +1979,50 @@ function approveRequest(username, documentType, date, time) {
   .catch(() => showToast('Server error while approving request.', 'error'));
 }
 
-function rejectRequest(username, documentType) {
-  if (!confirm('Are you sure you want to reject this request?')) return;
+function rejectRequest(username, documentType, requestId) {
+  showToast('Are you sure you want to reject this request?', 'info');
 
-  fetch(`${API_BASE}/api/reject-request`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username, documentType })
-  })
-  .then(res => res.json())
-  .then(data => {
-    if (data.success) {
-      showToast(`Rejected — notification sent to ${data.email}`, 'error');
-      showDocRequests();
-    } else {
-      showToast(data.message || 'Failed to reject request.', 'error');
-    }
-  })
-  .catch(() => alert('Server error while rejecting request.'));
+  setTimeout(() => {
+    const overlay = document.getElementById('toast-overlay');
+    if (!overlay) return;
+
+    const btnRow = document.createElement('div');
+    btnRow.style.cssText = 'display:flex; gap:10px; justify-content:center; margin-top:8px;';
+    btnRow.innerHTML = `
+      <button id="confirm-reject-btn"
+        style="padding:11px 28px; border-radius:10px; border:none; background:#dc2626; color:#fff; font-size:14px; font-weight:700; cursor:pointer;">
+        Yes, Reject
+      </button>
+      <button onclick="document.getElementById('toast-overlay').remove()"
+        style="padding:11px 28px; border-radius:10px; border:1.5px solid #e5e7eb; background:#fff; color:#374151; font-size:14px; font-weight:700; cursor:pointer;">
+        Cancel
+      </button>
+    `;
+
+    const okBtn = overlay.querySelector('button');
+    if (okBtn) okBtn.style.display = 'none';
+    overlay.querySelector('div > div').appendChild(btnRow);
+
+    document.getElementById('confirm-reject-btn').addEventListener('click', () => {
+      overlay.remove();
+
+      fetch(`${API_BASE}/api/reject-request`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, documentType, requestId })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          showToast(`Rejected — notification sent to ${data.email}`, 'error');
+          showDocRequests();
+        } else {
+          showToast(data.message || 'Failed to reject request.', 'error');
+        }
+      })
+      .catch(() => showToast('Server error while rejecting request.', 'error'));
+    });
+  }, 50);
 }
 
 // DSWD Dashboard
