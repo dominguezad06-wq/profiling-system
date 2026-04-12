@@ -448,12 +448,52 @@ app.post('/api/approve-request', async (req, res) => {
 app.post('/api/reject-request', async (req, res) => {
   try {
     const { username, documentType } = req.body;
-    await pool.query(
-      `UPDATE document_requests SET status='Rejected'
-       WHERE username=$1 AND document_type=$2 AND status='Pending'`,
+
+    const checkResult = await pool.query(
+      `SELECT id, email, purpose FROM document_requests
+       WHERE username=$1 AND document_type=$2 AND status='Pending'
+       ORDER BY created_at DESC LIMIT 1`,
       [username, documentType]
     );
-    res.json({ success: true });
+
+    const request = checkResult.rows[0];
+    if (!request) return res.json({ success: false, message: 'Request not found or already processed.' });
+
+    await pool.query(
+      `UPDATE document_requests SET status='Rejected' WHERE id=$1`,
+      [request.id]
+    );
+
+    // Send rejection email via Nodemailer
+    try {
+      const transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+          user: process.env.EMAIL_USER,
+          pass: process.env.EMAIL_PASS
+        }
+      });
+
+      await transporter.sendMail({
+        from: `"Barangay Trapiche" <${process.env.EMAIL_USER}>`,
+        to: request.email,
+        subject: 'Your Document Request Has Been Rejected',
+        html: `
+          <div style="font-family:Arial,sans-serif; max-width:500px; margin:0 auto; padding:24px; border:1px solid #eee; border-radius:10px;">
+            <h2 style="color:#8B0000;">Barangay Trapiche</h2>
+            <p>Dear Resident,</p>
+            <p>We regret to inform you that your request for a <strong>${documentType}</strong> (Purpose: <strong>${request.purpose}</strong>) has been <strong style="color:#c0392b;">rejected</strong>.</p>
+            <p>Please visit the Barangay Trapiche Hall for more information or to re-submit your request.</p>
+            <br>
+            <p>Thank you,<br><strong>Barangay Trapiche</strong><br>Tanauan City, Batangas</p>
+          </div>
+        `
+      });
+    } catch (emailErr) {
+      console.error('Rejection email error:', emailErr.message);
+    }
+
+    res.json({ success: true, email: request.email, purpose: request.purpose });
   } catch (err) {
     console.error(err);
     res.json({ success: false, message: err.message });
