@@ -396,7 +396,7 @@ app.get('/api/my-requests', async (req, res) => {
 app.get('/api/document-requests', async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT username, document_type, purpose, email, gov_id, photo, status, date, time, created_at
+      `SELECT id, username, document_type, purpose, email, gov_id, photo, status, date, time, created_at
        FROM document_requests
        ORDER BY created_at DESC`
     );
@@ -410,16 +410,29 @@ app.get('/api/document-requests', async (req, res) => {
 // ================= MANAGER: APPROVE REQUEST =================
 app.post('/api/approve-request', async (req, res) => {
   try {
-    const { username, documentType, date, time } = req.body;
+    const { username, documentType, date, time, requestId } = req.body;
 
-    const checkResult = await pool.query(
-      `SELECT id, status, purpose, email, date, time FROM document_requests 
-       WHERE username=$1 AND LOWER(document_type)=LOWER($2) AND status='Pending'
-       ORDER BY created_at DESC LIMIT 1`,
-      [username, documentType]
-    );
+    let checkResult;
+
+    if (requestId) {
+      checkResult = await pool.query(
+        `SELECT id, status, purpose, email, date, time FROM document_requests
+         WHERE id=$1 AND status='Pending'
+         LIMIT 1`,
+        [requestId]
+      );
+    } else {
+      checkResult = await pool.query(
+        `SELECT id, status, purpose, email, date, time FROM document_requests
+         WHERE username=$1
+           AND LOWER(TRIM(document_type)) = LOWER(TRIM($2))
+           AND status='Pending'
+         ORDER BY created_at DESC LIMIT 1`,
+        [username, documentType]
+      );
+    }
+
     const request = checkResult.rows[0];
-
     if (!request) return res.json({ success: false, message: 'Request not found or already processed' });
 
     const finalDate = date || request.date;
@@ -447,14 +460,27 @@ app.post('/api/approve-request', async (req, res) => {
 // ================= MANAGER: REJECT REQUEST =================
 app.post('/api/reject-request', async (req, res) => {
   try {
-    const { username, documentType } = req.body;
+    const { username, documentType, requestId } = req.body;
 
-    const checkResult = await pool.query(
-      `SELECT id, email, purpose FROM document_requests
-       WHERE username=$1 AND document_type=$2 AND status='Pending'
-       ORDER BY created_at DESC LIMIT 1`,
-      [username, documentType]
-    );
+    let checkResult;
+
+    if (requestId) {
+      checkResult = await pool.query(
+        `SELECT id, email, purpose, document_type FROM document_requests
+         WHERE id=$1 AND status='Pending'
+         LIMIT 1`,
+        [requestId]
+      );
+    } else {
+      checkResult = await pool.query(
+        `SELECT id, email, purpose, document_type FROM document_requests
+         WHERE username=$1
+           AND LOWER(TRIM(document_type)) = LOWER(TRIM($2))
+           AND status='Pending'
+         ORDER BY created_at DESC LIMIT 1`,
+        [username, documentType]
+      );
+    }
 
     const request = checkResult.rows[0];
     if (!request) return res.json({ success: false, message: 'Request not found or already processed.' });
