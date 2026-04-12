@@ -1555,75 +1555,133 @@ function showDocRequests() {
 
 function renderManagerRequests(allRequests, filter = 'all') {
   const body = document.getElementById('manager-table');
-  if (allRequests.length === 0) {
-    body.innerHTML = '<h2>Document Requests</h2><p>No document requests yet.</p>';
+
+  let filteredRequests = allRequests;
+  if (filter === 'pending')  filteredRequests = allRequests.filter(r => r.status === 'Pending');
+  else if (filter === 'approved') filteredRequests = allRequests.filter(r => r.status === 'Approved');
+  else if (filter === 'rejected') filteredRequests = allRequests.filter(r => r.status === 'Rejected');
+
+  const statusConfig = {
+    'Pending':  { bg:'#fffbeb', color:'#d97706', dot:'#f59e0b' },
+    'Approved': { bg:'#f0fdf4', color:'#16a34a', dot:'#22c55e' },
+    'Rejected': { bg:'#fff5f5', color:'#dc2626', dot:'#ef4444' },
+  };
+
+  const filterLabel = filter === 'pending' ? 'Pending' : filter === 'approved' ? 'Approved' : 'Rejected';
+
+  if (filteredRequests.length === 0) {
+    body.innerHTML = `
+      <div style="padding:32px;">
+        <h2 style="margin:0 0 24px; font-size:20px; color:#1a1a1a;">Document Requests</h2>
+        <div style="text-align:center; padding:60px 0; background:#fff; border-radius:12px; border:1px solid #eee;">
+          <div style="font-size:40px; margin-bottom:12px;">📭</div>
+          <div style="font-size:16px; font-weight:500; color:#aaa;">No ${filterLabel} requests</div>
+        </div>
+      </div>
+    `;
     return;
   }
 
-  let filteredRequests = allRequests;
-  if (filter === 'pending') {
-    filteredRequests = allRequests.filter(r => r.status === 'Pending');
-  } else if (filter === 'approved') {
-    filteredRequests = allRequests.filter(r => r.status === 'Approved');
-  } else if (filter === 'rejected') {
-    filteredRequests = allRequests.filter(r => r.status === 'Rejected');
-  }
+  body.innerHTML = `
+    <div style="padding:32px;">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:24px;">
+        <div>
+          <h2 style="margin:0; font-size:20px; color:#1a1a1a;">Document Requests</h2>
+          <p style="margin:4px 0 0; font-size:13px; color:#888;">${filteredRequests.length} ${filterLabel.toLowerCase()} request${filteredRequests.length !== 1 ? 's' : ''}</p>
+        </div>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:14px;">
+        ${filteredRequests.map((r) => {
+          const cfg = statusConfig[r.status] || statusConfig['Pending'];
+          return `
+            <div style="background:#fff; border-radius:14px; border:1px solid #eee; box-shadow:0 2px 8px rgba(0,0,0,0.04); overflow:hidden;">
+              
+              <!-- Card Header -->
+              <div style="display:flex; align-items:center; justify-content:space-between; padding:16px 20px; border-bottom:1px solid #f5f5f5; background:#fafafa;">
+                <div style="display:flex; align-items:center; gap:12px;">
+                  <div style="width:38px; height:38px; border-radius:50%; background:#8B0000; display:flex; align-items:center; justify-content:center; color:white; font-weight:700; font-size:15px; flex-shrink:0;">
+                    ${(r.username || 'U').charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <div style="font-size:15px; font-weight:600; color:#1a1a1a;">${r.username}</div>
+                    <div style="font-size:12px; color:#888; margin-top:1px;">${r.document_type}</div>
+                  </div>
+                </div>
+                <span style="display:flex; align-items:center; gap:6px; background:${cfg.bg}; color:${cfg.color}; font-size:12px; font-weight:600; padding:5px 14px; border-radius:99px;">
+                  <span style="width:7px; height:7px; border-radius:50%; background:${cfg.dot}; display:inline-block;"></span>
+                  ${r.status}
+                </span>
+              </div>
 
-  let tableHTML = `
-    <h2 style="margin-bottom:12px;">Document Requests</h2>
-    <div style="width:100%; overflow-x:auto;">
-    <table style="width:100%; min-width:900px; border-collapse:collapse;">
-      <thead>
-        <tr>
-          <th style="white-space:nowrap;">Resident</th>
-          <th style="white-space:nowrap;">Document Type</th>
-          <th style="white-space:nowrap;">Purpose</th>
-          <th style="white-space:nowrap;">Status</th>
-          <th style="white-space:nowrap;">Gov ID</th>
-          <th style="white-space:nowrap;">2x2 Photo</th>
-          <th style="white-space:nowrap;">Date</th>
-          <th style="white-space:nowrap;">Time</th>
-          <th style="white-space:nowrap;">Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${filteredRequests.map((r, i) => `
-          <tr style="background-color:${r.status==='Approved'?'#d4edda':r.status==='Rejected'?'#f8d7da':'#fff'}">
-           <td>${r.username}</td>
-           <td>${r.document_type}</td>
-           <td>${r.purpose}</td>
-           <td>${r.status}</td>
-           <td>${r.gov_id ? `
-             <a href="${r.gov_id}" target="_blank">
-               <img src="${r.gov_id}"
-                 style="width:60px; height:60px; object-fit:cover; border-radius:6px; border:1px solid #ddd; cursor:pointer;"
-                 onerror="this.style.display='none'; this.nextElementSibling.style.display='inline';">
-               <span style="display:none; font-size:12px; color:#c0392b;">View</span>
-             </a>` : '<span style="color:#bbb; font-size:12px;">None</span>'}
-           </td>
-           <td>${r.photo ? `
-             <a href="${r.photo}" target="_blank">
-               <img src="${r.photo}"
-                 style="width:60px; height:60px; object-fit:cover; border-radius:6px; border:1px solid #ddd; cursor:pointer;"
-                 onerror="this.style.display='none'; this.nextElementSibling.style.display='inline';">
-               <span style="display:none; font-size:12px; color:#c0392b;">View</span>
-             </a>` : '<span style="color:#bbb; font-size:12px;">None</span>'}
-           </td>
-           <td>${r.date ? formatDate(r.date) : '<span style="color:#bbb;">—</span>'}</td>
-           <td>${r.time ? formatTime12Hour(r.time) : '<span style="color:#bbb;">—</span>'}</td>
-           <td>
-             ${r.status === 'Pending' ? `
-               <button class="approve-btn" data-username="${r.username}" data-doc="${r.document_type}" data-date="${r.date || ''}" data-time="${r.time || ''}">Approve</button>
-               <button class="reject-btn" data-username="${r.username}" data-doc="${r.document_type}">Reject</button>
-             ` : ''}
-           </td>
-          </tr>
-        `).join('')}
-      </tbody>
-    </table>
+              <!-- Card Body -->
+              <div style="padding:16px 20px; display:flex; gap:24px; flex-wrap:wrap; align-items:flex-start;">
+                
+                <!-- Details -->
+                <div style="flex:1; min-width:200px; display:flex; flex-direction:column; gap:10px;">
+                  <div style="display:flex; gap:8px; align-items:center;">
+                    <span style="font-size:12px; color:#999; font-weight:500; text-transform:uppercase; letter-spacing:0.4px; min-width:65px;">Purpose</span>
+                    <span style="font-size:13px; color:#1a1a1a; font-weight:500;">${r.purpose}</span>
+                  </div>
+                  <div style="display:flex; gap:8px; align-items:center;">
+                    <span style="font-size:12px; color:#999; font-weight:500; text-transform:uppercase; letter-spacing:0.4px; min-width:65px;">Date</span>
+                    <span style="font-size:13px; color:#1a1a1a; font-weight:500;">${r.date ? formatDate(r.date) : '<span style="color:#bbb;">—</span>'}</span>
+                  </div>
+                  <div style="display:flex; gap:8px; align-items:center;">
+                    <span style="font-size:12px; color:#999; font-weight:500; text-transform:uppercase; letter-spacing:0.4px; min-width:65px;">Time</span>
+                    <span style="font-size:13px; color:#1a1a1a; font-weight:500;">${r.time ? formatTime12Hour(r.time) : '<span style="color:#bbb;">—</span>'}</span>
+                  </div>
+                </div>
+
+                <!-- Documents -->
+                <div style="display:flex; gap:12px; align-items:center;">
+                  <div style="text-align:center;">
+                    <div style="font-size:11px; color:#999; font-weight:500; text-transform:uppercase; letter-spacing:0.4px; margin-bottom:6px;">Gov ID</div>
+                    ${r.gov_id ? `
+                      <a href="${r.gov_id}" target="_blank">
+                        <img src="${r.gov_id}" style="width:64px; height:64px; object-fit:cover; border-radius:8px; border:1px solid #eee; cursor:pointer; transition:0.2s;"
+                          onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'"
+                          onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                        <span style="display:none; width:64px; height:64px; background:#f5f5f5; border-radius:8px; align-items:center; justify-content:center; font-size:11px; color:#bbb;">View</span>
+                      </a>` : `<div style="width:64px; height:64px; background:#f5f5f5; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:11px; color:#ccc;">None</div>`}
+                  </div>
+                  <div style="text-align:center;">
+                    <div style="font-size:11px; color:#999; font-weight:500; text-transform:uppercase; letter-spacing:0.4px; margin-bottom:6px;">2x2 Photo</div>
+                    ${r.photo ? `
+                      <a href="${r.photo}" target="_blank">
+                        <img src="${r.photo}" style="width:64px; height:64px; object-fit:cover; border-radius:8px; border:1px solid #eee; cursor:pointer; transition:0.2s;"
+                          onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'"
+                          onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                        <span style="display:none; width:64px; height:64px; background:#f5f5f5; border-radius:8px; align-items:center; justify-content:center; font-size:11px; color:#bbb;">View</span>
+                      </a>` : `<div style="width:64px; height:64px; background:#f5f5f5; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:11px; color:#ccc;">None</div>`}
+                  </div>
+                </div>
+
+                <!-- Actions -->
+                ${r.status === 'Pending' ? `
+                  <div style="display:flex; flex-direction:column; gap:8px; justify-content:center; min-width:110px;">
+                    <button class="approve-btn"
+                      data-username="${r.username}" data-doc="${r.document_type}"
+                      data-date="${r.date || ''}" data-time="${r.time || ''}"
+                      style="padding:9px 18px; background:#16a34a; color:white; border:none; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; transition:0.2s;"
+                      onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">
+                      ✓ Approve
+                    </button>
+                    <button class="reject-btn"
+                      data-username="${r.username}" data-doc="${r.document_type}"
+                      style="padding:9px 18px; background:#fff; color:#dc2626; border:1px solid #fca5a5; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; transition:0.2s;"
+                      onmouseover="this.style.background='#fff5f5'" onmouseout="this.style.background='#fff'">
+                      ✕ Reject
+                    </button>
+                  </div>
+                ` : ''}
+
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    </div>
   `;
-  tableHTML += `</table></div>`;
-  body.innerHTML = tableHTML;
 
   document.querySelectorAll('.approve-btn').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -1638,7 +1696,7 @@ function renderManagerRequests(allRequests, filter = 'all') {
   document.querySelectorAll('.reject-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const username = btn.getAttribute('data-username');
-      const docType = btn.getAttribute('data-doc');
+      const docType  = btn.getAttribute('data-doc');
       rejectRequest(username, docType);
     });
   });
