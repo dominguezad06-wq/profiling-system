@@ -414,7 +414,7 @@ app.post('/api/approve-request', async (req, res) => {
 
     const checkResult = await pool.query(
       `SELECT id, status, purpose, email, date, time FROM document_requests 
-       WHERE username=$1 AND document_type=$2 AND status='Pending'
+       WHERE username=$1 AND LOWER(document_type)=LOWER($2) AND status='Pending'
        ORDER BY created_at DESC LIMIT 1`,
       [username, documentType]
     );
