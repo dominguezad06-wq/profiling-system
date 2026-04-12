@@ -1848,11 +1848,11 @@ function renderManagerRequests(allRequests, filter = 'all') {
 
 function sendApprovalEmail(residentEmail, documentType, purpose, date, time) {
   emailjs.send("service_9m8vyrc", "template_tro0oll", {
-    to_email: residentEmail,       
-    document_type: documentType,   
-    purpose: purpose,              
-    date: date,                    
-    time: formatTime12Hour(time)   
+    to_email: residentEmail,
+    document_type: documentType,
+    purpose: purpose,
+    date: formatDate(date),
+    time: formatTime12Hour(time)
   }, "Ndd7_r9gTrjDBG9-K")
   .then(() => {
     console.log("Email sent successfully!");
@@ -1877,29 +1877,74 @@ function sendRejectionEmail(residentEmail, documentType, purpose) {
 }
 
 function showToast(message, type = 'success') {
-  const existing = document.getElementById('toast-notification');
-  if (existing) existing.remove();
+  const existingOverlay = document.getElementById('toast-overlay');
+  if (existingOverlay) existingOverlay.remove();
+
   const colors = {
-    success: { bg: '#f0fdf4', border: '#86efac', text: '#16a34a' },
-    error:   { bg: '#fff5f5', border: '#fca5a5', text: '#dc2626' },
-    info:    { bg: '#eff6ff', border: '#93c5fd', text: '#1d4ed8' },
+    success: { bg: '#f0fdf4', border: '#86efac', text: '#16a34a', iconBg: '#dcfce7', icon: '✓' },
+    error:   { bg: '#fff5f5', border: '#fca5a5', text: '#dc2626', iconBg: '#fee2e2', icon: '✕' },
+    info:    { bg: '#eff6ff', border: '#93c5fd', text: '#1d4ed8', iconBg: '#dbeafe', icon: 'i' },
   };
   const c = colors[type] || colors.info;
-  const toast = document.createElement('div');
-  toast.id = 'toast-notification';
-  toast.style.cssText = `
-    position: fixed; bottom: 28px; right: 28px; z-index: 9999;
-    background: ${c.bg}; border: 1px solid ${c.border}; color: ${c.text};
-    padding: 14px 20px; border-radius: 10px; font-size: 14px; font-weight: 500;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.1); max-width: 380px;
-    animation: slideIn 0.2s ease;
+
+  const overlay = document.createElement('div');
+  overlay.id = 'toast-overlay';
+  overlay.style.cssText = `
+    position: fixed; inset: 0; z-index: 99999;
+    background: rgba(0,0,0,0.45);
+    display: flex; align-items: center; justify-content: center;
+    animation: toastFadeIn 0.2s ease;
   `;
-  toast.innerText = message;
+
+  overlay.innerHTML = `
+    <div style="
+      background: #fff; border-radius: 20px; padding: 36px 40px;
+      max-width: 420px; width: 90%; text-align: center;
+      box-shadow: 0 24px 60px rgba(0,0,0,0.2);
+      animation: toastPopIn 0.25s cubic-bezier(0.34,1.56,0.64,1);
+      border-top: 4px solid ${c.border};
+    ">
+      <div style="
+        width: 60px; height: 60px; border-radius: 50%;
+        background: ${c.iconBg}; color: ${c.text};
+        font-size: 26px; font-weight: 700;
+        display: flex; align-items: center; justify-content: center;
+        margin: 0 auto 18px;
+        border: 2px solid ${c.border};
+      ">${c.icon}</div>
+      <div style="font-size: 18px; font-weight: 700; color: #1a1a1a; margin-bottom: 8px;">
+        ${type === 'success' ? 'Request Approved' : type === 'error' ? 'Request Rejected' : 'Notice'}
+      </div>
+      <div style="font-size: 14px; color: #555; line-height: 1.6; margin-bottom: 24px;">
+        ${message}
+      </div>
+      <button onclick="document.getElementById('toast-overlay').remove()"
+        style="
+          padding: 11px 32px; border-radius: 10px; border: none;
+          background: ${type === 'success' ? '#8B0000' : type === 'error' ? '#dc2626' : '#1d4ed8'};
+          color: #fff; font-size: 14px; font-weight: 700; cursor: pointer;
+          transition: opacity 0.15s;
+        "
+        onmouseover="this.style.opacity='0.85'"
+        onmouseout="this.style.opacity='1'">
+        OK
+      </button>
+    </div>
+  `;
+
   const style = document.createElement('style');
-  style.innerText = `@keyframes slideIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }`;
+  style.innerText = `
+    @keyframes toastFadeIn { from { opacity:0; } to { opacity:1; } }
+    @keyframes toastPopIn { from { opacity:0; transform:scale(0.85); } to { opacity:1; transform:scale(1); } }
+  `;
   document.head.appendChild(style);
-  document.body.appendChild(toast);
-  setTimeout(() => { if (toast.parentNode) toast.remove(); }, 4000);
+  document.body.appendChild(overlay);
+
+  overlay.addEventListener('click', function(e) {
+    if (e.target === overlay) overlay.remove();
+  });
+
+  setTimeout(() => { if (overlay.parentNode) overlay.remove(); }, 6000);
 }
 
 function approveRequest(username, documentType, date, time) {
