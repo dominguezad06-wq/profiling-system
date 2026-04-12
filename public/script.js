@@ -1561,124 +1561,230 @@ function renderManagerRequests(allRequests, filter = 'all') {
   else if (filter === 'approved') filteredRequests = allRequests.filter(r => r.status === 'Approved');
   else if (filter === 'rejected') filteredRequests = allRequests.filter(r => r.status === 'Rejected');
 
-  const statusConfig = {
-    'Pending':  { bg:'#fffbeb', color:'#d97706', dot:'#f59e0b' },
-    'Approved': { bg:'#f0fdf4', color:'#16a34a', dot:'#22c55e' },
-    'Rejected': { bg:'#fff5f5', color:'#dc2626', dot:'#ef4444' },
+  const pending  = allRequests.filter(r => r.status === 'Pending').length;
+  const approved = allRequests.filter(r => r.status === 'Approved').length;
+  const rejected = allRequests.filter(r => r.status === 'Rejected').length;
+
+  const statusCfg = {
+    'Pending':  { bar:'#8B0000', badgeBg:'#fef3c7', badgeColor:'#92400e', dot:'#f59e0b', accentLine:'#f59e0b' },
+    'Approved': { bar:'#8B0000', badgeBg:'#dcfce7', badgeColor:'#14532d', dot:'#22c55e', accentLine:'#22c55e' },
+    'Rejected': { bar:'#8B0000', badgeBg:'#fee2e2', badgeColor:'#7f1d1d', dot:'#ef4444', accentLine:'#ef4444' },
   };
+
+  const tabBtn = (label, value, count, active) => `
+    <button onclick="renderManagerRequests(window.allRequests, '${value}')"
+      style="display:inline-flex; align-items:center; gap:8px; padding:9px 20px; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; border:1.5px solid ${active ? '#8B0000' : '#e5e7eb'}; background:${active ? '#8B0000' : '#fff'}; color:${active ? '#fff' : '#6b7280'}; transition:all 0.15s;">
+      ${label}
+      <span style="background:${active ? 'rgba(255,255,255,0.25)' : '#f3f4f6'}; color:${active ? '#fff' : '#374151'}; font-size:11px; font-weight:700; padding:2px 8px; border-radius:99px;">${count}</span>
+    </button>
+  `;
 
   const filterLabel = filter === 'pending' ? 'Pending' : filter === 'approved' ? 'Approved' : 'Rejected';
 
+  const headerSection = `
+    <div style="background:#fff; border-bottom:1px solid #f0f0f0; padding:24px 32px 20px;">
+      <div style="display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:20px;">
+        <div>
+          <div style="font-size:11px; font-weight:700; color:#8B0000; letter-spacing:1px; text-transform:uppercase; margin-bottom:4px;">Barangay Trapiche</div>
+          <h2 style="margin:0; font-size:22px; font-weight:700; color:#1a1a1a;">Document Requests</h2>
+          <p style="margin:4px 0 0; font-size:13px; color:#9ca3af;">${allRequests.length} total request${allRequests.length !== 1 ? 's' : ''}</p>
+        </div>
+        <button onclick="showDocRequests()" style="display:inline-flex; align-items:center; gap:6px; padding:9px 16px; background:#f8f9fb; border:1px solid #e5e7eb; border-radius:8px; font-size:13px; font-weight:600; color:#374151; cursor:pointer;">
+          ↻ Refresh
+        </button>
+      </div>
+      <div style="display:flex; gap:8px;">
+        ${tabBtn('Pending', 'pending', pending, filter === 'pending')}
+        ${tabBtn('Approved', 'approved', approved, filter === 'approved')}
+        ${tabBtn('Rejected', 'rejected', rejected, filter === 'rejected')}
+      </div>
+    </div>
+  `;
+
   if (filteredRequests.length === 0) {
     body.innerHTML = `
+      ${headerSection}
       <div style="padding:32px;">
-        <h2 style="margin:0 0 24px; font-size:20px; color:#1a1a1a;">Document Requests</h2>
-        <div style="text-align:center; padding:60px 0; background:#fff; border-radius:12px; border:1px solid #eee;">
-          <div style="font-size:40px; margin-bottom:12px;">📭</div>
-          <div style="font-size:16px; font-weight:500; color:#aaa;">No ${filterLabel} requests</div>
+        <div style="text-align:center; padding:80px 0; background:#fff; border-radius:16px; border:1px solid #f0f0f0;">
+          <div style="width:56px; height:56px; background:#f5f5f5; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 16px; font-size:24px;">📭</div>
+          <div style="font-size:16px; font-weight:600; color:#aaa;">No ${filterLabel.toLowerCase()} requests</div>
+          <div style="font-size:13px; color:#ccc; margin-top:6px;">Check back later or switch tabs above</div>
         </div>
       </div>
     `;
     return;
   }
 
-  body.innerHTML = `
-    <div style="padding:32px;">
-      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:24px;">
-        <div>
-          <h2 style="margin:0; font-size:20px; color:#1a1a1a;">Document Requests</h2>
-          <p style="margin:4px 0 0; font-size:13px; color:#888;">${filteredRequests.length} ${filterLabel.toLowerCase()} request${filteredRequests.length !== 1 ? 's' : ''}</p>
-        </div>
-      </div>
-      <div style="display:flex; flex-direction:column; gap:14px;">
-        ${filteredRequests.map((r) => {
-          const cfg = statusConfig[r.status] || statusConfig['Pending'];
-          return `
-            <div style="background:#fff; border-radius:14px; border:1px solid #eee; box-shadow:0 2px 8px rgba(0,0,0,0.04); overflow:hidden;">
-              
-              <!-- Card Header -->
-              <div style="display:flex; align-items:center; justify-content:space-between; padding:16px 20px; border-bottom:1px solid #f5f5f5; background:#fafafa;">
-                <div style="display:flex; align-items:center; gap:12px;">
-                  <div style="width:38px; height:38px; border-radius:50%; background:#8B0000; display:flex; align-items:center; justify-content:center; color:white; font-weight:700; font-size:15px; flex-shrink:0;">
-                    ${(r.username || 'U').charAt(0).toUpperCase()}
-                  </div>
-                  <div>
-                    <div style="font-size:15px; font-weight:600; color:#1a1a1a;">${r.username}</div>
-                    <div style="font-size:12px; color:#888; margin-top:1px;">${r.document_type}</div>
-                  </div>
-                </div>
-                <span style="display:flex; align-items:center; gap:6px; background:${cfg.bg}; color:${cfg.color}; font-size:12px; font-weight:600; padding:5px 14px; border-radius:99px;">
-                  <span style="width:7px; height:7px; border-radius:50%; background:${cfg.dot}; display:inline-block;"></span>
-                  ${r.status}
-                </span>
+  const cards = filteredRequests.map(r => {
+    const cfg = statusCfg[r.status] || statusCfg['Pending'];
+    const initials = (r.username || 'U').charAt(0).toUpperCase();
+
+    return `
+      <div style="background:#fff; border-radius:16px; border:1px solid #eaecf0; overflow:hidden; transition:box-shadow 0.2s;"
+        onmouseover="this.style.boxShadow='0 8px 30px rgba(0,0,0,0.08)'"
+        onmouseout="this.style.boxShadow='none'">
+
+        <div style="height:3px; background:${cfg.accentLine};"></div>
+
+        <div style="display:grid; grid-template-columns:1fr 180px 1fr; min-height:220px;">
+
+          <!-- LEFT: Resident + request info -->
+          <div style="padding:22px 24px; border-right:1px solid #f3f4f6;">
+
+            <div style="display:flex; align-items:center; gap:12px; margin-bottom:18px;">
+              <div style="width:46px; height:46px; border-radius:50%; background:#8B0000; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; font-size:18px; flex-shrink:0;">
+                ${initials}
               </div>
+              <div style="flex:1; min-width:0;">
+                <div style="font-size:15px; font-weight:700; color:#111827; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${r.username}</div>
+                <div style="font-size:12px; color:#9ca3af; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${r.email || 'No email on file'}</div>
+              </div>
+              <span style="flex-shrink:0; display:inline-flex; align-items:center; gap:5px; background:${cfg.badgeBg}; color:${cfg.badgeColor}; font-size:11px; font-weight:700; padding:4px 10px; border-radius:99px; letter-spacing:0.3px;">
+                <span style="width:5px; height:5px; border-radius:50%; background:${cfg.dot}; display:inline-block;"></span>
+                ${r.status}
+              </span>
+            </div>
 
-              <!-- Card Body -->
-              <div style="padding:16px 20px; display:flex; gap:24px; flex-wrap:wrap; align-items:flex-start;">
-                
-                <!-- Details -->
-                <div style="flex:1; min-width:200px; display:flex; flex-direction:column; gap:10px;">
-                  <div style="display:flex; gap:8px; align-items:center;">
-                    <span style="font-size:12px; color:#999; font-weight:500; text-transform:uppercase; letter-spacing:0.4px; min-width:65px;">Purpose</span>
-                    <span style="font-size:13px; color:#1a1a1a; font-weight:500;">${r.purpose}</span>
-                  </div>
-                  <div style="display:flex; gap:8px; align-items:center;">
-                    <span style="font-size:12px; color:#999; font-weight:500; text-transform:uppercase; letter-spacing:0.4px; min-width:65px;">Date</span>
-                    <span style="font-size:13px; color:#1a1a1a; font-weight:500;">${r.date ? formatDate(r.date) : '<span style="color:#bbb;">—</span>'}</span>
-                  </div>
-                  <div style="display:flex; gap:8px; align-items:center;">
-                    <span style="font-size:12px; color:#999; font-weight:500; text-transform:uppercase; letter-spacing:0.4px; min-width:65px;">Time</span>
-                    <span style="font-size:13px; color:#1a1a1a; font-weight:500;">${r.time ? formatTime12Hour(r.time) : '<span style="color:#bbb;">—</span>'}</span>
-                  </div>
-                </div>
-
-                <!-- Documents -->
-                <div style="display:flex; gap:12px; align-items:center;">
-                  <div style="text-align:center;">
-                    <div style="font-size:11px; color:#999; font-weight:500; text-transform:uppercase; letter-spacing:0.4px; margin-bottom:6px;">Gov ID</div>
-                    ${r.gov_id ? `
-                      <a href="${r.gov_id}" target="_blank">
-                        <img src="${r.gov_id}" style="width:64px; height:64px; object-fit:cover; border-radius:8px; border:1px solid #eee; cursor:pointer; transition:0.2s;"
-                          onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'"
-                          onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                        <span style="display:none; width:64px; height:64px; background:#f5f5f5; border-radius:8px; align-items:center; justify-content:center; font-size:11px; color:#bbb;">View</span>
-                      </a>` : `<div style="width:64px; height:64px; background:#f5f5f5; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:11px; color:#ccc;">None</div>`}
-                  </div>
-                  <div style="text-align:center;">
-                    <div style="font-size:11px; color:#999; font-weight:500; text-transform:uppercase; letter-spacing:0.4px; margin-bottom:6px;">2x2 Photo</div>
-                    ${r.photo ? `
-                      <a href="${r.photo}" target="_blank">
-                        <img src="${r.photo}" style="width:64px; height:64px; object-fit:cover; border-radius:8px; border:1px solid #eee; cursor:pointer; transition:0.2s;"
-                          onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'"
-                          onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                        <span style="display:none; width:64px; height:64px; background:#f5f5f5; border-radius:8px; align-items:center; justify-content:center; font-size:11px; color:#bbb;">View</span>
-                      </a>` : `<div style="width:64px; height:64px; background:#f5f5f5; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:11px; color:#ccc;">None</div>`}
-                  </div>
-                </div>
-
-                <!-- Actions -->
-                ${r.status === 'Pending' ? `
-                  <div style="display:flex; flex-direction:column; gap:8px; justify-content:center; min-width:110px;">
-                    <button class="approve-btn"
-                      data-username="${r.username}" data-doc="${r.document_type}"
-                      data-date="${r.date || ''}" data-time="${r.time || ''}"
-                      style="padding:9px 18px; background:#16a34a; color:white; border:none; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; transition:0.2s;"
-                      onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">
-                      ✓ Approve
-                    </button>
-                    <button class="reject-btn"
-                      data-username="${r.username}" data-doc="${r.document_type}"
-                      style="padding:9px 18px; background:#fff; color:#dc2626; border:1px solid #fca5a5; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; transition:0.2s;"
-                      onmouseover="this.style.background='#fff5f5'" onmouseout="this.style.background='#fff'">
-                      ✕ Reject
-                    </button>
-                  </div>
-                ` : ''}
-
+            <div style="display:flex; flex-direction:column; gap:0;">
+              <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid #f9fafb;">
+                <span style="font-size:11px; font-weight:600; color:#9ca3af; text-transform:uppercase; letter-spacing:0.5px;">Document type</span>
+                <span style="font-size:13px; font-weight:600; color:#111827; text-align:right; max-width:180px;">${r.document_type}</span>
+              </div>
+              <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid #f9fafb;">
+                <span style="font-size:11px; font-weight:600; color:#9ca3af; text-transform:uppercase; letter-spacing:0.5px;">Purpose</span>
+                <span style="font-size:13px; color:#374151; text-align:right; max-width:180px;">${r.purpose}</span>
+              </div>
+              <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid #f9fafb;">
+                <span style="font-size:11px; font-weight:600; color:#9ca3af; text-transform:uppercase; letter-spacing:0.5px;">Pick-up date</span>
+                <span style="font-size:13px; color:#374151;">${r.date ? formatDate(r.date) : '<span style="color:#d1d5db;">Not set</span>'}</span>
+              </div>
+              <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0;">
+                <span style="font-size:11px; font-weight:600; color:#9ca3af; text-transform:uppercase; letter-spacing:0.5px;">Pick-up time</span>
+                <span style="font-size:13px; color:#374151;">${r.time ? formatTime12Hour(r.time) : '<span style="color:#d1d5db;">Not set</span>'}</span>
               </div>
             </div>
-          `;
-        }).join('')}
+
+          </div>
+
+          <!-- CENTER: Attachments + Gmail -->
+          <div style="padding:22px 16px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px; border-right:1px solid #f3f4f6; background:#fafafa;">
+
+            <div style="font-size:10px; font-weight:700; color:#9ca3af; text-transform:uppercase; letter-spacing:0.6px;">Attachments</div>
+
+            <div style="display:flex; flex-direction:column; gap:10px; width:100%;">
+              <div style="text-align:center;">
+                <div style="font-size:10px; color:#9ca3af; font-weight:600; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.4px;">Gov ID</div>
+                ${r.gov_id ? `
+                  <a href="${r.gov_id}" target="_blank" style="display:inline-block;">
+                    <img src="${r.gov_id}" style="width:80px; height:64px; object-fit:cover; border-radius:8px; border:1.5px solid #e5e7eb; transition:transform 0.2s; display:block;"
+                      onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'"
+                      onerror="this.style.display='none';">
+                  </a>` : `
+                  <div style="width:80px; height:64px; background:#f3f4f6; border-radius:8px; border:1.5px dashed #d1d5db; display:inline-flex; align-items:center; justify-content:center; font-size:11px; color:#9ca3af;">None</div>`}
+              </div>
+              <div style="text-align:center;">
+                <div style="font-size:10px; color:#9ca3af; font-weight:600; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.4px;">2×2 Photo</div>
+                ${r.photo ? `
+                  <a href="${r.photo}" target="_blank" style="display:inline-block;">
+                    <img src="${r.photo}" style="width:80px; height:64px; object-fit:cover; border-radius:8px; border:1.5px solid #e5e7eb; transition:transform 0.2s; display:block;"
+                      onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'"
+                      onerror="this.style.display='none';">
+                  </a>` : `
+                  <div style="width:80px; height:64px; background:#f3f4f6; border-radius:8px; border:1.5px dashed #d1d5db; display:inline-flex; align-items:center; justify-content:center; font-size:11px; color:#9ca3af;">None</div>`}
+              </div>
+            </div>
+
+            <div style="width:100%; border-top:1px solid #e5e7eb; padding-top:14px; text-align:center;">
+              <div style="font-size:10px; font-weight:700; color:#9ca3af; text-transform:uppercase; letter-spacing:0.6px; margin-bottom:8px;">Notify resident</div>
+              <a href="mailto:${r.email}"
+                style="display:inline-flex; align-items:center; justify-content:center; gap:6px; padding:8px 14px; background:#fff; border:1.5px solid #e5e7eb; border-radius:8px; font-size:12px; font-weight:600; color:#374151; text-decoration:none; transition:all 0.15s;"
+                onmouseover="this.style.background='#f9fafb'; this.style.borderColor='#8B0000'; this.style.color='#8B0000';"
+                onmouseout="this.style.background='#fff'; this.style.borderColor='#e5e7eb'; this.style.color='#374151';">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 7 10 7 10-7"/>
+                </svg>
+                Send Gmail
+              </a>
+            </div>
+
+          </div>
+
+          <!-- RIGHT: Actions -->
+          <div style="padding:22px 24px; display:flex; flex-direction:column; justify-content:center; gap:12px;">
+
+            ${r.status === 'Pending' ? `
+              <div style="margin-bottom:4px;">
+                <div style="font-size:11px; font-weight:700; color:#9ca3af; text-transform:uppercase; letter-spacing:0.6px; margin-bottom:12px;">Actions</div>
+
+                <button class="approve-btn"
+                  data-username="${r.username}" data-doc="${r.document_type}"
+                  data-date="${r.date || ''}" data-time="${r.time || ''}"
+                  style="width:100%; padding:12px 18px; background:#8B0000; color:#fff; border:none; border-radius:10px; font-size:13px; font-weight:700; cursor:pointer; margin-bottom:8px; transition:all 0.15s; letter-spacing:0.3px;"
+                  onmouseover="this.style.background='#6f0000'; this.style.transform='translateY(-1px)'"
+                  onmouseout="this.style.background='#8B0000'; this.style.transform='translateY(0)'">
+                  ✓ Approve Request
+                </button>
+
+                <button class="reject-btn"
+                  data-username="${r.username}" data-doc="${r.document_type}"
+                  style="width:100%; padding:12px 18px; background:#fff; color:#dc2626; border:1.5px solid #fca5a5; border-radius:10px; font-size:13px; font-weight:700; cursor:pointer; transition:all 0.15s; letter-spacing:0.3px;"
+                  onmouseover="this.style.background='#fff5f5'; this.style.borderColor='#ef4444'; this.style.transform='translateY(-1px)'"
+                  onmouseout="this.style.background='#fff'; this.style.borderColor='#fca5a5'; this.style.transform='translateY(0)'">
+                  ✕ Reject Request
+                </button>
+              </div>
+
+              <div style="background:#f8f9fb; border-radius:10px; padding:12px 14px;">
+                <div style="font-size:11px; font-weight:700; color:#9ca3af; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">Resident info</div>
+                <div style="font-size:12px; color:#374151; display:flex; flex-direction:column; gap:5px;">
+                  <div style="display:flex; justify-content:space-between;">
+                    <span style="color:#9ca3af;">Username</span>
+                    <span style="font-weight:600;">${r.username}</span>
+                  </div>
+                  <div style="display:flex; justify-content:space-between; gap:8px;">
+                    <span style="color:#9ca3af; flex-shrink:0;">Email</span>
+                    <span style="font-weight:600; word-break:break-all; text-align:right;">${r.email || '—'}</span>
+                  </div>
+                </div>
+              </div>
+            ` : `
+              <div style="text-align:center; padding:20px 0;">
+                <div style="width:48px; height:48px; border-radius:50%; background:${cfg.badgeBg}; display:flex; align-items:center; justify-content:center; margin:0 auto 10px; font-size:20px;">
+                  ${r.status === 'Approved' ? '✓' : '✕'}
+                </div>
+                <div style="font-size:14px; font-weight:700; color:${cfg.badgeColor};">
+                  Request ${r.status}
+                </div>
+                <div style="font-size:12px; color:#9ca3af; margin-top:4px;">No further action needed</div>
+              </div>
+
+              <div style="background:#f8f9fb; border-radius:10px; padding:12px 14px;">
+                <div style="font-size:11px; font-weight:700; color:#9ca3af; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">Resident info</div>
+                <div style="font-size:12px; color:#374151; display:flex; flex-direction:column; gap:5px;">
+                  <div style="display:flex; justify-content:space-between;">
+                    <span style="color:#9ca3af;">Username</span>
+                    <span style="font-weight:600;">${r.username}</span>
+                  </div>
+                  <div style="display:flex; justify-content:space-between; gap:8px;">
+                    <span style="color:#9ca3af; flex-shrink:0;">Email</span>
+                    <span style="font-weight:600; word-break:break-all; text-align:right;">${r.email || '—'}</span>
+                  </div>
+                </div>
+              </div>
+            `}
+
+          </div>
+
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  body.innerHTML = `
+    ${headerSection}
+    <div style="padding:24px 32px; background:#f5f6fa; min-height:calc(100vh - 160px);">
+      <div style="display:flex; flex-direction:column; gap:16px;">
+        ${cards}
       </div>
     </div>
   `;
@@ -1693,6 +1799,7 @@ function renderManagerRequests(allRequests, filter = 'all') {
       btn.disabled = true;
       btn.innerText = 'Approving...';
       btn.style.background = '#aaa';
+      btn.style.transform = 'none';
 
       fetch(`${API_BASE}/api/approve-request`, {
         method: 'POST',
@@ -1708,15 +1815,15 @@ function renderManagerRequests(allRequests, filter = 'all') {
         } else {
           showToast(data.message || 'Failed to approve request.', 'error');
           btn.disabled = false;
-          btn.innerText = '✓ Approve';
-          btn.style.background = '#16a34a';
+          btn.innerText = '✓ Approve Request';
+          btn.style.background = '#8B0000';
         }
       })
       .catch(() => {
         showToast('Server error while approving request.', 'error');
         btn.disabled = false;
-        btn.innerText = '✓ Approve';
-        btn.style.background = '#16a34a';
+        btn.innerText = '✓ Approve Request';
+        btn.style.background = '#8B0000';
       });
     });
   });
