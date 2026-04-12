@@ -1544,13 +1544,16 @@ function loadMyRequests() {
 
 // Manager Functions 
 function showDocRequests() {
-  fetch(`${API_BASE}/api/document-requests`)
-    .then(res => res.json())
-    .then(data => {
-      window.allRequests = data.requests || [];
-      renderManagerRequests(window.allRequests, 'pending');
-    })
-    .catch(err => alert('Failed to load requests'));
+  Promise.all([
+    fetch(`${API_BASE}/api/document-requests`).then(res => res.json()),
+    fetch(`${API_BASE}/api/residents`).then(res => res.json())
+  ])
+  .then(([requestsData, residentsData]) => {
+    window.allRequests = requestsData.requests || [];
+    window.allResidents = residentsData.residents || [];
+    renderManagerRequests(window.allRequests, 'pending');
+  })
+  .catch(err => alert('Failed to load requests'));
 }
 
 function renderManagerRequests(allRequests, filter = 'all') {
@@ -1617,7 +1620,7 @@ function renderManagerRequests(allRequests, filter = 'all') {
 
   const cards = filteredRequests.map(r => {
     const cfg = statusCfg[r.status] || statusCfg['Pending'];
-    const residentMatch = (window.dswdResidents || []).find(res => res.username === r.username);
+    const residentMatch = (window.allResidents || []).find(res => res.username === r.username);
     const displayName = (residentMatch && residentMatch.name) ? residentMatch.name : r.username;
     const initials = displayName.charAt(0).toUpperCase();
 
