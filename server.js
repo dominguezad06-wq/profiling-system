@@ -1,819 +1,2717 @@
-require('dotenv').config();
-const fetch = (...args) => import('node-fetch').then(({default: f}) => f(...args));
-// ================= IMPORTS =================
-const express = require('express');
-const { Pool } = require('pg');
-const bcrypt = require('bcrypt');
-const fileUpload = require('express-fileupload');
-const cors = require('cors');
-const bodyParser = require('body-parser');
-const { OAuth2Client } = require('google-auth-library');
-const nodemailer = require('nodemailer');
-const cloudinary = require('cloudinary').v2;
+let loggedInUser = null;
+let currentRole = null;
+let dswdResidents = [];
+emailjs.init('Ndd7_r9gTrjDBG9-K')
+const API_BASE = "https://profiling-system.onrender.com";
 
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET
-});
-
-// ================= INIT APP =================
-const app = express();
-const fs = require('fs');
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
-const uploadDir = './public/uploads';
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
+// 
+function formatTime12Hour(time24){
+  if(!time24) return '';
+  let [hour, min] = time24.split(':').map(Number);
+  const ampm = hour >= 12 ? 'PM' : 'AM';
+  hour = hour % 12;
+  if(hour === 0) hour = 12;
+  return `${hour}:${min.toString().padStart(2,'0')} ${ampm}`;
 }
 
-// In-memory OTP store: { email: { otp, expires, username } }
-const otpStore = {};  // ← NEW
+function formatDate(dateStr) {
+  if (!dateStr) return '';
+  const cleanDate = dateStr.split('T')[0];
+  const date = new Date(cleanDate + 'T00:00:00');
+  return date.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  });
+}
 
-// ================= MIDDLEWARE =================
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
-app.use(cors());
-app.use(fileUpload());
-app.use(express.static('public'));
-
-// ================= DATABASE =================
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false },
-  connectionTimeoutMillis: 10000,
-  idleTimeoutMillis: 30000,
-  max: 5
-});
-
-pool.connect((err, client, release) => {
-  if (err) {
-    console.error('DB CONNECTION ERROR:', err.message);
-  } else {
-    console.log('DB connected successfully ✅');
-    release();
+// Show Forms
+function showResidentForm(){ document.getElementById('login-page').style.display='none'; document.getElementById('resident-form').style.display='flex'; }
+function showLogin(){
+  document.getElementById('login-page').style.display='flex';
+  document.getElementById('resident-form').style.display='none';
+  document.getElementById('forgot-page').style.display='none';
+  const f = document.getElementById('site-footer');
+  if(f) f.style.display='none';
+  // Clear all login fields and errors
+  const uField = document.getElementById('login-username');
+  const pField = document.getElementById('login-password');
+  if (uField) uField.value = '';
+  if (pField) pField.value = '';
+  const errBox = document.getElementById('login-error');
+  if (errBox) { errBox.style.display = 'none'; errBox.innerText = ''; }
+  if (typeof grecaptcha !== 'undefined') {
+    try { grecaptcha.reset(); } catch(e) {}
   }
-});
+}
+function showForgotPassword(){ document.getElementById('login-page').style.display='none'; document.getElementById('forgot-page').style.display='flex'; }
+function sendOTP() {
+  const email = document.getElementById('forgot-email').value;
+  fetch(`${API_BASE}/api/send-otp`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email })
+  })
+  .then(res => res.json())
+  .then(data => {
+    const msg = document.getElementById('otp-message');
+    if (data.success) {
+      generatedOTP = data.otp;
+      otpUserEmail = email;
 
-// ================= GOOGLE CLIENT =================
-const client = new OAuth2Client(GOOGLE_CLIENT_ID);
+      emailjs.send("service_9m8vyrc", "template_y8zmwtz", {
+        to_email: email,
+        name: email,
+        otp_code: data.otp
+      })
+      .then(() => {
+        msg.innerText = "OTP sent to your email!";
+        msg.style.color = "green";
+        document.getElementById('otp-section').style.display = "block";
+      })
+      .catch(() => {
+        msg.innerText = "Failed to send OTP email.";
+        msg.style.color = "red";
+      });
 
-// ================= REGISTER =================
-app.post('/api/register', async (req, res) => {
-  try {
-    const {
-      name, age, senior, gender, status, barangay,
-      spouse, sons, daughters, pwd,
-      dob, religion, family_members, contact, email, username, address,
-      password
-    } = req.body;
-
-    if (!name || !username || !password)
-      return res.status(400).json({ error: 'Missing required fields' });
-
-    const hashedPw = await bcrypt.hash(password, 10);
-
-    // Check if resident with same name, dob, and barangay already exists
-    const dupCheck = await pool.query(
-      `SELECT username FROM residents
-       WHERE LOWER(TRIM(name)) = LOWER(TRIM($1))
-         AND dob::date = $2::date
-         AND barangay = $3`,
-      [name, req.body.dob || null, req.body.barangay || null]
-    );
-
-    if (dupCheck.rows.length > 0) {
-      const existingUsername = dupCheck.rows[0].username;
-      // Update password on the users table so they can login with new credentials
-      await pool.query(
-        `UPDATE users SET password=$1, name=$2 WHERE username=$3`,
-        [hashedPw, name, existingUsername]
-      );
-      // Update residents table with any new info
-      await pool.query(
-        `UPDATE residents SET
-           age=$1, senior=$2, gender=$3, status=$4,
-           sons=$5, daughters=$6, pwd=$7, contact=$8, email=$9, address=$10
-         WHERE username=$11`,
-        [
-          req.body.age ? parseInt(req.body.age) : null,
-          (req.body.age && parseInt(req.body.age) >= 60) ? true : false,
-          req.body.gender || null,
-          req.body.status || null,
-          req.body.sons ? parseInt(req.body.sons) : 0,
-          req.body.daughters ? parseInt(req.body.daughters) : 0,
-          req.body.pwd === 'Yes',
-          req.body.contact || null,
-          email || null,
-          req.body.address || null,
-          existingUsername
-        ]
-      );
-      const updated = await pool.query(`SELECT * FROM residents WHERE username=$1`, [existingUsername]);
-      return res.json({ message: 'Resident updated', user: updated.rows[0] });
-    }
-
-    await pool.query(
-      `INSERT INTO users(username, password, role, name) VALUES($1,$2,'resident',$3)`,
-      [username, hashedPw, name]
-    );
-
-    const result = await pool.query(
-      `INSERT INTO residents
-       (name, age, senior, gender, status, barangay, spouse, sons, daughters, pwd,
-        dob, religion, family_members, contact, email, username, address,
-        place_of_birth, blood_type, voter_status, household_role,
-        children_names, educational_attainment, emergency_contact_name, emergency_contact_number)
-       VALUES
-       ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,
-        $11,$12,$13,$14,$15,$16,$17,
-        $18,$19,$20,$21,$22,$23,$24,$25)
-       RETURNING *`,
-      [
-        name || null,
-        age ? parseInt(age) : null,
-        senior === 'Yes',
-        gender || null,
-        status || null,
-        barangay || null,
-        spouse || null,
-        sons ? parseInt(sons) : 0,
-        daughters ? parseInt(daughters) : 0,
-        pwd === 'Yes',
-        dob || null,
-        religion || null,
-        family_members ? parseInt(family_members) : 0,
-        contact || null,
-        email || null,
-        username || null,
-        address || null,
-        req.body.place_of_birth || null,
-        req.body.blood_type || null,
-        req.body.voter_status || null,
-        req.body.household_role || null,
-        req.body.children_names || null,
-        req.body.educational_attainment || null,
-        req.body.emergency_contact_name || null,
-        req.body.emergency_contact_number || null
-      ]
-    );
-
-    res.json({ message: 'Resident created', user: result.rows[0] });
-  } catch (e) {
-    console.error('REGISTER ERROR FULL:', JSON.stringify(e, Object.getOwnPropertyNames(e)));
-    if (e.code === '23505') return res.status(400).json({ error: 'Username already exists' });
-    res.status(500).json({ error: e.message || e.constructor.name });
-  }
-});
-
-// ================= LOGIN =================
-app.post('/api/login', async (req, res) => {
-  try {
-    const { username, password, captchaToken } = req.body;
-
-    // Verify reCAPTCHA
-    if (!captchaToken) {
-      return res.status(400).json({ error: 'CAPTCHA token missing.' });
-    }
-    const secretKey = process.env.RECAPTCHA_SECRET_KEY;
-    const captchaVerify = await fetch(
-      `https://www.google.com/recaptcha/api/siteverify?secret=${secretKey}&response=${captchaToken}`,
-      { method: 'POST' }
-    );
-    const captchaResult = await captchaVerify.json();
-    if (!captchaResult.success) {
-      return res.status(400).json({ error: 'CAPTCHA verification failed. Please try again.' });
-    }
-
-    const result = await pool.query('SELECT * FROM users WHERE username=$1', [username]);
-    const user = result.rows[0];
-    if (!user) return res.status(401).json({ error: 'Invalid username' });
-
-    const match = await bcrypt.compare(password, user.password);
-    if (!match) return res.status(401).json({ error: 'Invalid password' });
-
-    const profile = await pool.query('SELECT * FROM residents WHERE username=$1', [username]);
-    res.json({ message: 'Login successful', user: user, profile: profile.rows[0] });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// ================= GOOGLE LOGIN =================
-app.post('/api/google-login', async (req, res) => {
-  try {
-    const { credential } = req.body;
-    if (!credential) return res.status(400).json({ success: false, message: 'No Google token provided' });
-
-    if (!GOOGLE_CLIENT_ID) {
-      return res.status(500).json({ success: false, message: 'Server missing Google Client ID config' });
-    }
-
-    const ticket = await client.verifyIdToken({
-      idToken: credential,
-      audience: GOOGLE_CLIENT_ID
-    });
-
-    const payload = ticket.getPayload();
-    const email = payload.email;
-    const name = payload.name;
-
-    const result = await pool.query('SELECT * FROM users WHERE username=$1', [email]);
-
-    if (result.rows.length > 0) {
-      return res.json({ success: true, user: result.rows[0] });
     } else {
-      return res.json({ success: true, newUser: true, user: { email, name } });
+      msg.innerText = data.message || "Email not registered!";
+      msg.style.color = "red";
     }
-  } catch (err) {
-    console.error('Google login error:', err);
-    res.status(401).json({ success: false, message: 'Google login failed' });
-  }
-});
+  })
+  .catch(() => {
+    const msg = document.getElementById('otp-message');
+    msg.innerText = "Server error.";
+    msg.style.color = "red";
+  });
+}
 
-// ================= SEND OTP =================
-app.post('/api/send-otp', async (req, res) => {
-  try {
-    const { email } = req.body;
-    if (!email) return res.json({ success: false, message: 'Email is required.' });
-
-    const result = await pool.query(
-      'SELECT username FROM residents WHERE LOWER(email) = LOWER($1) LIMIT 1',
-      [email]
-    );
-
-    if (result.rows.length === 0) {
-      return res.json({ success: false, message: 'Email not registered in our system.' });
-    }
-
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-
-    otpStore[email.toLowerCase()] = {
-      otp,
-      expires: Date.now() + 10 * 60 * 1000,
-      username: result.rows[0].username
-    };
-
-    res.json({ success: true, otp });
-
-  } catch (err) {
-    console.error('SEND OTP ERROR:', err);
-    res.json({ success: false, message: 'Server error.' });
-  }
-});
-
-// ================= VERIFY OTP & RESET PASSWORD =================
-app.post('/api/verify-otp', async (req, res) => {
-  try {
-    const { email, otp, newPassword } = req.body;
-
-    if (!email || !otp || !newPassword) {
-      return res.json({ success: false, message: 'All fields are required.' });
-    }
-
-    const key = email.toLowerCase();
-    const record = otpStore[key];
-
-    if (!record) {
-      return res.json({ success: false, message: 'No OTP found for this email. Please request a new one.' });
-    }
-
-    if (Date.now() > record.expires) {
-      delete otpStore[key];
-      return res.json({ success: false, message: 'OTP has expired. Please request a new one.' });
-    }
-
-    if (record.otp !== otp.trim()) {
-      return res.json({ success: false, message: 'Incorrect OTP. Please try again.' });
-    }
-
-    if (newPassword.length < 6) {
-      return res.json({ success: false, message: 'New password must be at least 6 characters.' });
-    }
-
-    // Hash and update password
-    const hashedPw = await bcrypt.hash(newPassword, 10);
-    await pool.query(
-      'UPDATE users SET password = $1 WHERE username = $2',
-      [hashedPw, record.username]
-    );
-
-    // Clear used OTP
-    delete otpStore[key];
-
-    res.json({ success: true, message: 'Password reset successfully!' });
-
-  } catch (err) {
-    console.error('VERIFY OTP ERROR:', err);
-    res.json({ success: false, message: 'Server error. Please try again.' });
-  }
-});
-
-// ================= GET SINGLE RESIDENT BY USERNAME =================
-app.get('/api/resident/:username', async (req, res) => {
-  try {
-    const { username } = req.params;
-    const result = await pool.query('SELECT * FROM residents WHERE username=$1', [username]);
-    res.json({ user: result.rows[0] || null });
-  } catch (err) {
-    res.status(500).json({ user: null });
-  }
-});
-
-// ================= GET SINGLE RESIDENT PROFILE =================
-app.get('/api/residents-profile', async (req, res) => {
-  try {
-    const username = req.query.username;
-    const result = await pool.query(
-      'SELECT * FROM residents WHERE username=$1',
-      [username]
-    );
-    res.json({ profile: result.rows[0] || null });
-  } catch (err) {
-    res.status(500).json({ profile: null });
-  }
-});
-
-// ================= REQUEST DOCUMENT =================
-app.post('/api/request-document', async (req, res) => {
-  try {
-    const { document_type, purpose, email, username, date, time } = req.body;
-    const govIdFile = req.files?.gov_id;
-    const photoFile = req.files?.photo;
-
-    if (!document_type || !purpose || !email || !username || !govIdFile || !photoFile || !date || !time) {
-      return res.json({ success: false, message: 'Missing fields' });
-    }
-
-    // Upload gov_id to Cloudinary
-    const govIdUpload = await new Promise((resolve, reject) => {
-      cloudinary.uploader.upload_stream(
-        { folder: 'profiling-system/gov-ids', resource_type: 'auto' },
-        (error, result) => { if (error) reject(error); else resolve(result); }
-      ).end(govIdFile.data);
-    });
-
-    // Upload photo to Cloudinary
-    const photoUpload = await new Promise((resolve, reject) => {
-      cloudinary.uploader.upload_stream(
-        { folder: 'profiling-system/photos', resource_type: 'auto' },
-        (error, result) => { if (error) reject(error); else resolve(result); }
-      ).end(photoFile.data);
-    });
-
-    await pool.query(
-      `INSERT INTO document_requests
-       (username, document_type, purpose, email, gov_id, photo, date, time, status, created_at)
-       VALUES($1, $2, $3, $4, $5, $6, $7, $8, 'Pending', CURRENT_TIMESTAMP)`,
-      [username, document_type, purpose, email, govIdUpload.secure_url, photoUpload.secure_url, date, time]
-    );
-
-    res.json({ success: true });
-  } catch (err) {
-    console.error('REQUEST DOCUMENT ERROR:', err.message, err.stack);
-    res.json({ success: false, message: err.message || 'Failed to save request' });
-  }
-});
-
-// ================= GET MY REQUESTS =================
-app.get('/api/my-requests', async (req, res) => {
-  try {
-    const username = req.query.username;
-    const result = await pool.query(
-      `SELECT document_type AS "document_type", purpose, status, date, time, gov_id, photo
-       FROM document_requests
-       WHERE username=$1
-       ORDER BY created_at DESC`,
-      [username]
-    );
-    res.json({ requests: result.rows });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ requests: [] });
-  }
-});
-
-// ================= MANAGER: GET ALL DOCUMENT REQUESTS =================
-app.get('/api/document-requests', async (req, res) => {
-  try {
-    const result = await pool.query(
-      `SELECT id, username, document_type, purpose, email, gov_id, photo, status, date, time, created_at
-       FROM document_requests
-       ORDER BY created_at DESC`
-    );
-    res.json({ requests: result.rows });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ requests: [] });
-  }
-});
-
-// ================= MANAGER: APPROVE REQUEST =================
-app.post('/api/approve-request', async (req, res) => {
-  try {
-    const { username, documentType, date, time, requestId } = req.body;
-
-    let checkResult;
-
-    if (requestId) {
-      checkResult = await pool.query(
-        `SELECT id, status, purpose, email, date, time FROM document_requests
-         WHERE id=$1 AND status='Pending'
-         LIMIT 1`,
-        [requestId]
-      );
+function verifyOTP() {
+  const enteredOTP = document.getElementById('otp-input').value;
+  const newPassword = document.getElementById('new-password').value;
+  fetch(`${API_BASE}/api/verify-otp`, {
+    method: 'POST',
+    headers: { 'Content-Type':'application/json' },
+    body: JSON.stringify({ email: otpUserEmail, otp: enteredOTP, newPassword })
+  })
+  .then(res => res.json())
+  .then(data => {
+    const msg = document.getElementById('otp-message');
+    if(data.success){
+      generatedOTP = null;
+      otpUserEmail = null;
+      msg.innerText = "Password successfully reset!";
+      msg.style.color = "green";
+      setTimeout(showLogin, 1500);
     } else {
-      checkResult = await pool.query(
-        `SELECT id, status, purpose, email, date, time FROM document_requests
-         WHERE username=$1
-           AND LOWER(TRIM(document_type)) = LOWER(TRIM($2))
-           AND status='Pending'
-         ORDER BY created_at DESC LIMIT 1`,
-        [username, documentType]
-      );
+      msg.innerText = data.message || "Invalid OTP!";
+      msg.style.color = "red";
     }
+  })
+  .catch(() => {
+    const msg = document.getElementById('otp-message');
+    msg.innerText = "Server error.";
+    msg.style.color = "red";
+  });
+}
 
-    const request = checkResult.rows[0];
-    if (!request) return res.json({ success: false, message: 'Request not found or already processed' });
+// Create Resident
+function createResident() {
+  const getVal = id => document.getElementById(id)?.value || '';
+  const getInt = id => parseInt(document.getElementById(id)?.value) || 0;
+  const getChecked = id => document.getElementById(id)?.checked ? 'Yes' : 'No';
 
-    const finalDate = date || request.date;
-    const finalTime = time || request.time;
+  const name = getVal('res-name').trim();
+  const username = getVal('res-username').trim();
+  const password = getVal('res-password').trim();
+  const email = getVal('res-email').trim();
 
-    await pool.query(
-      `UPDATE document_requests SET status='Approved', date=$1, time=$2 WHERE id=$3`,
-      [finalDate, finalTime, request.id]
-    );
+  const age = getInt('res-age');
+  const gender = getVal('res-gender');
+  const barangay = getVal('res-barangay');
+  const address = getVal('res-address');
+  const status = getVal('res-status');
 
-    res.json({
-      success: true,
-      email: request.email,
-      documentType,
-      purpose: request.purpose,
-      date: finalDate,
-      time: finalTime
-    });
-  } catch (err) {
-    console.error(err);
-    res.json({ success: false, message: err.message });
+  const sons = getInt('res-sons');
+  const daughters = getInt('res-daughters');
+  const pwd = getChecked('res-pwd');
+  const contact = getVal('res-contact');
+
+  const spouse = '';
+  const family_members = 0;
+
+  const confirmPassword = document.getElementById('res-confirm-password')?.value.trim();
+
+  if (!name || !username || !password || !email || !document.getElementById('res-dob')?.value) {
+    const errBox = document.getElementById('register-error');
+    errBox.style.display = 'block';
+    errBox.innerText = 'Please fill in all required fields.';
+    return;
   }
-});
+  if (password !== confirmPassword) {
+    const errBox = document.getElementById('register-error');
+    errBox.style.display = 'block';
+    errBox.innerText = 'Passwords do not match. Please try again.';
+    return;
+  }
+  if (password.length < 6) {
+    const errBox = document.getElementById('register-error');
+    errBox.style.display = 'block';
+    errBox.innerText = 'Password must be at least 6 characters.';
+    return;
+  }
 
-// ================= MANAGER: REJECT REQUEST =================
-app.post('/api/reject-request', async (req, res) => {
-  try {
-    const { username, documentType, requestId } = req.body;
+  const dob = document.getElementById('res-dob')?.value || '';
 
-    let checkResult;
+  const data = {
+    name, username, password, email, contact, gender, age,
+    address, barangay, status, sons, daughters, pwd, spouse,
+    family_members, senior: age >= 60 ? "Yes" : "No", dob
+  };
 
-    if (requestId) {
-      checkResult = await pool.query(
-        `SELECT id, email, purpose, document_type FROM document_requests
-         WHERE id=$1 AND status='Pending'
-         LIMIT 1`,
-        [requestId]
-      );
+
+  fetch(`${API_BASE}/api/register`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  })
+  .then(res => res.json())
+  .then(response => {
+    const errBox = document.getElementById('register-error');
+    const successBox = document.getElementById('register-success');
+    if (response.user) {
+      errBox.style.display = 'none';
+      successBox.style.display = 'block';
+      successBox.innerText = 'Account created successfully! Redirecting to login...';
+      setTimeout(() => showLogin(), 1800);
     } else {
-      checkResult = await pool.query(
-        `SELECT id, email, purpose, document_type FROM document_requests
-         WHERE username=$1
-           AND LOWER(TRIM(document_type)) = LOWER(TRIM($2))
-           AND status='Pending'
-         ORDER BY created_at DESC LIMIT 1`,
-        [username, documentType]
-      );
+      successBox.style.display = 'none';
+      errBox.style.display = 'block';
+      errBox.innerText = response.error === 'Username already exists'
+        ? 'That username is already taken. Please choose another.'
+        : (response.error || 'Something went wrong. Please try again.');
     }
+  })
+  .catch(err => {
+    console.error(err);
+    const errBox = document.getElementById('register-error');
+    errBox.style.display = 'block';
+    errBox.innerText = 'Could not connect to server. Please try again.';
+  });
+}
 
-    const request = checkResult.rows[0];
-    if (!request) return res.json({ success: false, message: 'Request not found or already processed.' });
+// Login 
+function login() {
+  const username = document.getElementById('login-username').value.trim();
+  const password = document.getElementById('login-password').value.trim();
 
-    await pool.query(
-      `UPDATE document_requests SET status='Rejected' WHERE id=$1`,
-      [request.id]
-    );
+  if (!username) {
+    document.getElementById('login-username').focus();
+    document.getElementById('login-username').reportValidity();
+    return;
+  }
+  if (!password) {
+    document.getElementById('login-password').focus();
+    document.getElementById('login-password').reportValidity();
+    return;
+  }
 
-    // Send rejection email via Nodemailer
+  const captchaResponse = grecaptcha.getResponse();
+  if (!captchaResponse) {
+    const errBox = document.getElementById('login-error');
+    errBox.innerText = 'Please complete the CAPTCHA verification.';
+    errBox.style.display = 'block';
+    return;
+  }
+
+  fetch(`${API_BASE}/api/login`, {
+    method: 'POST',
+    headers: { 'Content-Type':'application/json' },
+    body: JSON.stringify({ username, password, captchaToken: captchaResponse })
+  })
+  .then(res => res.json())
+  .then(data => {
+    if(data.message === 'Login successful'){
+      loggedInUser = data.profile ? Object.assign({}, data.user, data.profile) : data.user;
+      currentRole = data.user.role;
+      localStorage.setItem("user", JSON.stringify(loggedInUser));
+      if (data.user.role === 'dswd') {
+        openDSWDPage();
+      } else if (data.user.role === 'manager') {
+        openManagerPage();
+      } else {
+  fetchFullProfileThenRender();
+}
+    } else {
+      const errBox = document.getElementById('login-error');
+      errBox.innerText = data.error || 'Invalid username or password!';
+      errBox.style.display = 'block';
+      grecaptcha.reset();
+    }
+  })
+  .catch(() => alert('Server connection error.'));
+}
+
+function fetchFullProfileThenRender() {
+  // Always start from what we have in localStorage (most up-to-date after saves)
+  const cached = localStorage.getItem("user");
+  if (cached) {
     try {
-      const transporter = nodemailer.createTransport({
-        service: 'gmail',
-        auth: {
-          user: process.env.EMAIL_USER,
-          pass: process.env.EMAIL_PASS
-        }
-      });
+      const parsed = JSON.parse(cached);
+      if (parsed && parsed.username === loggedInUser.username) {
+        loggedInUser = parsed;
+      }
+    } catch(e) {}
+  }
 
-      await transporter.sendMail({
-        from: `"Barangay Trapiche" <${process.env.EMAIL_USER}>`,
-        to: request.email,
-        subject: 'Your Document Request Has Been Rejected',
-        html: `
-          <div style="font-family:Arial,sans-serif; max-width:500px; margin:0 auto; padding:24px; border:1px solid #eee; border-radius:10px;">
-            <h2 style="color:#8B0000;">Barangay Trapiche</h2>
-            <p>Dear Resident,</p>
-            <p>We regret to inform you that your request for a <strong>${documentType}</strong> (Purpose: <strong>${request.purpose}</strong>) has been <strong style="color:#c0392b;">rejected</strong>.</p>
-            <p>Please visit the Barangay Trapiche Hall for more information or to re-submit your request.</p>
-            <br>
-            <p>Thank you,<br><strong>Barangay Trapiche</strong><br>Tanauan City, Batangas</p>
+  fetch(`${API_BASE}/api/resident/${loggedInUser.username}`)
+    .then(res => res.json())
+    .then(data => {
+      if (data.user) {
+        // Only overwrite fields if server actually has a real value
+        Object.keys(data.user).forEach(key => {
+          const serverVal = data.user[key];
+          if (serverVal !== undefined && serverVal !== null && serverVal !== '' && serverVal !== 'undefined') {
+            loggedInUser[key] = serverVal;
+          }
+        });
+        localStorage.setItem("user", JSON.stringify(loggedInUser));
+      }
+    })
+    .catch(err => console.warn('Could not fetch full profile, using cached data:', err))
+    .finally(() => {
+      showDashboard();
+      renderResidentWelcome();
+    });
+}
+
+function openManagerPage(){
+  const f = document.getElementById('site-footer');
+  if(f) f.style.display='block';
+  const lf = document.getElementById('login-footer');
+  if(lf) lf.style.display='none';
+  document.getElementById('login-page').style.display = 'none';
+  document.getElementById('dashboard-page').style.display = 'none';
+  document.getElementById('dswd-page').style.display = 'none';
+  document.getElementById('manager-page').style.display = 'flex';
+  showDocRequests();
+  updateHeaderUI();
+  startHeaderClock();
+}
+
+function showMyAccount() {
+  const isManager = currentRole === 'manager';
+  const isDSWD = currentRole === 'dswd';
+  const isResident = currentRole === 'resident';
+
+  let body;
+  if (isManager) {
+    body = document.getElementById('manager-table');
+  } else if (isDSWD) {
+    body = document.getElementById('dashboard-body');
+  } else {
+    body = document.getElementById('dashboard-body');
+  }
+
+  const picUrl = loggedInUser.profile_pic || null;
+
+  body.innerHTML = `
+    <div style="max-width:520px; margin:0 auto; padding:24px;">
+
+      <div style="background:#fff; border-radius:16px; box-shadow:0 8px 24px rgba(0,0,0,0.1); overflow:hidden; border-top:5px solid #c0392b;">
+
+        <div style="background:#8B0000; padding:32px; text-align:center;">
+          <div style="position:relative; display:inline-block;">
+            <img id="profile-pic-preview"
+              src="${picUrl || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(loggedInUser.name || 'User') + '&background=ffffff&color=c0392b&size=128'}"
+              style="width:100px; height:100px; border-radius:50%; border:4px solid white; object-fit:cover;">
+            <label for="profile-pic-input" style="position:absolute; bottom:0; right:0; background:#fff; border-radius:50%; width:30px; height:30px; display:flex; align-items:center; justify-content:center; cursor:pointer; box-shadow:0 2px 6px rgba(0,0,0,0.2);">
+              <span style="font-size:14px;">✏️</span>
+            </label>
+            <input type="file" id="profile-pic-input" accept="image/*" style="display:none;" onchange="previewProfilePic(this)">
           </div>
-        `
-      });
-    } catch (emailErr) {
-      console.error('Rejection email error:', emailErr.message);
-    }
+          <div style="margin-top:12px; color:white;">
+            <div style="font-size:18px; font-weight:600;">${loggedInUser.name || 'User'}</div>
+            <div style="font-size:13px; opacity:0.85; margin-top:4px; text-transform:capitalize;">${currentRole} Account</div>
+            <div style="font-size:12px; opacity:0.7; margin-top:2px;">@${loggedInUser.username}</div>
+          </div>
+        </div>
 
-    res.json({ success: true, email: request.email, purpose: request.purpose });
-  } catch (err) {
-    console.error(err);
-    res.json({ success: false, message: err.message });
+        <div style="padding:28px;">
+
+          <div style="margin-bottom:18px;">
+            <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:6px;">Full Name</label>
+            <input type="text" id="account-name" value="${loggedInUser.name || ''}"
+              style="width:100%; padding:11px 14px; border-radius:8px; border:1px solid #ddd; font-size:14px; margin:0;">
+          </div>
+
+          <div style="margin-bottom:18px;">
+            <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:6px;">Username</label>
+            <input type="text" value="${loggedInUser.username}" disabled
+              style="width:100%; padding:11px 14px; border-radius:8px; border:1px solid #eee; font-size:14px; margin:0; background:#f8f8f8; color:#aaa;">
+          </div>
+
+          <hr style="border:none; border-top:1px solid #eee; margin:20px 0;">
+          <div style="font-size:14px; font-weight:600; color:#333; margin-bottom:16px;">Change Password <span style="font-size:12px; color:#aaa; font-weight:400;">(leave blank to keep current)</span></div>
+
+          <div style="margin-bottom:14px;">
+            <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:6px;">Old Password</label>
+            <input type="password" id="account-old-password" placeholder="Enter current password"
+              style="width:100%; padding:11px 14px; border-radius:8px; border:1px solid #ddd; font-size:14px; margin:0;">
+          </div>
+
+          <div style="margin-bottom:14px;">
+            <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:6px;">New Password</label>
+            <input type="password" id="account-new-password" placeholder="Enter new password"
+              style="width:100%; padding:11px 14px; border-radius:8px; border:1px solid #ddd; font-size:14px; margin:0;">
+          </div>
+
+          <div style="margin-bottom:24px;">
+            <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:6px;">Confirm New Password</label>
+            <input type="password" id="account-confirm-password" placeholder="Confirm new password"
+              style="width:100%; padding:11px 14px; border-radius:8px; border:1px solid #ddd; font-size:14px; margin:0;">
+          </div>
+
+          <div id="account-message" style="margin-bottom:14px; font-size:13px; text-align:center;"></div>
+
+          <button onclick="saveMyAccount()"
+            style="width:100%; padding:13px; background:#8B0000; color:white; font-weight:bold; border:none; border-radius:8px; font-size:14px; cursor:pointer;">
+            Save Changes
+          </button>
+
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function previewProfilePic(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    document.getElementById('profile-pic-preview').src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function saveMyAccount() {
+  const name = document.getElementById('account-name').value.trim();
+  const oldPassword = document.getElementById('account-old-password').value;
+  const newPassword = document.getElementById('account-new-password').value;
+  const confirmPassword = document.getElementById('account-confirm-password').value;
+  const profilePicFile = document.getElementById('profile-pic-input').files[0];
+  const msg = document.getElementById('account-message');
+
+  if (!name) {
+    msg.innerText = 'Name cannot be empty.';
+    msg.style.color = 'red';
+    return;
   }
-});
 
-// ================= DSWD: GET RESIDENTS =================
-app.get('/api/residents', async (req, res) => {
-  try {
-    const result = await pool.query(
-      `SELECT username, name, gender, status, age, barangay, address, dob, pwd,
-              place_of_birth, blood_type, voter_status, household_role,
-              children_names, educational_attainment, emergency_contact_name,
-              emergency_contact_number, contact, religion, spouse, sons, daughters,
-              family_members, email, senior
-       FROM residents
-       ORDER BY name`
-    );
-    res.json({ residents: result.rows });
-  } catch (err) {
-    res.status(500).json({ residents: [] });
+  if (newPassword && newPassword !== confirmPassword) {
+    msg.innerText = 'New passwords do not match.';
+    msg.style.color = 'red';
+    return;
   }
-});
 
-// ================= DSWD: UPDATE RESIDENT =================
-app.put('/api/update-resident/:username', async (req, res) => {
-  try {
-    const username = req.params.username;
-    const {
-      name, age, senior, gender, status, barangay,
-      spouse, sons, daughters, pwd, dob, family_members,
-      contact, email, address, religion,
-      place_of_birth, blood_type, voter_status,
-      household_role, children_names, educational_attainment,
-      emergency_contact_name, emergency_contact_number
-    } = req.body;
-
-    const dupCheck = await pool.query(
-      `SELECT username FROM residents
-       WHERE username != $1
-       AND (
-         CASE WHEN LOWER(COALESCE(name,''))    = LOWER($2)       THEN 1 ELSE 0 END +
-         CASE WHEN age                          = $3              THEN 1 ELSE 0 END +
-         CASE WHEN COALESCE(barangay,'')        = COALESCE($4,'') THEN 1 ELSE 0 END +
-         CASE WHEN LOWER(COALESCE(address,''))  = LOWER($5)       THEN 1 ELSE 0 END +
-         CASE WHEN dob                          = $6::date        THEN 1 ELSE 0 END
-       ) >= 3`,
-      [
-        username,
-        name     || '',
-        age      ? parseInt(age) : null,
-        barangay || '',
-        address  || '',
-        dob      || null
-      ]
-    );
-
-    for (const row of dupCheck.rows) {
-      const oldUsername = row.username;
-      await pool.query(`DELETE FROM document_requests WHERE username=$1`, [oldUsername]);
-      await pool.query(`DELETE FROM residents        WHERE username=$1`, [oldUsername]);
-      await pool.query(`DELETE FROM users            WHERE username=$1`, [oldUsername]);
-      console.log(`Duplicate removed on profile update: ${oldUsername}`);
-    }
-
-    await pool.query(
-      `UPDATE residents
-       SET name=$1, age=$2, senior=$3, gender=$4, status=$5, barangay=$6,
-           spouse=$7, sons=$8, daughters=$9, pwd=$10, dob=$11, family_members=$12,
-           contact=$13, email=$14, address=$15, religion=$16,
-           place_of_birth=$17, blood_type=$18, voter_status=$19,
-           household_role=$20, children_names=$21, educational_attainment=$22,
-           emergency_contact_name=$23, emergency_contact_number=$24
-       WHERE username=$25`,
-      [
-        name || null,
-        age ? parseInt(age) : null,
-        senior || null,
-        gender || null,
-        status || null,
-        barangay || null,
-        spouse || null,
-        sons ? parseInt(sons) : 0,
-        daughters ? parseInt(daughters) : 0,
-        pwd || null,
-        dob || null,
-        family_members ? parseInt(family_members) : 0,
-        contact || null,
-        email || null,
-        address || null,
-        religion || null,
-        place_of_birth || null,
-        blood_type || null,
-        voter_status || null,
-        household_role || null,
-        children_names || null,
-        educational_attainment || null,
-        emergency_contact_name || null,
-        emergency_contact_number || null,
-        username
-      ]
-    );
-
-    res.json({ success: true });
-  } catch (err) {
-    res.json({ success: false, message: err.message });
+  if (newPassword && newPassword.length < 6) {
+    msg.innerText = 'New password must be at least 6 characters.';
+    msg.style.color = 'red';
+    return;
   }
-});
 
-// ================= CHECK DUPLICATE BEFORE PROFILE UPDATE =================
-app.post('/api/check-duplicate-resident', async (req, res) => {
-  try {
-    const { name, dob, barangay, currentUsername } = req.body;
-    if (!name || !dob || !barangay) return res.json({ duplicate: false });
+  if (newPassword && !oldPassword) {
+    msg.innerText = 'Please enter your old password.';
+    msg.style.color = 'red';
+    return;
+  }
 
-    const result = await pool.query(
-      `SELECT username FROM residents
-       WHERE LOWER(TRIM(name)) = LOWER(TRIM($1))
-         AND dob::date = $2::date
-         AND barangay = $3
-         AND username != $4`,
-      [name, dob, barangay, currentUsername]
-    );
+  const formData = new FormData();
+  formData.append('username', loggedInUser.username);
+  formData.append('name', name);
+  if (newPassword) {
+    formData.append('oldPassword', oldPassword);
+    formData.append('newPassword', newPassword);
+  }
+  if (profilePicFile) {
+    formData.append('profile_pic', profilePicFile);
+  }
 
-    if (result.rows.length > 0) {
-      res.json({ duplicate: true, existingUsername: result.rows[0].username });
+  msg.innerText = 'Saving...';
+  msg.style.color = '#888';
+
+  fetch(`${API_BASE}/api/update-account`, {
+    method: 'POST',
+    body: formData
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (data.success) {
+      loggedInUser.name = name;
+      if (data.profilePicUrl) loggedInUser.profile_pic = data.profilePicUrl;
+      localStorage.setItem("user", JSON.stringify(loggedInUser));
+      updateHeaderUI();
+      msg.innerText = 'Account updated successfully!';
+      msg.style.color = 'green';
+      setTimeout(() => showMyAccount(), 1000);
     } else {
-      res.json({ duplicate: false });
+      msg.innerText = data.message || 'Failed to update.';
+      msg.style.color = 'red';
     }
-  } catch (err) {
-    console.error('Duplicate check error:', err);
-    res.json({ duplicate: false });
+  })
+  .catch(() => {
+    msg.innerText = 'Server error.';
+    msg.style.color = 'red';
+  });
+}
+
+function logout(){ 
+  loggedInUser = null; 
+  currentRole = null;
+  const f = document.getElementById('site-footer');
+  if(f) f.style.display='none';
+  const lf = document.getElementById('login-footer');
+  if(lf) lf.style.display='block';
+  localStorage.removeItem("user");
+  document.getElementById('login-page').style.display = "flex";
+  document.getElementById('dashboard-page').style.display = 'none';
+  document.getElementById('manager-page').style.display = 'none';
+  document.getElementById('dswd-page').style.display = 'none';
+  if (document.getElementById('dashboard-content')) {
+    document.getElementById('dashboard-content').innerHTML = '';
   }
-});
-
-// ================= CREATE TEMP ADMINS =================
-app.get('/create-admins', async (req, res) => {
-  try {
-    const managerPw = await bcrypt.hash('1234', 10);
-    const dswdPw = await bcrypt.hash('1234', 10);
-
-    await pool.query(`
-      INSERT INTO users(username, password, role, name) VALUES
-      ('manager',$1,'manager','Manager Account'),
-      ('dswd',$2,'dswd','DSWD Account')
-      ON CONFLICT (username) DO NOTHING
-    `, [managerPw, dswdPw]);
-
-    res.send('Admins created successfully');
-  } catch (err) {
-    res.status(500).send(err.message);
+  if (document.getElementById('manager-table')) {
+    document.getElementById('manager-table').innerHTML = '';
   }
-});
-
-// ================= DELETE RESIDENT =================
-app.delete('/api/delete-resident/:username', async (req, res) => {
-  try {
-    const { username } = req.params;
-    await pool.query(`DELETE FROM document_requests WHERE username=$1`, [username]);
-    await pool.query(`DELETE FROM residents WHERE username=$1`, [username]);
-    await pool.query(`DELETE FROM users WHERE username=$1`, [username]);
-    res.json({ success: true });
-  } catch (err) {
-    console.error(err);
-    res.json({ success: false, message: err.message });
+  if (document.getElementById('dashboard-body')) {
+    document.getElementById('dashboard-body').innerHTML = '';
   }
-});
-
-// ================= AUTO-REMOVE DUPLICATES =================
-app.post('/api/auto-remove-duplicates', async (req, res) => {
-  try {
-    const result = await pool.query(`
-      SELECT name, barangay, age, dob, address,
-             array_agg(username ORDER BY created_at DESC) AS usernames
-      FROM residents
-      GROUP BY name, barangay, age, dob, address
-      HAVING COUNT(*) > 1
-    `);
-
-    let removed = 0;
-    for (const row of result.rows) {
-      const toDelete = row.usernames.slice(1);
-      for (const username of toDelete) {
-        await pool.query(`DELETE FROM document_requests WHERE username=$1`, [username]);
-        await pool.query(`DELETE FROM residents WHERE username=$1`, [username]);
-        await pool.query(`DELETE FROM users WHERE username=$1`, [username]);
-        removed++;
+  // Clear fields and error
+  const uField = document.getElementById('login-username');
+  const pField = document.getElementById('login-password');
+  if (uField) uField.value = '';
+  if (pField) pField.value = '';
+  const errBox = document.getElementById('login-error');
+  if (errBox) { errBox.style.display = 'none'; errBox.innerText = ''; }
+  // Reset captcha after login page is visible
+  setTimeout(() => {
+    if (typeof grecaptcha !== 'undefined') {
+      try {
+        grecaptcha.reset();
+      } catch(e) {
+        const captchaDiv = document.querySelector('.g-recaptcha');
+        if (captchaDiv) {
+          captchaDiv.innerHTML = '';
+          grecaptcha.render(captchaDiv, {
+            sitekey: '6LfFlaosAAAAAHH5pJgm5lmeQfkTyoaxR2E8OyPE'
+          });
+        }
       }
     }
+  }, 300);
+}
 
-    res.json({ success: true, removed });
-  } catch (err) {
-    console.error(err);
-    res.json({ success: false, message: err.message });
+function renderDashboardHeader(title){
+  return `
+    <div class="page-header">
+      <img src="trapiche.png" alt="Barangay Logo" style="height:60px;">
+      <div>
+        <h2>Barangay Digital Profiling System</h2>
+        <small>${title}</small><br>
+        <small>Barangay Trapiche, Tanauan City, Batangas</small>
+      </div>
+    </div>
+    <hr>
+  `;
+}
+
+// Dashboard 
+function showDashboard(){
+  const f = document.getElementById('site-footer');
+  if(f) f.style.display='block';
+  const lf = document.getElementById('login-footer');
+  if(lf) lf.style.display='none';
+  document.getElementById('login-page').style.display='none';
+  document.getElementById('resident-form').style.display='none';
+  document.getElementById('forgot-page').style.display='none';
+  document.getElementById('dswd-page').style.display='none';
+  document.getElementById('dashboard-page').style.display='block';
+
+  const title =
+    currentRole === 'resident' ? 'Resident Dashboard' :
+    currentRole === 'manager' ? 'Manager Dashboard' :
+    currentRole === 'dswd' ? 'DSWD Dashboard' :
+    'Dashboard';
+
+  document.getElementById('dashboard-title').innerText = title;
+  document.getElementById('dashboard-content').innerHTML = `
+    ${renderDashboardHeader(title)}
+    <div id="dashboard-body"></div>
+  `;
+
+  if(currentRole === 'resident'){
+    renderResidentWelcome();
+    loadMyRequestsPreview();
   }
-});
+  updateHeaderUI();
+  startHeaderClock();
+}
 
-// ================= GET USER PROFILE =================
-app.get('/api/user-profile', async (req, res) => {
-  try {
-    const { username } = req.query;
-    const result = await pool.query(
-      'SELECT username, name, role, profile_pic FROM users WHERE username=$1',
-      [username]
-    );
-    res.json({ user: result.rows[0] || null });
-  } catch (err) {
-    res.status(500).json({ user: null });
-  }
-});
+function openDSWDPage(){
+  const f = document.getElementById('site-footer');
+  if(f) f.style.display='block';
+  const lf = document.getElementById('login-footer');
+  if(lf) lf.style.display='none';
+  document.getElementById('login-page').style.display = 'none';
+  document.getElementById('dashboard-page').style.display = 'none';
+  document.getElementById('dswd-page').style.display = 'flex';
+  showDSWDStats();
+  updateHeaderUI();
+  startHeaderClock();
+}
 
-// ================= UPDATE ACCOUNT =================
-app.post('/api/update-account', async (req, res) => {
-  try {
-    const { username, name, oldPassword, newPassword } = req.body;
-    const profilePicFile = req.files?.profile_pic;
+function showAgeStats() {
+  const body = document.getElementById('dashboard-body');
+  const n = dswdResidents.length;
+  const pct = (a, b) => b ? Math.round(a / b * 100) : 0;
 
-    // Verify old password if changing password
-    if (newPassword) {
-      const result = await pool.query('SELECT password FROM users WHERE username=$1', [username]);
-      const match = await bcrypt.compare(oldPassword, result.rows[0].password);
-      if (!match) return res.json({ success: false, message: 'Old password is incorrect.' });
-    }
+  const groups = {
+    '0_10':  { label: '0–10',   residents: dswdResidents.filter(r => r.age <= 10) },
+    '11_14': { label: '11–14',  residents: dswdResidents.filter(r => r.age >= 11 && r.age <= 14) },
+    '15_30': { label: '15–30',  residents: dswdResidents.filter(r => r.age >= 15 && r.age <= 30) },
+    '31_59': { label: '31–59',  residents: dswdResidents.filter(r => r.age >= 31 && r.age <= 59) },
+    '60':    { label: '60+',    residents: dswdResidents.filter(r => r.age >= 60) },
+  };
 
-    let profilePicUrl = null;
+  const ageRows = Object.keys(groups).map(group => {
+    const { label, residents } = groups[group];
+    const count = residents.length;
+    const totalPct = pct(count, n);
+    const male = residents.filter(r => r.gender === 'Male').length;
+    const female = residents.filter(r => r.gender === 'Female').length;
+    const mPct = pct(male, count);
+    const fPct = count ? (100 - mPct) : 0;
 
-    // Upload profile pic to Cloudinary if provided
-    if (profilePicFile) {
-      const upload = await new Promise((resolve, reject) => {
-        cloudinary.uploader.upload_stream(
-          { folder: 'profiling-system/profile-pics', resource_type: 'auto' },
-          (error, result) => { if (error) reject(error); else resolve(result); }
-        ).end(profilePicFile.data);
-      });
-      profilePicUrl = upload.secure_url;
-    }
+    return `
+      <tr>
+        <td colspan="5" style="padding:0; border-bottom:0.5px solid #f0f0f0;">
+          <div onclick="selectAgeGroup('${group}')" id="row-age-${group}"
+            style="display:flex; align-items:center; padding:18px 22px; cursor:pointer; gap:20px; background:#fff; transition:background 0.15s;"
+            onmouseover="this.style.background='#f4f7ff'" onmouseout="document.getElementById('row-age-${group}').style.background = window._selectedAge === '${group}' ? '#EBF4FF' : '#fff'">
+            <div style="min-width:100px;">
+              <span style="font-size:17px; font-weight:500; color:#1a1a1a;">Age ${label}</span>
+            </div>
+            <div style="min-width:80px;">
+              <span style="color:#378ADD; font-weight:500; font-size:20px;">${count}</span>
+            </div>
+            <div style="flex:1; display:flex; align-items:center; gap:10px;">
+              <span style="background:#E6F1FB; color:#0C447C; font-size:13px; font-weight:500; padding:5px 14px; border-radius:99px; min-width:38px; text-align:center;">${male}</span>
+              <div style="flex:1; height:7px; background:#eee; border-radius:99px; overflow:hidden;">
+                <div style="width:${mPct}%; height:100%; background:#378ADD; border-radius:99px;"></div>
+              </div>
+              <span style="font-size:13px; color:#bbb; min-width:38px; text-align:right;">${mPct}%</span>
+            </div>
+            <div style="flex:1; display:flex; align-items:center; gap:10px;">
+              <span style="background:#FBEAF0; color:#72243E; font-size:13px; font-weight:500; padding:5px 14px; border-radius:99px; min-width:38px; text-align:center;">${female}</span>
+              <div style="flex:1; height:7px; background:#eee; border-radius:99px; overflow:hidden;">
+                <div style="width:${fPct}%; height:100%; background:#D4537E; border-radius:99px;"></div>
+              </div>
+              <span style="font-size:13px; color:#bbb; min-width:38px; text-align:right;">${fPct}%</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:10px; min-width:140px;">
+              <div style="width:80px; height:7px; background:#eee; border-radius:99px; overflow:hidden;">
+                <div style="width:${totalPct}%; height:100%; background:#c0392b; border-radius:99px;"></div>
+              </div>
+              <span style="font-size:13px; color:#bbb; min-width:38px;">${totalPct}%</span>
+            </div>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
 
-    // Build update query
-    if (newPassword && profilePicUrl) {
-      const hashedPw = await bcrypt.hash(newPassword, 10);
-      await pool.query(
-        'UPDATE users SET name=$1, password=$2, profile_pic=$3 WHERE username=$4',
-        [name, hashedPw, profilePicUrl, username]
-      );
-    } else if (newPassword) {
-      const hashedPw = await bcrypt.hash(newPassword, 10);
-      await pool.query(
-        'UPDATE users SET name=$1, password=$2 WHERE username=$3',
-        [name, hashedPw, username]
-      );
-    } else if (profilePicUrl) {
-      await pool.query(
-        'UPDATE users SET name=$1, profile_pic=$2 WHERE username=$3',
-        [name, profilePicUrl, username]
-      );
-    } else {
-      await pool.query(
-        'UPDATE users SET name=$1 WHERE username=$2',
-        [name, username]
-      );
-    }
+  body.innerHTML = `
+    <div style="padding:24px; background:#f5f6fa; min-height:100%; display:flex; flex-direction:column; gap:20px;">
+      <div style="display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px;">
+        <div style="background:#fff; border-radius:10px; padding:18px 20px; border:0.5px solid #e0e0e0;">
+          <div style="font-size:14px; color:#888; margin-bottom:8px;">Total residents</div>
+          <div style="font-size:32px; font-weight:500; color:#1a1a1a;">${n}</div>
+          <div style="font-size:13px; color:#aaa; margin-top:6px;">all age groups</div>
+        </div>
+        <div style="background:#fff; border-radius:10px; padding:18px 20px; border:0.5px solid #e0e0e0;">
+          <div style="font-size:14px; color:#3B6D11; margin-bottom:8px;">Seniors (60+)</div>
+          <div style="font-size:32px; font-weight:500; color:#3B6D11;">${groups['60'].residents.length}</div>
+          <div style="font-size:13px; color:#3B6D11; margin-top:6px; opacity:0.8;">${pct(groups['60'].residents.length, n)}% of total</div>
+        </div>
+        <div style="background:#fff; border-radius:10px; padding:18px 20px; border:0.5px solid #e0e0e0;">
+          <div style="font-size:14px; color:#185FA5; margin-bottom:8px;">Children (0–14)</div>
+          <div style="font-size:32px; font-weight:500; color:#185FA5;">${groups['0_10'].residents.length + groups['11_14'].residents.length}</div>
+          <div style="font-size:13px; color:#185FA5; margin-top:6px; opacity:0.8;">${pct(groups['0_10'].residents.length + groups['11_14'].residents.length, n)}% of total</div>
+        </div>
+      </div>
+      <div style="display:flex; gap:20px; align-items:flex-start;">
+        <div style="flex:1.2; background:#fff; border-radius:12px; border:0.5px solid #e0e0e0; overflow:hidden;">
+          <div style="display:flex; align-items:center; justify-content:space-between; padding:18px 22px; border-bottom:0.5px solid #eee;">
+            <span style="font-size:17px; font-weight:500; color:#1a1a1a;">Age group breakdown</span>
+            <span style="font-size:13px; color:#aaa;">Select a row to view residents</span>
+          </div>
+          <div style="display:flex; gap:20px; padding:12px 22px; border-bottom:0.5px solid #f0f0f0;">
+            <span style="display:flex; align-items:center; gap:6px; font-size:14px; color:#666;">
+              <span style="width:12px; height:12px; border-radius:2px; background:#378ADD; display:inline-block;"></span> Male
+            </span>
+            <span style="display:flex; align-items:center; gap:6px; font-size:14px; color:#666;">
+              <span style="width:12px; height:12px; border-radius:2px; background:#D4537E; display:inline-block;"></span> Female
+            </span>
+          </div>
+          <div style="display:flex; align-items:center; padding:12px 22px; gap:20px; background:#f8f9fa; border-bottom:0.5px solid #eee;">
+            <div style="min-width:100px; font-size:14px; font-weight:500; color:#888;">Age group</div>
+            <div style="min-width:80px; font-size:14px; font-weight:500; color:#888;">Total</div>
+            <div style="flex:1; font-size:14px; font-weight:500; color:#888;">Male</div>
+            <div style="flex:1; font-size:14px; font-weight:500; color:#888;">Female</div>
+            <div style="min-width:140px; font-size:14px; font-weight:500; color:#888;">% of total</div>
+          </div>
+          <table style="width:100%; border-collapse:collapse;">
+            <tbody>${ageRows}</tbody>
+          </table>
+        </div>
+        <div id="age-resident-panel" style="flex:1; background:#fff; border-radius:12px; border:0.5px solid #e0e0e0; overflow:hidden; min-height:300px;">
+          <div style="padding:60px 20px; text-align:center; color:#bbb;">
+            <div style="font-size:40px; margin-bottom:12px;">👆</div>
+            <div style="font-size:15px; font-weight:500; color:#aaa;">Select an age group</div>
+            <div style="font-size:13px; color:#ccc; margin-top:6px;">Residents Name</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  window._selectedAge = null;
+}
 
-    // Also update name in residents table if resident
-    await pool.query(
-      'UPDATE residents SET name=$1 WHERE username=$2',
-      [name, username]
-    );
-
-    res.json({ success: true, profilePicUrl });
-
-  } catch (err) {
-    console.error('UPDATE ACCOUNT ERROR:', err);
-    res.json({ success: false, message: err.message });
-  }
-});
-
-// ================= KEEP ALIVE =================
-const https = require('https');
-const RENDER_URL = 'https://profiling-system.onrender.com';
-setInterval(() => {
-  https.get(RENDER_URL, (res) => {
-    console.log(`Keep-alive ping: ${res.statusCode}`);
-  }).on('error', (err) => {
-    console.error('Keep-alive error:', err.message);
+function selectAgeGroup(group) {
+  const groups = {
+    '0_10':  { label: '0–10',  residents: dswdResidents.filter(r => r.age <= 10) },
+    '11_14': { label: '11–14', residents: dswdResidents.filter(r => r.age >= 11 && r.age <= 14) },
+    '15_30': { label: '15–30', residents: dswdResidents.filter(r => r.age >= 15 && r.age <= 30) },
+    '31_59': { label: '31–59', residents: dswdResidents.filter(r => r.age >= 31 && r.age <= 59) },
+    '60':    { label: '60+',   residents: dswdResidents.filter(r => r.age >= 60) },
+  };
+  Object.keys(groups).forEach(g => {
+    const row = document.getElementById(`row-age-${g}`);
+    if (row) row.style.background = '#fff';
   });
-}, 14 * 60 * 1000);
+  const selectedRow = document.getElementById(`row-age-${group}`);
+  if (selectedRow) selectedRow.style.background = '#EBF4FF';
+  window._selectedAge = group;
+  window._ageGroupData = groups[group].residents;
 
-// ================= HEALTH CHECK =================
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok', time: new Date() });
+  const { label, residents } = groups[group];
+  const panel = document.getElementById('age-resident-panel');
+  panel.innerHTML = `
+    <div style="display:flex; align-items:center; justify-content:space-between; padding:16px 22px; border-bottom:0.5px solid #eee; background:#f8f9fa;">
+      <div>
+        <span style="font-size:16px; font-weight:500; color:#1a1a1a;">Age ${label}</span>
+        <span style="margin-left:10px; background:#E6F1FB; color:#0C447C; font-size:13px; font-weight:500; padding:4px 14px; border-radius:99px;">${residents.length} resident${residents.length !== 1 ? 's' : ''}</span>
+      </div>
+    </div>
+    <div style="padding:12px 22px; border-bottom:0.5px solid #f0f0f0;">
+      <input type="text" placeholder="Search residents..."
+        oninput="filterAgeResidents(this)"
+        style="padding:8px 14px; border-radius:8px; border:0.5px solid #ddd; font-size:14px; width:100%; margin:0;">
+    </div>
+    <div id="age-resident-list" style="padding:14px 22px; display:flex; flex-direction:column; gap:6px; max-height:500px; overflow-y:auto;">
+      ${residents.length === 0
+        ? `<p style="color:#aaa; font-size:14px; text-align:center; padding:30px 0;">No residents in this age group.</p>`
+        : residents.map(r => ageResidentCard(r)).join('')}
+    </div>
+  `;
+}
+
+function ageResidentCard(r) {
+  return `
+    <div onclick="openDSWDResidentDetail('${r.username}')"
+      style="display:flex; align-items:center; justify-content:space-between; padding:12px 16px; border-radius:10px; border:0.5px solid #eee; cursor:pointer; background:#fff;"
+      onmouseover="this.style.background='#f4f7ff'" onmouseout="this.style.background='#fff'">
+      <div>
+        <div style="font-size:15px; font-weight:500; color:#1a1a1a;">${r.name}</div>
+        <div style="font-size:13px; color:#888; margin-top:3px;">Age ${r.age} &nbsp;·&nbsp; ${r.gender} &nbsp;·&nbsp; ${r.barangay}</div>
+      </div>
+      <div style="display:flex; gap:8px; align-items:center;">
+        ${r.pwd === 'Yes' ? `<span style="background:#FAECE7; color:#712B13; font-size:12px; font-weight:500; padding:4px 12px; border-radius:99px;">PWD</span>` : ''}
+        ${r.age >= 60 ? `<span style="background:#EAF3DE; color:#27500A; font-size:12px; font-weight:500; padding:4px 12px; border-radius:99px;">Senior</span>` : ''}
+        <span style="font-size:13px; color:#bbb;">View →</span>
+      </div>
+    </div>
+  `;
+}
+
+function filterAgeResidents(input) {
+  const keyword = input.value.toLowerCase();
+  const filtered = (window._ageGroupData || []).filter(r => r.name.toLowerCase().includes(keyword));
+  document.getElementById('age-resident-list').innerHTML = filtered.length === 0
+    ? `<p style="color:#aaa; font-size:14px; text-align:center; padding:30px 0;">No residents match your search.</p>`
+    : filtered.map(r => ageResidentCard(r)).join('');
+}
+
+function showBarangayStats() {
+  const body = document.getElementById('dashboard-body');
+  const trapiches = ['Trapiche 1', 'Trapiche 2', 'Trapiche 3', 'Trapiche 4'];
+  const pct = (a, b) => b ? Math.round(a / b * 100) : 0;
+  const n = dswdResidents.length;
+
+  const bgyRows = trapiches.map(t => {
+    const residents = dswdResidents.filter(r => r.barangay === t);
+    const total = residents.length;
+    const male = residents.filter(r => r.gender === 'Male').length;
+    const female = residents.filter(r => r.gender === 'Female').length;
+    const pwd = residents.filter(r => r.pwd === 'Yes').length;
+    const senior = residents.filter(r => r.age >= 60).length;
+    const mPct = pct(male, total);
+    const fPct = total ? (100 - mPct) : 0;
+    const safeId = t.replace(' ', '-');
+
+    return `
+      <tr>
+        <td colspan="6" style="padding:0; border-bottom:0.5px solid #f0f0f0;">
+          <div onclick="selectBarangayGroup('${t}')" id="row-bgy-${safeId}"
+            style="display:flex; align-items:center; padding:18px 22px; cursor:pointer; gap:20px; background:#fff; transition:background 0.15s;"
+            onmouseover="this.style.background='#f4f7ff'" onmouseout="document.getElementById('row-bgy-${safeId}').style.background = window._selectedBgy === '${t}' ? '#EBF4FF' : '#fff'">
+            <div style="min-width:120px;">
+              <span style="font-size:17px; font-weight:500; color:#1a1a1a;">${t}</span>
+            </div>
+            <div style="min-width:70px;">
+              <span style="color:#378ADD; font-weight:500; font-size:20px;">${total}</span>
+            </div>
+            <div style="flex:1; display:flex; align-items:center; gap:10px;">
+              <span style="background:#E6F1FB; color:#0C447C; font-size:13px; font-weight:500; padding:5px 14px; border-radius:99px; min-width:38px; text-align:center;">${male}</span>
+              <div style="flex:1; height:7px; background:#eee; border-radius:99px; overflow:hidden;">
+                <div style="width:${mPct}%; height:100%; background:#378ADD; border-radius:99px;"></div>
+              </div>
+              <span style="font-size:13px; color:#bbb; min-width:38px; text-align:right;">${mPct}%</span>
+            </div>
+            <div style="flex:1; display:flex; align-items:center; gap:10px;">
+              <span style="background:#FBEAF0; color:#72243E; font-size:13px; font-weight:500; padding:5px 14px; border-radius:99px; min-width:38px; text-align:center;">${female}</span>
+              <div style="flex:1; height:7px; background:#eee; border-radius:99px; overflow:hidden;">
+                <div style="width:${fPct}%; height:100%; background:#D4537E; border-radius:99px;"></div>
+              </div>
+              <span style="font-size:13px; color:#bbb; min-width:38px; text-align:right;">${fPct}%</span>
+            </div>
+            <div style="min-width:80px; text-align:center;">
+              <span style="background:#FAECE7; color:#712B13; font-size:13px; font-weight:500; padding:5px 16px; border-radius:99px;">${pwd}</span>
+            </div>
+            <div style="min-width:80px; text-align:center;">
+              <span style="background:#EAF3DE; color:#27500A; font-size:13px; font-weight:500; padding:5px 16px; border-radius:99px;">${senior}</span>
+            </div>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  body.innerHTML = `
+    <div style="padding:24px; background:#f5f6fa; min-height:100%; display:flex; flex-direction:column; gap:20px;">
+      <div style="display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px;">
+        ${trapiches.map(t => {
+          const total = dswdResidents.filter(r => r.barangay === t).length;
+          return `
+            <div style="background:#fff; border-radius:10px; padding:18px 20px; border:0.5px solid #e0e0e0;">
+              <div style="font-size:14px; color:#888; margin-bottom:8px;">${t}</div>
+              <div style="font-size:32px; font-weight:500; color:#1a1a1a;">${total}</div>
+              <div style="font-size:13px; color:#aaa; margin-top:6px;">${pct(total, n)}% of total</div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+      <div style="display:flex; gap:20px; align-items:flex-start;">
+        <div style="flex:1.4; background:#fff; border-radius:12px; border:0.5px solid #e0e0e0; overflow:hidden;">
+          <div style="display:flex; align-items:center; justify-content:space-between; padding:18px 22px; border-bottom:0.5px solid #eee;">
+            <span style="font-size:17px; font-weight:500; color:#1a1a1a;">Barangay breakdown</span>
+            <span style="font-size:13px; color:#aaa;">Select a row to view residents</span>
+          </div>
+          <div style="display:flex; gap:20px; padding:12px 22px; border-bottom:0.5px solid #f0f0f0;">
+            <span style="display:flex; align-items:center; gap:6px; font-size:14px; color:#666;">
+              <span style="width:12px; height:12px; border-radius:2px; background:#378ADD; display:inline-block;"></span> Male
+            </span>
+            <span style="display:flex; align-items:center; gap:6px; font-size:14px; color:#666;">
+              <span style="width:12px; height:12px; border-radius:2px; background:#D4537E; display:inline-block;"></span> Female
+            </span>
+          </div>
+          <div style="display:flex; align-items:center; padding:12px 22px; gap:20px; background:#f8f9fa; border-bottom:0.5px solid #eee;">
+            <div style="min-width:120px; font-size:14px; font-weight:500; color:#888;">Barangay</div>
+            <div style="min-width:70px; font-size:14px; font-weight:500; color:#888;">Total</div>
+            <div style="flex:1; font-size:14px; font-weight:500; color:#888;">Male</div>
+            <div style="flex:1; font-size:14px; font-weight:500; color:#888;">Female</div>
+            <div style="min-width:80px; font-size:14px; font-weight:500; color:#888; text-align:center;">PWD</div>
+            <div style="min-width:80px; font-size:14px; font-weight:500; color:#888; text-align:center;">Senior</div>
+          </div>
+          <table style="width:100%; border-collapse:collapse;">
+            <tbody>${bgyRows}</tbody>
+          </table>
+        </div>
+        <div id="bgy-resident-panel" style="flex:1; background:#fff; border-radius:12px; border:0.5px solid #e0e0e0; overflow:hidden; min-height:300px;">
+          <div style="padding:60px 20px; text-align:center; color:#bbb;">
+            <div style="font-size:40px; margin-bottom:12px;">👆</div>
+            <div style="font-size:15px; font-weight:500; color:#aaa;">Select a barangay</div>
+            <div style="font-size:13px; color:#ccc; margin-top:6px;">Residents Name</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  window._selectedBgy = null;
+}
+
+function selectBarangayGroup(barangay) {
+  const trapiches = ['Trapiche 1', 'Trapiche 2', 'Trapiche 3', 'Trapiche 4'];
+  trapiches.forEach(t => {
+    const row = document.getElementById(`row-bgy-${t.replace(' ', '-')}`);
+    if (row) row.style.background = '#fff';
+  });
+  const safeId = barangay.replace(' ', '-');
+  const selectedRow = document.getElementById(`row-bgy-${safeId}`);
+  if (selectedRow) selectedRow.style.background = '#EBF4FF';
+  window._selectedBgy = barangay;
+
+  const residents = dswdResidents.filter(r => r.barangay === barangay);
+  window._bgyGroupData = residents;
+
+  const panel = document.getElementById('bgy-resident-panel');
+  panel.innerHTML = `
+    <div style="display:flex; align-items:center; justify-content:space-between; padding:16px 22px; border-bottom:0.5px solid #eee; background:#f8f9fa;">
+      <div>
+        <span style="font-size:16px; font-weight:500; color:#1a1a1a;">${barangay}</span>
+        <span style="margin-left:10px; background:#E6F1FB; color:#0C447C; font-size:13px; font-weight:500; padding:4px 14px; border-radius:99px;">${residents.length} resident${residents.length !== 1 ? 's' : ''}</span>
+      </div>
+    </div>
+    <div style="padding:12px 22px; border-bottom:0.5px solid #f0f0f0;">
+      <input type="text" placeholder="Search residents..."
+        oninput="filterBgyResidents(this)"
+        style="padding:8px 14px; border-radius:8px; border:0.5px solid #ddd; font-size:14px; width:100%; margin:0;">
+    </div>
+    <div id="bgy-resident-list" style="padding:14px 22px; display:flex; flex-direction:column; gap:6px; max-height:500px; overflow-y:auto;">
+      ${residents.length === 0
+        ? `<p style="color:#aaa; font-size:14px; text-align:center; padding:30px 0;">No residents in this barangay.</p>`
+        : residents.map(r => bgyResidentCard(r)).join('')}
+    </div>
+  `;
+}
+
+function bgyResidentCard(r) {
+  return `
+    <div onclick="openDSWDResidentDetail('${r.username}')"
+      style="display:flex; align-items:center; justify-content:space-between; padding:12px 16px; border-radius:10px; border:0.5px solid #eee; cursor:pointer; background:#fff;"
+      onmouseover="this.style.background='#f4f7ff'" onmouseout="this.style.background='#fff'">
+      <div>
+        <div style="font-size:15px; font-weight:500; color:#1a1a1a;">${r.name}</div>
+        <div style="font-size:13px; color:#888; margin-top:3px;">Age ${r.age} &nbsp;·&nbsp; ${r.gender} &nbsp;·&nbsp; ${r.barangay}</div>
+      </div>
+      <div style="display:flex; gap:8px; align-items:center;">
+        ${r.pwd === 'Yes' ? `<span style="background:#FAECE7; color:#712B13; font-size:12px; font-weight:500; padding:4px 12px; border-radius:99px;">PWD</span>` : ''}
+        ${r.age >= 60 ? `<span style="background:#EAF3DE; color:#27500A; font-size:12px; font-weight:500; padding:4px 12px; border-radius:99px;">Senior</span>` : ''}
+        <span style="font-size:13px; color:#bbb;">View →</span>
+      </div>
+    </div>
+  `;
+}
+
+function filterBgyResidents(input) {
+  const keyword = input.value.toLowerCase();
+  const filtered = (window._bgyGroupData || []).filter(r => r.name.toLowerCase().includes(keyword));
+  document.getElementById('bgy-resident-list').innerHTML = filtered.length === 0
+    ? `<p style="color:#aaa; font-size:14px; text-align:center; padding:30px 0;">No residents match your search.</p>`
+    : filtered.map(r => bgyResidentCard(r)).join('');
+}
+
+function renderResidentWelcome() {
+  const body = document.getElementById('dashboard-body');
+  const u = loggedInUser;
+
+  let children = [];
+  try { children = JSON.parse(u.children_names || '[]'); } catch(e) { children = []; }
+  if (!Array.isArray(children)) children = [];
+
+  body.innerHTML = `
+    <div style="padding:28px; background:#f5f6fa; min-height:100%;">
+
+      <!-- Hero Banner -->
+      <div style="background:#8B0000; border-radius:16px; padding:32px 36px; margin-bottom:24px; position:relative; overflow:hidden; box-shadow:0 8px 32px rgba(139,0,0,0.25);">
+        <div style="position:absolute;top:-30px;right:-30px;width:180px;height:180px;background:rgba(255,255,255,0.07);border-radius:50%;"></div>
+        <div style="position:absolute;bottom:-50px;right:60px;width:120px;height:120px;background:rgba(255,255,255,0.05);border-radius:50%;"></div>
+        <div style="position:relative; z-index:1;">
+          <div style="font-size:13px; color:rgba(255,255,255,0.75); font-weight:500; letter-spacing:0.5px; margin-bottom:6px; text-transform:uppercase;">Welcome back</div>
+          <div style="font-size:28px; font-weight:700; color:#fff; margin-bottom:4px;">${u.name || 'Resident'}</div>
+          <div style="font-size:13px; color:rgba(255,255,255,0.7);">Barangay ${u.barangay || 'Trapiche'} &nbsp;·&nbsp; Tanauan City, Batangas</div>
+        </div>
+      </div>
+
+      <!-- Stat Cards -->
+      <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:14px; margin-bottom:24px;">
+        ${[
+          { label:'Age', value: u.age || '—', icon:'🎂', color:'#1a3f6c' },
+          { label:'Gender', value: u.gender || '—', icon:'👤', color:'#2c5aa0' },
+          { label:'Civil Status', value: u.status || '—', icon:'💍', color:'#c0392b' },
+          { label:'PWD', value: u.pwd === 'Yes' ? 'Yes' : 'No', icon:'♿', color:'#e67e22' },
+          { label:'Senior', value: (u.age >= 60) ? 'Yes' : 'No', icon:'⭐', color:'#27ae60' },
+        ].map(card => `
+          <div style="background:#fff; border-radius:12px; padding:18px 20px; border:1px solid #ebebeb; box-shadow:0 2px 8px rgba(0,0,0,0.04);"
+            onmouseover="this.style.boxShadow='0 6px 20px rgba(0,0,0,0.1)'" onmouseout="this.style.boxShadow='0 2px 8px rgba(0,0,0,0.04)'">
+            <div style="font-size:22px; margin-bottom:10px;">${card.icon}</div>
+            <div style="font-size:18px; font-weight:700; color:${card.color}; margin-bottom:2px;">${card.value}</div>
+            <div style="font-size:12px; color:#999; font-weight:500; text-transform:uppercase; letter-spacing:0.4px;">${card.label}</div>
+          </div>
+        `).join('')}
+      </div>
+
+      <!-- Profile Detail Cards -->
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:24px;">
+
+        <!-- Personal Information -->
+        <div style="background:#fff; border-radius:16px; border:1px solid #ebebeb; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+          <div style="padding:16px 22px; border-bottom:1px solid #f0f0f0; background:#fafafa;">
+            <div style="font-size:14px; font-weight:700; color:#c0392b;">🧍 Personal Information</div>
+          </div>
+          <div style="padding:18px 22px; display:flex; flex-direction:column; gap:12px;">
+            ${[
+              { label:'Date of Birth', value: u.dob ? formatDate(u.dob) : '—' },
+              { label:'Place of Birth', value: u.place_of_birth || '—' },
+              { label:'Blood Type', value: u.blood_type || '—' },
+              { label:'Religion', value: u.religion || '—' },
+              { label:'Barangay', value: u.barangay || '—' },
+              { label:'Address', value: u.address || '—' },
+            ].map(row => `
+              <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px;">
+                <span style="font-size:12px; color:#999; font-weight:500; text-transform:uppercase; letter-spacing:0.4px; min-width:130px; padding-top:1px;">${row.label}</span>
+                <span style="font-size:13px; color:#1a1a1a; font-weight:500; text-align:right;">${row.value}</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+
+        <!-- Family Information -->
+        <div style="background:#fff; border-radius:16px; border:1px solid #ebebeb; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+          <div style="padding:16px 22px; border-bottom:1px solid #f0f0f0; background:#fafafa;">
+            <div style="font-size:14px; font-weight:700; color:#1a3f6c;">👨‍👩‍👧‍👦 Family Information</div>
+          </div>
+          <div style="padding:18px 22px; display:flex; flex-direction:column; gap:12px;">
+            ${[
+              { label:'Spouse', value: (u.spouse && u.spouse !== 'N/A') ? u.spouse : '—' },
+            
+              
+              { label:'Household Role', value: u.household_role || '—' },
+              { label:'Voter Status', value: u.voter_status || '—' },
+            ].map(row => `
+              <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px;">
+                <span style="font-size:12px; color:#999; font-weight:500; text-transform:uppercase; letter-spacing:0.4px; min-width:130px; padding-top:1px;">${row.label}</span>
+                <span style="font-size:13px; color:#1a1a1a; font-weight:500; text-align:right;">${row.value}</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+
+        <!-- Contact & Education -->
+        <div style="background:#fff; border-radius:16px; border:1px solid #ebebeb; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+          <div style="padding:16px 22px; border-bottom:1px solid #f0f0f0; background:#fafafa;">
+            <div style="font-size:14px; font-weight:700; color:#e67e22;">📞 Contact & Education</div>
+          </div>
+          <div style="padding:18px 22px; display:flex; flex-direction:column; gap:12px;">
+            ${[
+              { label:'Contact No.', value: u.contact || '—' },
+              { label:'Email', value: u.email || '—' },
+              { label:'Educational Attainment', value: u.educational_attainment || '—' },
+            ].map(row => `
+              <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px;">
+                <span style="font-size:12px; color:#999; font-weight:500; text-transform:uppercase; letter-spacing:0.4px; min-width:130px; padding-top:1px;">${row.label}</span>
+                <span style="font-size:13px; color:#1a1a1a; font-weight:500; text-align:right; word-break:break-all;">${row.value}</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+
+        <!-- Emergency Contact -->
+        <div style="background:#fff; border-radius:16px; border:1px solid #ebebeb; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+          <div style="padding:16px 22px; border-bottom:1px solid #f0f0f0; background:#fafafa;">
+            <div style="font-size:14px; font-weight:700; color:#c0392b;">🚨 Emergency Contact</div>
+          </div>
+          <div style="padding:18px 22px; display:flex; flex-direction:column; gap:12px;">
+            ${[
+              { label:'Name', value: u.emergency_contact_name || '—' },
+              { label:'Number', value: u.emergency_contact_number || '—' },
+            ].map(row => `
+              <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px;">
+                <span style="font-size:12px; color:#999; font-weight:500; text-transform:uppercase; letter-spacing:0.4px; min-width:130px; padding-top:1px;">${row.label}</span>
+                <span style="font-size:13px; color:#1a1a1a; font-weight:500; text-align:right;">${row.value}</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Children -->
+      ${children.length > 0 ? `
+        <div style="background:#fff; border-radius:16px; border:1px solid #ebebeb; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.04); margin-bottom:24px;">
+          <div style="padding:16px 22px; border-bottom:1px solid #f0f0f0; background:#fafafa;">
+            <div style="font-size:14px; font-weight:700; color:#e67e22;">👶 Children (${children.length})</div>
+          </div>
+          <div style="padding:18px 22px; display:flex; flex-wrap:wrap; gap:10px;">
+            ${children.map(c => `
+              <div style="background:#fff8f0; border:1px solid #fde8c8; border-radius:10px; padding:10px 16px; display:flex; align-items:center; gap:10px;">
+                <span style="font-size:18px;">${c.gender === 'Female' ? '👧' : '👦'}</span>
+                <div>
+                  <div style="font-size:13px; font-weight:600; color:#1a1a1a;">${c.name}</div>
+                  <div style="font-size:12px; color:#999;">Age ${c.age} · ${c.gender}</div>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      ` : ''}
+
+      <!-- Recent Requests -->
+      <div style="background:#fff; border-radius:16px; border:1px solid #ebebeb; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:20px 24px; border-bottom:1px solid #f0f0f0;">
+          <div>
+            <div style="font-size:16px; font-weight:700; color:#1a1a1a;">Recent Requests</div>
+            <div style="font-size:12px; color:#999; margin-top:2px;">Your latest document requests</div>
+          </div>
+          <button onclick="showMyRequests()"
+            style="padding:8px 16px; background:#1a3f6c; color:white; border:none; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer;">
+            View All
+          </button>
+        </div>
+        <div id="recent-requests-container" style="padding:20px 24px;">
+          <div style="display:flex; align-items:center; gap:10px; color:#bbb; font-size:14px;">
+            <div style="width:16px;height:16px;border:2px solid #ddd;border-top-color:#c0392b;border-radius:50%;animation:spin 0.8s linear infinite;"></div>
+            Loading your requests...
+          </div>
+        </div>
+      </div>
+
+    </div>
+    <style>@keyframes spin { to { transform:rotate(360deg); } }</style>
+  `;
+  loadMyRequestsPreview();
+}
+
+function loadMyRequestsPreview() {
+  if (!loggedInUser || !loggedInUser.username) return;
+
+  fetch(`${API_BASE}/api/my-requests?username=${loggedInUser.username}`)
+    .then(res => res.json())
+    .then(data => {
+      loggedInUser.requests = data.requests || [];
+      const container = document.getElementById('recent-requests-container');
+      if (!container) return;
+
+      if (loggedInUser.requests.length === 0) {
+        container.innerHTML = `
+          <div style="text-align:center; padding:32px 0;">
+            <div style="font-size:36px; margin-bottom:12px;">📄</div>
+            <div style="font-size:15px; font-weight:500; color:#aaa;">No requests yet</div>
+            <div style="font-size:13px; color:#ccc; margin-top:4px;">Click "My Requests" in the sidebar to file one</div>
+          </div>
+        `;
+        return;
+      }
+
+      const statusConfig = {
+        'Approved': { bg:'#f0fdf4', border:'#86efac', badge:'#16a34a', badgeBg:'#dcfce7', dot:'#22c55e' },
+        'Rejected':  { bg:'#fff5f5', border:'#fca5a5', badge:'#dc2626', badgeBg:'#fee2e2', dot:'#ef4444' },
+        'Pending':   { bg:'#fffbeb', border:'#fcd34d', badge:'#d97706', badgeBg:'#fef3c7', dot:'#f59e0b' },
+      };
+
+      container.innerHTML = `
+        <div style="display:flex; flex-direction:column; gap:12px;">
+          ${loggedInUser.requests.slice(0, 3).map(r => {
+            const cfg = statusConfig[r.status] || statusConfig['Pending'];
+            return `
+              <div style="background:${cfg.bg}; border:1px solid ${cfg.border}; border-radius:12px; padding:16px 20px; display:flex; align-items:center; justify-content:space-between; gap:16px;">
+                <div style="display:flex; align-items:center; gap:14px;">
+                  <div style="width:10px;height:10px;border-radius:50%;background:${cfg.dot};flex-shrink:0;box-shadow:0 0 0 3px ${cfg.badgeBg};"></div>
+                  <div>
+                    <div style="font-size:14px; font-weight:600; color:#1a1a1a;">${r.document_type}</div>
+                    ${r.status === 'Approved' && r.date && r.time
+                      ? `<div style="font-size:12px; color:#555; margin-top:2px;">Pick-up: ${formatDate(r.date)} at ${formatTime12Hour(r.time)}</div>`
+                      : `<div style="font-size:12px; color:#888; margin-top:2px;">Status updated recently</div>`
+                    }
+                  </div>
+                </div>
+                <span style="background:${cfg.badgeBg}; color:${cfg.badge}; font-size:12px; font-weight:600; padding:4px 12px; border-radius:99px; white-space:nowrap;">${r.status}</span>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+    })
+    .catch(err => console.error('Failed to load requests', err));
+}
+
+function showMyRequests() {
+  const body = document.getElementById('dashboard-body');
+  const userRequests = loggedInUser.requests || [];
+
+  body.innerHTML = `
+    <button onclick="renderResidentWelcome()" 
+      style="display:inline-block; width:fit-content; padding:8px 16px; margin-bottom:10px; font-size:12px; border:none; border-radius:6px; background:#1a3f6c; color:white; cursor:pointer;">
+      ← Back
+    </button>
+    <h2>My Requests</h2>
+    <div style="display:flex; gap:20px; height:calc(100vh - 140px); align-items:stretch;">
+      <div style="flex:1; max-width:450px; background:#f4f7ff; padding:20px; border-radius:10px; display:flex; flex-direction:column; height:100%; box-sizing:border-box;">
+        <h3>Request Document</h3>
+        <label>Document Type:</label>
+        <select id="document-type" style="width:100%; padding:8px; margin-bottom:10px;">
+          <option value="Barangay Clearance">Barangay Clearance</option>
+          <option value="Barangay Residency">Barangay Residency</option>
+          <option value="Barangay Indigency">Barangay Indigency</option>
+        </select>
+        <label>Purpose:</label>
+        <input type="text" id="document-purpose" placeholder="Enter purpose" style="width:100%; padding:8px; margin-bottom:10px;">
+        <label>Gmail:</label>
+        <input type="email" id="request-email" placeholder="example@gmail.com" required style="width:100%; padding:8px; margin-bottom:10px;">
+        <label>Upload Government ID:</label>
+        <input type="file" id="request-gov-id" style="width:100%; margin-bottom:10px;">
+        <label>Upload 2x2 Picture:</label>
+        <input type="file" id="request-photo" style="width:100%; margin-bottom:10px;">
+        <label>Preferred Pick-up Date:</label>
+        <input type="date" id="request-date" style="width:100%; padding:8px; margin-bottom:10px;" min="${new Date().toISOString().split('T')[0]}">
+        <label>Preferred Pick-up Time:</label>
+        <input type="time" id="request-time" style="width:100%; padding:8px; margin-bottom:15px;">
+        <button onclick="requestDocument()" style="width:100%; padding:10px; background:#1a3f6c; color:white; border:none; border-radius:8px; cursor:pointer;">
+          Request
+        </button>
+      </div>
+      <div style="flex:2; background:#fdfdfd; padding:20px; border-radius:10px; display:flex; flex-direction:column; height:100%; box-sizing:border-box; overflow:hidden;">
+        <h3>My Requests</h3>
+        ${userRequests.length === 0
+          ? '<p>No requests yet.</p>'
+          : userRequests.map((r, index) => {
+              let bgColor = r.status === 'Approved' ? '#d4edda' :
+                            r.status === 'Rejected' ? '#f8d7da' : '#fff3cd';
+              return `
+                <div onclick="showRequestDetail(${index})" 
+                     style="border:1px solid #ccc; border-radius:8px; padding:12px; margin-bottom:10px; background:${bgColor}; cursor:pointer;">
+                  <h4 style="margin:0 0 5px 0;">${r.document_type}</h4>
+                  <p style="margin:0;"><strong>Status:</strong> ${r.status}</p>
+                  ${r.status === 'Approved' && r.date && r.time
+                    ? `<p>Pick-up Date: ${formatDate(r.date)}</p>
+                       <p>Pick-up Time: ${formatTime12Hour(r.time)}</p>`
+                    : ''}
+                  ${r.status === 'Rejected' ? `<p style="color:red; margin:0;">Your request was rejected.</p>` : ''}
+                </div>
+              `;
+            }).join('')}
+      </div>
+    </div>
+  `;
+}
+
+function showMyProfile() {
+  const body = document.getElementById('dashboard-body');
+  const u = loggedInUser;
+
+  // Parse children names JSON if stored
+  let children = [];
+  try { children = JSON.parse(u.children_names || '[]'); } catch(e) { children = []; }
+  if (!Array.isArray(children)) children = [];
+
+  const inputStyle = `width:100%; padding:9px 12px; border-radius:8px; border:1px solid #ddd; font-size:13px; margin:0; box-sizing:border-box;`;
+  const labelStyle = `font-size:13px; color:#555; font-weight:600; display:block; margin-bottom:4px;`;
+  const fieldDiv = (label, input) => `
+    <div style="margin-bottom:14px;">
+      <label style="${labelStyle}">${label}</label>
+      ${input}
+    </div>
+  `;
+
+  const sel = (id, options, val) => `
+    <select id="${id}" style="${inputStyle}">
+      ${options.map(o => `<option value="${o}" ${val===o?'selected':''}>${o}</option>`).join('')}
+    </select>
+  `;
+
+  body.innerHTML = `
+    <div style="max-width:900px; margin:0 auto; padding:20px;">
+      <button onclick="renderResidentWelcome()"
+        style="margin-bottom:16px; padding:8px 16px; background:#1a3f6c; color:white; border:none; border-radius:6px; font-size:13px; cursor:pointer;">
+        ← Back
+      </button>
+      <h2 style="margin:0 0 20px; color:#1a1a1a; font-size:20px;">My Profile</h2>
+
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
+
+        <!-- PERSONAL INFO -->
+        <div style="background:#fff; padding:20px; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,0.08); border-top:4px solid #c0392b;">
+          <h3 style="margin:0 0 16px; font-size:15px; color:#c0392b;">Personal Information</h3>
+          ${fieldDiv('Full Name', `<input type="text" id="profile-name" value="${u.name||''}" style="${inputStyle}">`)}
+          ${fieldDiv('Date of Birth', `<input type="date" id="profile-dob" value="${(u.dob||'').split('T')[0]}" onchange="calcProfileAge()" style="${inputStyle}">`)}
+          ${fieldDiv('Age', `<input type="number" id="profile-age" value="${u.age||''}" style="${inputStyle}">`)}
+          ${fieldDiv('Sex', sel('profile-gender', ['Male','Female'], u.gender))}
+          ${fieldDiv('Civil Status', sel('profile-status', ['Single','Married','Widowed','Separated'], u.status))}
+          ${fieldDiv('Religion', `<input type="text" id="profile-religion" value="${u.religion||''}" style="${inputStyle}">`)}
+          ${fieldDiv('Place of Birth', `<input type="text" id="profile-place-of-birth" value="${u.place_of_birth||''}" style="${inputStyle}">`)}
+          ${fieldDiv('Blood Type', sel('profile-blood-type', ['Unknown','A+','A-','B+','B-','AB+','AB-','O+','O-'], u.blood_type||'Unknown'))}
+          ${fieldDiv('Barangay', sel('profile-barangay', ['Trapiche 1','Trapiche 2','Trapiche 3','Trapiche 4'], u.barangay))}
+          ${fieldDiv('House No. / Street / Address', `<input type="text" id="profile-address" value="${u.address||''}" placeholder="e.g. 123 Mabini St." style="${inputStyle}">`)}
+        </div>
+
+        <!-- FAMILY & OTHER INFO -->
+        <div style="background:#fff; padding:20px; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,0.08); border-top:4px solid #1a3f6c;">
+          <h3 style="margin:0 0 16px; font-size:15px; color:#1a3f6c;">Family & Other Info</h3>
+          ${fieldDiv('Voter Status', sel('profile-voter-status', ['Not Registered','Registered Voter'], u.voter_status||'Not Registered'))}
+          ${fieldDiv('Household Role', sel('profile-household-role', ['Select Household Role','Head','Spouse','Child','Sibling','Grandparent','Grandchild','Relative'], u.household_role||'Select Household Role'))}
+          ${fieldDiv('Educational Attainment', sel('profile-educational-attainment', ['Select Educational Attainment','Elementary Level','Elementary Graduate','High School Level','High School Graduate','Vocational','College Level','College Graduate','Post Graduate'], u.educational_attainment||'Select Educational Attainment'))}
+          ${fieldDiv('PWD', sel('profile-pwd', ['No','Yes'], u.pwd==='Yes'?'Yes':'No'))}
+
+          <!-- SPOUSE -->
+          <div style="margin-bottom:14px;">
+            <label style="${labelStyle}">Spouse</label>
+            <div style="display:flex; gap:8px; align-items:center;">
+              <select id="profile-spouse-toggle" onchange="toggleSpouseInput()" style="width:120px; padding:9px 12px; border-radius:8px; border:1px solid #ddd; font-size:13px;">
+                <option value="N/A" ${(!u.spouse||u.spouse==='N/A')?'selected':''}>N/A</option>
+                <option value="named" ${(u.spouse&&u.spouse!=='N/A')?'selected':''}>Enter Name</option>
+              </select>
+              <input type="text" id="profile-spouse-name" value="${(u.spouse&&u.spouse!=='N/A')?u.spouse:''}"
+                placeholder="Spouse name"
+                style="${inputStyle} flex:1; display:${(u.spouse&&u.spouse!=='N/A')?'block':'none'};">
+            </div>
+          </div>
+
+          ${fieldDiv('Contact Number', `<input type="tel" id="profile-contact" value="${u.contact||''}" placeholder="09XXXXXXXXX" oninput="this.value=this.value.replace(/[^0-9]/g,'')" maxlength="11" style="${inputStyle}">`)}
+          ${fieldDiv('Email Address', `<input type="email" id="profile-email" value="${u.email||''}" style="${inputStyle}">`)}
+          ${fieldDiv('Emergency Contact Name', `<input type="text" id="profile-emergency-name" value="${u.emergency_contact_name||''}" style="${inputStyle}">`)}
+          ${fieldDiv('Emergency Contact Number', `<input type="tel" id="profile-emergency-number" value="${u.emergency_contact_number||''}" placeholder="09XXXXXXXXX" oninput="this.value=this.value.replace(/[^0-9]/g,'')" maxlength="11" style="${inputStyle}">`)}
+        </div>
+
+      </div>
+
+      <!-- CHILDREN SECTION -->
+      <div style="background:#fff; padding:20px; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,0.08); border-top:4px solid #e67e22; margin-top:20px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+          <h3 style="margin:0; font-size:15px; color:#e67e22;">Children</h3>
+          <button onclick="addChildRow()" style="padding:7px 16px; background:#e67e22; color:white; border:none; border-radius:6px; font-size:13px; cursor:pointer;">+ Add Child</button>
+        </div>
+        <div id="children-list" style="display:flex; flex-direction:column; gap:10px;">
+          ${children.length === 0
+            ? `<p style="color:#aaa; font-size:13px; text-align:center; padding:20px 0;">No children added yet. Click "+ Add Child" to add one.</p>`
+            : children.map((c, i) => childRow(c.name, c.age, c.gender, i)).join('')
+          }
+        </div>
+      </div>
+
+      <!-- SAVE BUTTON -->
+      <div style="margin-top:20px; text-align:right;">
+        <div id="profile-message" style="font-size:13px; margin-bottom:10px; text-align:center;"></div>
+        <button onclick="updateProfile()"
+          style="padding:12px 40px; background:#8B0000; color:white; font-weight:bold; border:none; border-radius:8px; font-size:14px; cursor:pointer;">
+          Save Profile
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+function childRow(name='', age='', gender='Male', index) {
+  return `
+    <div id="child-row-${index}" style="display:flex; gap:10px; align-items:center; background:#f8f9fa; padding:10px 14px; border-radius:8px; border:1px solid #eee;">
+      <input type="text" placeholder="Child's name" value="${name}"
+        style="flex:2; padding:8px 12px; border-radius:6px; border:1px solid #ddd; font-size:13px; margin:0;"
+        id="child-name-${index}">
+      <input type="number" placeholder="Age" value="${age}" min="0"
+        style="width:70px; padding:8px 12px; border-radius:6px; border:1px solid #ddd; font-size:13px; margin:0;"
+        id="child-age-${index}">
+      <select id="child-gender-${index}" style="padding:8px 12px; border-radius:6px; border:1px solid #ddd; font-size:13px; margin:0;">
+        <option value="Male" ${gender==='Male'?'selected':''}>Male</option>
+        <option value="Female" ${gender==='Female'?'selected':''}>Female</option>
+      </select>
+      <button onclick="removeChildRow(${index})" style="padding:6px 12px; background:#f8d7da; color:#c0392b; border:none; border-radius:6px; font-size:13px; cursor:pointer;">✕</button>
+    </div>
+  `;
+}
+
+function addChildRow() {
+  const list = document.getElementById('children-list');
+  const index = Date.now();
+  const p = list.querySelector('p');
+  if (p) p.remove();
+  const div = document.createElement('div');
+  div.innerHTML = childRow('', '', 'Male', index);
+  list.appendChild(div.firstElementChild);
+}
+
+function removeChildRow(index) {
+  const row = document.getElementById(`child-row-${index}`);
+  if (row) row.remove();
+  const list = document.getElementById('children-list');
+  if (list.children.length === 0) {
+    list.innerHTML = `<p style="color:#aaa; font-size:13px; text-align:center; padding:20px 0;">No children added yet. Click "+ Add Child" to add one.</p>`;
+  }
+}
+
+function toggleSpouseInput() {
+  const toggle = document.getElementById('profile-spouse-toggle').value;
+  const input = document.getElementById('profile-spouse-name');
+  input.style.display = toggle === 'named' ? 'block' : 'none';
+  if (toggle === 'N/A') input.value = '';
+}
+
+function calcResAge() {
+  const dob = document.getElementById('res-dob').value;
+  if (!dob) return;
+  const age = Math.floor((new Date() - new Date(dob)) / (365.25 * 24 * 60 * 60 * 1000));
+  document.getElementById('res-age').value = age;
+}
+
+function calcProfileAge() {
+  const dob = document.getElementById('profile-dob').value;
+  if (!dob) return;
+  const age = Math.floor((new Date() - new Date(dob)) / (365.25 * 24 * 60 * 60 * 1000));
+  document.getElementById('profile-age').value = age;
+}
+
+function updateProfile(){
+  // Collect children
+  const childRows = document.querySelectorAll('#children-list [id^="child-row-"]');
+  const children = [];
+  childRows.forEach(row => {
+    const id = row.id.replace('child-row-', '');
+    const name = document.getElementById(`child-name-${id}`)?.value.trim();
+    const age = document.getElementById(`child-age-${id}`)?.value;
+    const gender = document.getElementById(`child-gender-${id}`)?.value;
+    if (name) children.push({ name, age: parseInt(age)||0, gender });
+  });
+
+  // Spouse
+  const spouseToggle = document.getElementById('profile-spouse-toggle')?.value;
+  const spouseName = document.getElementById('profile-spouse-name')?.value.trim();
+  const spouse = spouseToggle === 'named' && spouseName ? spouseName : 'N/A';
+
+  const age = parseInt(document.getElementById('profile-age').value) || 0;
+
+  const updatedData = {
+    name: document.getElementById('profile-name').value,
+    age,
+    senior: age >= 60 ? 'Yes' : 'No',
+    gender: document.getElementById('profile-gender').value,
+    status: document.getElementById('profile-status').value,
+    barangay: document.getElementById('profile-barangay').value,
+    address: document.getElementById('profile-address')?.value || '',
+    dob: document.getElementById('profile-dob').value,
+    religion: document.getElementById('profile-religion').value,
+    place_of_birth: document.getElementById('profile-place-of-birth')?.value || '',
+    blood_type: document.getElementById('profile-blood-type')?.value || '',
+    voter_status: document.getElementById('profile-voter-status')?.value || '',
+    household_role: document.getElementById('profile-household-role')?.value || '',
+    educational_attainment: document.getElementById('profile-educational-attainment')?.value || '',
+    spouse,
+    sons: loggedInUser.sons || 0,
+    daughters: loggedInUser.daughters || 0,
+    pwd: document.getElementById('profile-pwd').value,
+    family_members: loggedInUser.family_members || 0,
+    contact: document.getElementById('profile-contact').value,
+    email: document.getElementById('profile-email').value,
+    emergency_contact_name: document.getElementById('profile-emergency-name')?.value || '',
+    emergency_contact_number: document.getElementById('profile-emergency-number')?.value || '',
+    children_names: JSON.stringify(children)
+  };
+
+  const msg = document.getElementById('profile-message');
+  if (msg) { msg.innerText = 'Saving...'; msg.style.color = '#888'; }
+
+  fetch(`${API_BASE}/api/update-resident/${loggedInUser.username}`, {
+    method: 'PUT',
+    headers: { 'Content-Type':'application/json' },
+    body: JSON.stringify(updatedData)
+  })
+  .then(res => res.json())
+  .then(data => {
+    if(data.success){
+      Object.assign(loggedInUser, updatedData);
+      // Force full save of every field so nothing is lost on logout
+      const toSave = Object.assign({}, loggedInUser);
+      localStorage.setItem("user", JSON.stringify(toSave));
+      if (msg) { msg.innerText = 'Profile saved successfully!'; msg.style.color = 'green'; }
+      updateHeaderUI();
+    } else {
+      if (msg) { msg.innerText = 'Failed: ' + (data.message || 'Unknown error'); msg.style.color = 'red'; }
+    }
+  })
+  .catch(() => {
+    if (msg) { msg.innerText = 'Server error.'; msg.style.color = 'red'; }
+  });
+}
+
+function requestDocument() {
+  const type = document.getElementById('document-type').value;
+  const purpose = document.getElementById('document-purpose').value.trim();
+  const email = document.getElementById('request-email').value.trim();
+  const govIdFile = document.getElementById('request-gov-id').files[0];
+  const photoFile = document.getElementById('request-photo').files[0];
+
+  const date = document.getElementById('request-date').value;
+  const time = document.getElementById('request-time').value;
+
+  if (!type || !purpose || !email || !govIdFile || !photoFile || !date || !time) {
+    alert('Please fill all required fields including pick-up date and time.');
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append("username", loggedInUser.username);
+  formData.append("document_type", type);
+  formData.append("purpose", purpose);
+  formData.append("email", email);
+  formData.append("gov_id", govIdFile);
+  formData.append("photo", photoFile);
+  formData.append("date", date);
+  formData.append("time", time);
+
+  const btn = document.querySelector('button[onclick="requestDocument()"]');
+  if (btn) { btn.disabled = true; btn.innerText = 'Submitting...'; }
+
+  fetch(`${API_BASE}/api/request-document`, {
+    method: 'POST',
+    body: formData
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (btn) { btn.disabled = false; btn.innerText = 'Request'; }
+    const successBox = document.getElementById('request-result');
+    if (successBox) {
+      successBox.style.display = 'block';
+      successBox.style.background = '#f0fdf4';
+      successBox.style.border = '1px solid #86efac';
+      successBox.style.color = '#16a34a';
+      successBox.style.padding = '14px 18px';
+      successBox.style.borderRadius = '10px';
+      successBox.style.fontSize = '14px';
+      successBox.style.fontWeight = '500';
+      successBox.style.marginTop = '12px';
+      successBox.innerText = '✅ Your request has been submitted successfully! The barangay will review it and notify you by email.';
+      setTimeout(() => { successBox.style.display = 'none'; }, 5000);
+    }
+    fetch(`${API_BASE}/api/my-requests?username=${loggedInUser.username}`)
+      .then(r => r.json())
+      .then(d => {
+        loggedInUser.requests = d.requests || [];
+        const listDiv = document.querySelector('#dashboard-body .flex-2, #dashboard-body div[style*="flex:2"]');
+        if (listDiv) showMyRequests();
+      });
+  })
+  .catch(() => {
+    if (btn) { btn.disabled = false; btn.innerText = 'Request'; }
+    const successBox = document.getElementById('request-result');
+    if (successBox) {
+      successBox.style.display = 'block';
+      successBox.style.background = '#fff5f5';
+      successBox.style.border = '1px solid #fca5a5';
+      successBox.style.color = '#dc2626';
+      successBox.style.padding = '14px 18px';
+      successBox.style.borderRadius = '10px';
+      successBox.style.fontSize = '14px';
+      successBox.style.fontWeight = '500';
+      successBox.style.marginTop = '12px';
+      successBox.innerText = '❌ Could not connect to the server. Please check your connection and try again.';
+    }
+  });
+}
+
+
+// FIX #2: was username (undefined), now loggedInUser.username
+function loadMyRequests() {
+  if (!loggedInUser || !loggedInUser.username) return;
+
+  fetch(`${API_BASE}/api/my-requests?username=${loggedInUser.username}`)
+    .then(res => res.json())
+    .then(data => {
+      loggedInUser.requests = data.requests || [];
+      const previewDiv = document.getElementById('resident-requests-preview');
+      if (!previewDiv) return;
+      if (loggedInUser.requests.length === 0) {
+        previewDiv.innerHTML = '<p>No requests yet.</p>';
+      } else {
+        previewDiv.innerHTML = `
+          <ul>
+            ${loggedInUser.requests.slice(-3).map(r => `
+              <li>${r.document_type} - <strong>${r.status}</strong></li>
+            `).join('')}
+          </ul>
+        `;
+      }
+    })
+    .catch(err => console.error('Failed to load requests', err));
+}
+
+// Manager Functions 
+function showDocRequests() {
+  Promise.all([
+    fetch(`${API_BASE}/api/document-requests`).then(res => res.json()),
+    fetch(`${API_BASE}/api/residents`).then(res => res.json())
+  ])
+  .then(([requestsData, residentsData]) => {
+    window.allRequests = requestsData.requests || [];
+    window.allResidents = residentsData.residents || [];
+    renderManagerRequests(window.allRequests, 'pending');
+  })
+  .catch(err => alert('Failed to load requests'));
+}
+
+function renderManagerRequests(allRequests, filter = 'all') {
+  const body = document.getElementById('manager-table');
+
+  let filteredRequests = allRequests;
+  if (filter === 'pending')  filteredRequests = allRequests.filter(r => r.status === 'Pending');
+  else if (filter === 'approved') filteredRequests = allRequests.filter(r => r.status === 'Approved');
+  else if (filter === 'rejected') filteredRequests = allRequests.filter(r => r.status === 'Rejected');
+
+  const pending  = allRequests.filter(r => r.status === 'Pending').length;
+  const approved = allRequests.filter(r => r.status === 'Approved').length;
+  const rejected = allRequests.filter(r => r.status === 'Rejected').length;
+
+  const statusCfg = {
+    'Pending':  { bar:'#8B0000', badgeBg:'#fef3c7', badgeColor:'#92400e', dot:'#f59e0b', accentLine:'#f59e0b' },
+    'Approved': { bar:'#8B0000', badgeBg:'#dcfce7', badgeColor:'#14532d', dot:'#22c55e', accentLine:'#22c55e' },
+    'Rejected': { bar:'#8B0000', badgeBg:'#fee2e2', badgeColor:'#7f1d1d', dot:'#ef4444', accentLine:'#ef4444' },
+  };
+
+  const tabBtn = (label, value, count, active) => `
+    <button onclick="renderManagerRequests(window.allRequests, '${value}')"
+      style="display:inline-flex; align-items:center; gap:8px; padding:9px 20px; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; border:1.5px solid ${active ? '#8B0000' : '#e5e7eb'}; background:${active ? '#8B0000' : '#fff'}; color:${active ? '#fff' : '#6b7280'}; transition:all 0.15s;">
+      ${label}
+      <span style="background:${active ? 'rgba(255,255,255,0.25)' : '#f3f4f6'}; color:${active ? '#fff' : '#374151'}; font-size:11px; font-weight:700; padding:2px 8px; border-radius:99px;">${count}</span>
+    </button>
+  `;
+
+  const filterLabel = filter === 'pending' ? 'Pending' : filter === 'approved' ? 'Approved' : 'Rejected';
+
+  const headerSection = `
+    <div style="background:#fff; border-bottom:1px solid #f0f0f0; padding:24px 32px 20px;">
+      <div style="display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:20px;">
+        <div>
+          <div style="font-size:11px; font-weight:700; color:#8B0000; letter-spacing:1px; text-transform:uppercase; margin-bottom:4px;">Barangay Trapiche</div>
+          <h2 style="margin:0; font-size:22px; font-weight:700; color:#1a1a1a;">Document Requests</h2>
+          <p style="margin:4px 0 0; font-size:13px; color:#9ca3af;">${allRequests.length} total request${allRequests.length !== 1 ? 's' : ''}</p>
+        </div>
+        <button onclick="showDocRequests()" style="display:inline-flex; align-items:center; gap:6px; padding:9px 16px; background:#f8f9fb; border:1px solid #e5e7eb; border-radius:8px; font-size:13px; font-weight:600; color:#374151; cursor:pointer;">
+          ↻ Refresh
+        </button>
+      </div>
+      <div style="display:flex; gap:8px;">
+        ${tabBtn('Pending', 'pending', pending, filter === 'pending')}
+        ${tabBtn('Approved', 'approved', approved, filter === 'approved')}
+        ${tabBtn('Rejected', 'rejected', rejected, filter === 'rejected')}
+      </div>
+    </div>
+  `;
+
+  if (filteredRequests.length === 0) {
+    body.innerHTML = `
+      ${headerSection}
+      <div style="padding:32px;">
+        <div style="text-align:center; padding:80px 0; background:#fff; border-radius:16px; border:1px solid #f0f0f0;">
+          <div style="width:56px; height:56px; background:#f5f5f5; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 16px; font-size:24px;">📭</div>
+          <div style="font-size:16px; font-weight:600; color:#aaa;">No ${filterLabel.toLowerCase()} requests</div>
+          <div style="font-size:13px; color:#ccc; margin-top:6px;">Check back later or switch tabs above</div>
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  const cards = filteredRequests.map(r => {
+    const cfg = statusCfg[r.status] || statusCfg['Pending'];
+    const residentMatch = (window.allResidents || []).find(res => res.username === r.username);
+    const displayName = (residentMatch && residentMatch.name) ? residentMatch.name : r.username;
+    const initials = displayName.charAt(0).toUpperCase();
+
+    return `
+      <div style="background:#fff; border-radius:16px; border:1px solid #eaecf0; overflow:hidden; transition:box-shadow 0.2s;"
+        onmouseover="this.style.boxShadow='0 8px 30px rgba(0,0,0,0.08)'"
+        onmouseout="this.style.boxShadow='none'">
+
+        <div style="height:3px; background:${cfg.accentLine};"></div>
+
+        <div style="display:grid; grid-template-columns:1fr 180px 1fr; min-height:220px;">
+
+          <!-- LEFT: Resident + request info -->
+          <div style="padding:22px 24px; border-right:1px solid #f3f4f6;">
+
+            <div style="display:flex; align-items:center; gap:12px; margin-bottom:18px;">
+              <div style="width:46px; height:46px; border-radius:50%; background:#8B0000; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; font-size:18px; flex-shrink:0;">
+                ${initials}
+              </div>
+              <div style="flex:1; min-width:0;">
+                <div style="font-size:15px; font-weight:700; color:#111827; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${displayName}</div>
+                <div style="font-size:12px; color:#9ca3af; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">@${r.username}</div>
+              </div>
+              <span style="flex-shrink:0; display:inline-flex; align-items:center; gap:5px; background:${cfg.badgeBg}; color:${cfg.badgeColor}; font-size:11px; font-weight:700; padding:4px 10px; border-radius:99px; letter-spacing:0.3px;">
+                <span style="width:5px; height:5px; border-radius:50%; background:${cfg.dot}; display:inline-block;"></span>
+                ${r.status}
+              </span>
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:0;">
+              <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid #f9fafb;">
+                <span style="font-size:11px; font-weight:600; color:#9ca3af; text-transform:uppercase; letter-spacing:0.5px;">Document type</span>
+                <span style="font-size:13px; font-weight:600; color:#111827; text-align:right; max-width:180px;">${r.document_type}</span>
+              </div>
+              <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid #f9fafb;">
+                <span style="font-size:11px; font-weight:600; color:#9ca3af; text-transform:uppercase; letter-spacing:0.5px;">Purpose</span>
+                <span style="font-size:13px; color:#374151; text-align:right; max-width:180px;">${r.purpose}</span>
+              </div>
+              <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid #f9fafb;">
+                <span style="font-size:11px; font-weight:600; color:#9ca3af; text-transform:uppercase; letter-spacing:0.5px;">Pick-up date</span>
+                <span style="font-size:13px; color:#374151;">${r.date ? formatDate(r.date) : '<span style="color:#d1d5db;">Not set</span>'}</span>
+              </div>
+              <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0;">
+                <span style="font-size:11px; font-weight:600; color:#9ca3af; text-transform:uppercase; letter-spacing:0.5px;">Pick-up time</span>
+                <span style="font-size:13px; color:#374151;">${r.time ? formatTime12Hour(r.time) : '<span style="color:#d1d5db;">Not set</span>'}</span>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- CENTER: Attachments + Gmail -->
+          <div style="padding:22px 16px; display:flex; flex-direction:column; align-items:center; justify-content:space-between; border-right:1px solid #f3f4f6; background:#fafafa;">
+
+            <!-- Attachments top -->
+            <div style="width:100%; display:flex; flex-direction:column; align-items:center; gap:10px;">
+              <div style="font-size:10px; font-weight:700; color:#9ca3af; text-transform:uppercase; letter-spacing:0.6px;">Attachments</div>
+              <div style="display:flex; flex-direction:column; gap:10px; width:100%;">
+                <div style="text-align:center;">
+                  <div style="font-size:10px; color:#9ca3af; font-weight:600; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.4px;">Gov ID</div>
+                  ${r.gov_id ? `
+                    <a href="${r.gov_id}" target="_blank" style="display:inline-block;">
+                      <img src="${r.gov_id}" style="width:80px; height:64px; object-fit:cover; border-radius:8px; border:1.5px solid #e5e7eb; transition:transform 0.2s; display:block;"
+                        onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'"
+                        onerror="this.style.display='none';">
+                    </a>` : `
+                    <div style="width:80px; height:64px; background:#f3f4f6; border-radius:8px; border:1.5px dashed #d1d5db; display:inline-flex; align-items:center; justify-content:center; font-size:11px; color:#9ca3af;">None</div>`}
+                </div>
+                <div style="text-align:center;">
+                  <div style="font-size:10px; color:#9ca3af; font-weight:600; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.4px;">2×2 Photo</div>
+                  ${r.photo ? `
+                    <a href="${r.photo}" target="_blank" style="display:inline-block;">
+                      <img src="${r.photo}" style="width:80px; height:64px; object-fit:cover; border-radius:8px; border:1.5px solid #e5e7eb; transition:transform 0.2s; display:block;"
+                        onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'"
+                        onerror="this.style.display='none';">
+                    </a>` : `
+                    <div style="width:80px; height:64px; background:#f3f4f6; border-radius:8px; border:1.5px dashed #d1d5db; display:inline-flex; align-items:center; justify-content:center; font-size:11px; color:#9ca3af;">None</div>`}
+                </div>
+              </div>
+            </div>
+
+            <!-- Gmail button perfectly centered -->
+            <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; flex:1; width:100%; padding:16px 0;">
+              <div style="font-size:10px; font-weight:700; color:#9ca3af; text-transform:uppercase; letter-spacing:0.6px; margin-bottom:10px;">Notify resident</div>
+              <a href="mailto:${r.email}"
+                style="display:inline-flex; align-items:center; justify-content:center; gap:7px; padding:10px 18px; background:#fff; border:1.5px solid #e5e7eb; border-radius:10px; font-size:12px; font-weight:700; color:#374151; text-decoration:none; transition:all 0.15s; width:100%; box-sizing:border-box;"
+                onmouseover="this.style.background='#fff8f8'; this.style.borderColor='#8B0000'; this.style.color='#8B0000';"
+                onmouseout="this.style.background='#fff'; this.style.borderColor='#e5e7eb'; this.style.color='#374151';">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;">
+                  <rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 7 10 7 10-7"/>
+                </svg>
+                Send Gmail
+              </a>
+              <div style="font-size:10px; color:#d1d5db; margin-top:6px; text-align:center;">${r.email || 'No email on file'}</div>
+            </div>
+
+          </div>
+
+          <!-- RIGHT: Actions -->
+          <div style="padding:22px 24px; display:flex; flex-direction:column; justify-content:center; gap:12px;">
+
+            ${r.status === 'Pending' ? `
+              <div style="margin-bottom:4px;">
+                <div style="font-size:11px; font-weight:700; color:#9ca3af; text-transform:uppercase; letter-spacing:0.6px; margin-bottom:12px;">Actions</div>
+
+                <button class="approve-btn"
+                  data-username="${r.username}" data-doc="${r.document_type}"
+                  data-date="${r.date || ''}" data-time="${r.time || ''}"
+                  data-id="${r.id || ''}"
+                  style="width:100%; padding:12px 18px; background:#8B0000; color:#fff; border:none; border-radius:10px; font-size:13px; font-weight:700; cursor:pointer; margin-bottom:8px; transition:all 0.15s; letter-spacing:0.3px;"
+                  onmouseover="this.style.background='#6f0000'; this.style.transform='translateY(-1px)'"
+                  onmouseout="this.style.background='#8B0000'; this.style.transform='translateY(0)'">
+                  ✓ Approve Request
+                </button>
+
+                <button class="reject-btn"
+                  data-username="${r.username}" data-doc="${r.document_type}"
+                  data-id="${r.id || ''}"
+                  style="width:100%; padding:12px 18px; background:#fff; color:#dc2626; border:1.5px solid #fca5a5; border-radius:10px; font-size:13px; font-weight:700; cursor:pointer; transition:all 0.15s; letter-spacing:0.3px;"
+                  onmouseover="this.style.background='#fff5f5'; this.style.borderColor='#ef4444'; this.style.transform='translateY(-1px)'"
+                  onmouseout="this.style.background='#fff'; this.style.borderColor='#fca5a5'; this.style.transform='translateY(0)'">
+                  ✕ Reject Request
+                </button>
+              </div>
+
+              <div style="background:#f8f9fb; border-radius:10px; padding:12px 14px;">
+                <div style="font-size:11px; font-weight:700; color:#9ca3af; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">Resident info</div>
+                <div style="font-size:12px; color:#374151; display:flex; flex-direction:column; gap:5px;">
+                  <div style="display:flex; justify-content:space-between;">
+                    <span style="color:#9ca3af;">Username</span>
+                    <span style="font-weight:600;">${r.username}</span>
+                  </div>
+                  <div style="display:flex; justify-content:space-between; gap:8px;">
+                    <span style="color:#9ca3af; flex-shrink:0;">Email</span>
+                    <span style="font-weight:600; word-break:break-all; text-align:right;">${r.email || '—'}</span>
+                  </div>
+                </div>
+              </div>
+            ` : `
+              <div style="text-align:center; padding:20px 0;">
+                <div style="width:48px; height:48px; border-radius:50%; background:${cfg.badgeBg}; display:flex; align-items:center; justify-content:center; margin:0 auto 10px; font-size:20px;">
+                  ${r.status === 'Approved' ? '✓' : '✕'}
+                </div>
+                <div style="font-size:14px; font-weight:700; color:${cfg.badgeColor};">
+                  Request ${r.status}
+                </div>
+                <div style="font-size:12px; color:#9ca3af; margin-top:4px;">No further action needed</div>
+              </div>
+
+              <div style="background:#f8f9fb; border-radius:10px; padding:12px 14px;">
+                <div style="font-size:11px; font-weight:700; color:#9ca3af; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">Resident info</div>
+                <div style="font-size:12px; color:#374151; display:flex; flex-direction:column; gap:5px;">
+                  <div style="display:flex; justify-content:space-between;">
+                    <span style="color:#9ca3af;">Username</span>
+                    <span style="font-weight:600;">${r.username}</span>
+                  </div>
+                  <div style="display:flex; justify-content:space-between; gap:8px;">
+                    <span style="color:#9ca3af; flex-shrink:0;">Email</span>
+                    <span style="font-weight:600; word-break:break-all; text-align:right;">${r.email || '—'}</span>
+                  </div>
+                </div>
+              </div>
+            `}
+
+          </div>
+
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  body.innerHTML = `
+    ${headerSection}
+    <div style="padding:24px 32px; background:#f5f6fa; min-height:calc(100vh - 160px);">
+      <div style="display:flex; flex-direction:column; gap:16px;">
+        ${cards}
+      </div>
+    </div>
+  `;
+
+  document.querySelectorAll('.approve-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const username = btn.getAttribute('data-username');
+      const docType  = btn.getAttribute('data-doc');
+      const date     = btn.getAttribute('data-date');
+      const time     = btn.getAttribute('data-time');
+
+      btn.disabled = true;
+      btn.innerText = 'Approving...';
+      btn.style.background = '#aaa';
+      btn.style.transform = 'none';
+
+      const reqId = btn.getAttribute('data-id');
+      fetch(`${API_BASE}/api/approve-request`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, documentType: docType, date, time, requestId: reqId })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          sendApprovalEmail(data.email, docType, data.purpose || 'General Requirement', data.date || date, data.time || time);
+          showToast(`Approved — notification sent to ${data.email}`, 'success');
+          showDocRequests();
+        } else {
+          showToast(data.message || 'Failed to approve request.', 'error');
+          btn.disabled = false;
+          btn.innerText = '✓ Approve Request';
+          btn.style.background = '#8B0000';
+        }
+      })
+      .catch(() => {
+        showToast('Server error while approving request.', 'error');
+        btn.disabled = false;
+        btn.innerText = '✓ Approve Request';
+        btn.style.background = '#8B0000';
+      });
+    });
+  });
+
+  document.querySelectorAll('.reject-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const username  = btn.getAttribute('data-username');
+      const docType   = btn.getAttribute('data-doc');
+      const requestId = btn.getAttribute('data-id');
+      rejectRequest(username, docType, requestId);
+    });
+  });
+}
+
+function sendApprovalEmail(residentEmail, documentType, purpose, date, time) {
+  emailjs.send("service_9m8vyrc", "template_tro0oll", {
+    to_email: residentEmail,
+    document_type: documentType,
+    purpose: purpose,
+    date: formatDate(date),
+    time: formatTime12Hour(time)
+  }, "Ndd7_r9gTrjDBG9-K")
+  .then(() => {
+    console.log("Email sent successfully!");
+  })
+  .catch((error) => {
+    console.error("Error sending email:", error);
+  });
+}
+
+function sendRejectionEmail(residentEmail, documentType, purpose) {
+  emailjs.send("service_9m8vyrc", "template_rejection", {
+    to_email: residentEmail,
+    document_type: documentType,
+    purpose: purpose
+  }, "Ndd7_r9gTrjDBG9-K")
+  .then(() => {
+    console.log("Rejection email sent successfully!");
+  })
+  .catch((error) => {
+    console.error("Error sending rejection email:", error);
+  });
+}
+
+function showToast(message, type = 'success') {
+  const existingOverlay = document.getElementById('toast-overlay');
+  if (existingOverlay) existingOverlay.remove();
+
+  const colors = {
+    success: { bg: '#f0fdf4', border: '#86efac', text: '#16a34a', iconBg: '#dcfce7', icon: '✓' },
+    error:   { bg: '#fff5f5', border: '#fca5a5', text: '#dc2626', iconBg: '#fee2e2', icon: '✕' },
+    info:    { bg: '#eff6ff', border: '#93c5fd', text: '#1d4ed8', iconBg: '#dbeafe', icon: 'i' },
+  };
+  const c = colors[type] || colors.info;
+
+  const overlay = document.createElement('div');
+  overlay.id = 'toast-overlay';
+  overlay.style.cssText = `
+    position: fixed; inset: 0; z-index: 99999;
+    background: rgba(0,0,0,0.45);
+    display: flex; align-items: center; justify-content: center;
+    animation: toastFadeIn 0.2s ease;
+  `;
+
+  overlay.innerHTML = `
+    <div style="
+      background: #fff; border-radius: 20px; padding: 36px 40px;
+      max-width: 420px; width: 90%; text-align: center;
+      box-shadow: 0 24px 60px rgba(0,0,0,0.2);
+      animation: toastPopIn 0.25s cubic-bezier(0.34,1.56,0.64,1);
+      border-top: 4px solid ${c.border};
+    ">
+      <div style="
+        width: 60px; height: 60px; border-radius: 50%;
+        background: ${c.iconBg}; color: ${c.text};
+        font-size: 26px; font-weight: 700;
+        display: flex; align-items: center; justify-content: center;
+        margin: 0 auto 18px;
+        border: 2px solid ${c.border};
+      ">${c.icon}</div>
+      <div style="font-size: 18px; font-weight: 700; color: #1a1a1a; margin-bottom: 8px;">
+        ${type === 'success' ? 'Request Approved' : type === 'error' ? 'Request Rejected' : 'Notice'}
+      </div>
+      <div style="font-size: 14px; color: #555; line-height: 1.6; margin-bottom: 24px;">
+        ${message}
+      </div>
+      <button onclick="document.getElementById('toast-overlay').remove()"
+        style="
+          padding: 11px 32px; border-radius: 10px; border: none;
+          background: ${type === 'success' ? '#8B0000' : type === 'error' ? '#dc2626' : '#1d4ed8'};
+          color: #fff; font-size: 14px; font-weight: 700; cursor: pointer;
+          transition: opacity 0.15s;
+        "
+        onmouseover="this.style.opacity='0.85'"
+        onmouseout="this.style.opacity='1'">
+        OK
+      </button>
+    </div>
+  `;
+
+  const style = document.createElement('style');
+  style.innerText = `
+    @keyframes toastFadeIn { from { opacity:0; } to { opacity:1; } }
+    @keyframes toastPopIn { from { opacity:0; transform:scale(0.85); } to { opacity:1; transform:scale(1); } }
+  `;
+  document.head.appendChild(style);
+  document.body.appendChild(overlay);
+
+  overlay.addEventListener('click', function(e) {
+    if (e.target === overlay) overlay.remove();
+  });
+
+  setTimeout(() => { if (overlay.parentNode) overlay.remove(); }, 6000);
+}
+
+function approveRequest(username, documentType, date, time) {
+  if (!date || !time) {
+    showToast('This request has no pick-up date or time set by the resident. Cannot approve.', 'error');
+    return;
+  }
+
+  fetch(`${API_BASE}/api/approve-request`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, documentType, date, time })
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (data.success) {
+      const residentEmail = data.email;
+      const purpose = data.purpose || 'General Requirement';
+      const finalDate = data.date || date;
+      const finalTime = data.time || time;
+      sendApprovalEmail(residentEmail, documentType, purpose, finalDate, finalTime);
+      showToast(`Approved — notification sent to ${residentEmail}`, 'success');
+      showDocRequests();
+    } else {
+      showToast(data.message || 'Failed to approve request.', 'error');
+    }
+  })
+  .catch(() => showToast('Server error while approving request.', 'error'));
+}
+
+function rejectRequest(username, documentType, requestId) {
+  showToast('Are you sure you want to reject this request?', 'info');
+
+  setTimeout(() => {
+    const overlay = document.getElementById('toast-overlay');
+    if (!overlay) return;
+
+    const btnRow = document.createElement('div');
+    btnRow.style.cssText = 'display:flex; gap:10px; justify-content:center; margin-top:8px;';
+    btnRow.innerHTML = `
+      <button id="confirm-reject-btn"
+        style="padding:11px 28px; border-radius:10px; border:none; background:#dc2626; color:#fff; font-size:14px; font-weight:700; cursor:pointer;">
+        Yes, Reject
+      </button>
+      <button onclick="document.getElementById('toast-overlay').remove()"
+        style="padding:11px 28px; border-radius:10px; border:1.5px solid #e5e7eb; background:#fff; color:#374151; font-size:14px; font-weight:700; cursor:pointer;">
+        Cancel
+      </button>
+    `;
+
+    const okBtn = overlay.querySelector('button');
+    if (okBtn) okBtn.style.display = 'none';
+    overlay.querySelector('div > div').appendChild(btnRow);
+
+    document.getElementById('confirm-reject-btn').addEventListener('click', () => {
+      overlay.remove();
+
+      fetch(`${API_BASE}/api/reject-request`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, documentType, requestId })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          showToast(`Rejected — notification sent to ${data.email}`, 'error');
+          showDocRequests();
+        } else {
+          showToast(data.message || 'Failed to reject request.', 'error');
+        }
+      })
+      .catch(() => showToast('Server error while rejecting request.', 'error'));
+    });
+  }, 50);
+}
+
+// DSWD Dashboard
+// FIX #3: Removed the duplicate showDSWDStats that was nested inside renderDSWDStats
+// This is now the only definition of showDSWDStats
+function showDSWDStats(){
+  fetch(`${API_BASE}/api/residents`)
+    .then(res => res.json())
+    .then(data => {
+      dswdResidents = data.residents || [];
+      renderDSWDStats(dswdResidents);
+    })
+    .catch(err => alert('Failed to load resident data from server.'));
+}
+
+// FIX #4: renderDSWDStats now properly closed — no nested functions inside it
+function renderDSWDStats(residents){
+  const body = document.getElementById('dashboard-body');
+  const trapiches=['Trapiche 1','Trapiche 2','Trapiche 3','Trapiche 4'];
+
+  let totalMale=0, totalFemale=0, totalPWD=0, totalSenior=0;
+
+  const ageCounts = {
+    '0_10':  { male:0, female:0 },
+    '11_14': { male:0, female:0 },
+    '15_30': { male:0, female:0 },
+    '31_59': { male:0, female:0 },
+    '60':    { male:0, female:0 }
+  };
+
+  let trapicheTotals = {};
+  trapiches.forEach(t => {
+    trapicheTotals[t] = { male:0, female:0, total:0, pwd:0, senior:0, residents:[] };
+  });
+
+  residents.forEach(r => {
+    if(r.gender==='Male') totalMale++; else totalFemale++;
+    if(r.pwd==='Yes') totalPWD++;
+    if(r.age>=60) totalSenior++;
+
+    if(trapicheTotals[r.barangay]){
+      trapicheTotals[r.barangay][r.gender==='Male'?'male':'female']++;
+      trapicheTotals[r.barangay].total++;
+      if(r.pwd==='Yes') trapicheTotals[r.barangay].pwd++;
+      if(r.age>=60) trapicheTotals[r.barangay].senior++;
+      trapicheTotals[r.barangay].residents.push(r);
+    }
+
+    if(r.age<=10)      ageCounts['0_10'][r.gender==='Male'?'male':'female']++;
+    else if(r.age<=14) ageCounts['11_14'][r.gender==='Male'?'male':'female']++;
+    else if(r.age<=30) ageCounts['15_30'][r.gender==='Male'?'male':'female']++;
+    else if(r.age<=59) ageCounts['31_59'][r.gender==='Male'?'male':'female']++;
+    else               ageCounts['60'][r.gender==='Male'?'male':'female']++;
+  });
+
+  const n = residents.length;
+  const pct = (a, b) => b ? Math.round(a / b * 100) : 0;
+
+  const thStyle = `padding:14px 22px; text-align:left; font-size:14px; font-weight:500; color:#888; border-bottom:0.5px solid #eee; background:#f8f9fa; white-space:nowrap;`;
+
+  const barCell = (count, barPct, color, pillBg, pillColor, onclick) => `
+    <div style="display:flex; align-items:center; gap:10px;">
+      <span onclick="${onclick}"
+        style="background:${pillBg}; color:${pillColor}; font-size:13px; font-weight:500;
+               padding:5px 14px; border-radius:99px; min-width:40px; text-align:center; cursor:pointer;">
+        ${count}
+      </span>
+      <div style="flex:1; height:7px; background:#eee; border-radius:99px; overflow:hidden; min-width:80px;">
+        <div style="width:${barPct}%; height:100%; background:${color}; border-radius:99px;"></div>
+      </div>
+      <span style="font-size:13px; color:#bbb; min-width:40px; text-align:right;">${barPct}%</span>
+    </div>
+  `;
+
+  const legend = `
+    <div style="display:flex; gap:20px; padding:14px 22px; border-bottom:0.5px solid #f0f0f0;">
+      <span style="display:flex; align-items:center; gap:6px; font-size:14px; color:#666;">
+        <span style="width:12px; height:12px; border-radius:2px; background:#378ADD; display:inline-block;"></span> Male
+      </span>
+      <span style="display:flex; align-items:center; gap:6px; font-size:14px; color:#666;">
+        <span style="width:12px; height:12px; border-radius:2px; background:#D4537E; display:inline-block;"></span> Female
+      </span>
+    </div>
+  `;
+
+  const metricCards = `
+    <div style="display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:12px; margin-bottom:24px;">
+      <div style="background:#fff; border-radius:10px; padding:18px 20px; border:0.5px solid #e0e0e0;">
+        <div style="font-size:14px; color:#888; margin-bottom:8px;">Total residents</div>
+        <div style="font-size:32px; font-weight:500; color:#1a1a1a;">${n}</div>
+        <div style="font-size:13px; color:#aaa; margin-top:6px;">all barangays</div>
+      </div>
+      <div style="background:#fff; border-radius:10px; padding:18px 20px; border:0.5px solid #e0e0e0;">
+        <div style="font-size:14px; color:#185FA5; margin-bottom:8px;">Male</div>
+        <div style="font-size:32px; font-weight:500; color:#185FA5;">${totalMale}</div>
+        <div style="font-size:13px; color:#185FA5; margin-top:6px; opacity:0.8;">${pct(totalMale,n)}% of total</div>
+      </div>
+      <div style="background:#fff; border-radius:10px; padding:18px 20px; border:0.5px solid #e0e0e0;">
+        <div style="font-size:14px; color:#993556; margin-bottom:8px;">Female</div>
+        <div style="font-size:32px; font-weight:500; color:#993556;">${totalFemale}</div>
+        <div style="font-size:13px; color:#993556; margin-top:6px; opacity:0.8;">${pct(totalFemale,n)}% of total</div>
+      </div>
+      <div style="background:#fff; border-radius:10px; padding:18px 20px; border:0.5px solid #e0e0e0;">
+        <div style="font-size:14px; color:#3B6D11; margin-bottom:8px;">Senior (60+)</div>
+        <div style="font-size:32px; font-weight:500; color:#3B6D11;">${totalSenior}</div>
+        <div style="font-size:13px; color:#3B6D11; margin-top:6px; opacity:0.8;">${pct(totalSenior,n)}% of total</div>
+      </div>
+      <div style="background:#fff; border-radius:10px; padding:18px 20px; border:0.5px solid #e0e0e0;">
+        <div style="font-size:14px; color:#712B13; margin-bottom:8px;">PWD</div>
+        <div style="font-size:32px; font-weight:500; color:#712B13;">${totalPWD}</div>
+        <div style="font-size:13px; color:#712B13; margin-top:6px; opacity:0.8;">${pct(totalPWD,n)}% of total</div>
+      </div>
+    </div>
+  `;
+
+  const ageLabels = { '0_10':'0–10', '11_14':'11–14', '15_30':'15–30', '31_59':'31–59', '60':'60+' };
+
+  const ageRows = Object.keys(ageCounts).map(group => {
+    const m = ageCounts[group].male;
+    const f = ageCounts[group].female;
+    const rt = m + f;
+    const totalPct = pct(rt, n);
+    const mPct = pct(m, rt);
+    const fPct = rt ? (100 - mPct) : 0;
+    return `
+      <tr onmouseover="this.style.background='#fafafa'" onmouseout="this.style.background=''">
+        <td style="padding:16px 22px; font-weight:500; font-size:16px; color:#1a1a1a;">${ageLabels[group]}</td>
+        <td style="padding:16px 22px; text-align:right;">
+          <span onclick="openAgeGroupFolder('${group}')" style="color:#378ADD; font-weight:500; font-size:18px; cursor:pointer;">${rt}</span>
+        </td>
+        <td style="padding:16px 22px;">
+          ${barCell(m, mPct, '#378ADD', '#E6F1FB', '#0C447C', `openAgeGroupFolder('${group}','Male')`)}
+        </td>
+        <td style="padding:16px 22px;">
+          ${barCell(f, fPct, '#D4537E', '#FBEAF0', '#72243E', `openAgeGroupFolder('${group}','Female')`)}
+        </td>
+        <td style="padding:16px 22px; text-align:right;">
+          <div style="display:flex; align-items:center; justify-content:flex-end; gap:8px;">
+            <div style="width:80px; height:7px; background:#eee; border-radius:99px; overflow:hidden;">
+              <div style="width:${totalPct}%; height:100%; background:#c0392b; border-radius:99px;"></div>
+            </div>
+            <span style="font-size:13px; color:#bbb; min-width:40px;">${totalPct}%</span>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  const bgyRows = trapiches.map(t => {
+    const d = trapicheTotals[t];
+    const mPct = pct(d.male, d.total);
+    const fPct = d.total ? (100 - mPct) : 0;
+    return `
+      <tr onmouseover="this.style.background='#fafafa'" onmouseout="this.style.background=''">
+        <td style="padding:16px 22px; font-weight:500; font-size:16px; color:#1a1a1a;">${t}</td>
+        <td style="padding:16px 22px; text-align:right;">
+          <span onclick="openTrapicheCategory('total','${t}')" style="color:#378ADD; font-weight:500; font-size:18px; cursor:pointer;">${d.total}</span>
+        </td>
+        <td style="padding:16px 22px;">
+          ${barCell(d.male, mPct, '#378ADD', '#E6F1FB', '#0C447C', `openTrapicheCategory('male','${t}')`)}
+        </td>
+        <td style="padding:16px 22px;">
+          ${barCell(d.female, fPct, '#D4537E', '#FBEAF0', '#72243E', `openTrapicheCategory('female','${t}')`)}
+        </td>
+        <td style="padding:16px 22px; text-align:center;">
+          <span onclick="openTrapicheCategory('pwd','${t}')"
+            style="background:#FAECE7; color:#712B13; font-size:14px; font-weight:500; padding:6px 16px; border-radius:99px; cursor:pointer;">${d.pwd}</span>
+        </td>
+        <td style="padding:16px 22px; text-align:center;">
+          <span onclick="openTrapicheCategory('senior','${t}')"
+            style="background:#EAF3DE; color:#27500A; font-size:14px; font-weight:500; padding:6px 16px; border-radius:99px; cursor:pointer;">${d.senior}</span>
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  body.innerHTML = `
+    <div style="padding:24px; background:#f5f6fa; min-height:100%;">
+      ${metricCards}
+      <div style="background:#fff; border-radius:12px; border:0.5px solid #e0e0e0; overflow:hidden; margin-bottom:24px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:18px 22px; border-bottom:0.5px solid #e0e0e0;">
+          <span style="font-size:17px; font-weight:500; color:#1a1a1a;">Age group breakdown</span>
+          <span style="font-size:13px; color:#aaa;">${n} residents total</span>
+        </div>
+        ${legend}
+        <table style="width:100%; border-collapse:collapse;">
+          <thead>
+            <tr>
+              <th style="${thStyle} width:140px;">Age group</th>
+              <th style="${thStyle} text-align:right; width:100px;">Total</th>
+              <th style="${thStyle} width:280px;">Male</th>
+              <th style="${thStyle} width:280px;">Female</th>
+              <th style="${thStyle} text-align:right; width:160px;">% of total</th>
+            </tr>
+          </thead>
+          <tbody>${ageRows}</tbody>
+        </table>
+      </div>
+      <div style="background:#fff; border-radius:12px; border:0.5px solid #e0e0e0; overflow:hidden; margin-bottom:24px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:18px 22px; border-bottom:0.5px solid #e0e0e0;">
+          <span style="font-size:17px; font-weight:500; color:#1a1a1a;">Barangay breakdown</span>
+          <span style="font-size:13px; color:#aaa;">4 zones</span>
+        </div>
+        ${legend}
+        <table style="width:100%; border-collapse:collapse;">
+          <thead>
+            <tr>
+              <th style="${thStyle} width:160px;">Barangay</th>
+              <th style="${thStyle} text-align:right; width:100px;">Total</th>
+              <th style="${thStyle} width:250px;">Male</th>
+              <th style="${thStyle} width:250px;">Female</th>
+              <th style="${thStyle} text-align:center; width:120px;">PWD</th>
+              <th style="${thStyle} text-align:center; width:120px;">Senior</th>
+            </tr>
+          </thead>
+          <tbody>${bgyRows}</tbody>
+        </table>
+      </div>
+    </div>
+  `;
+} // <-- renderDSWDStats ends HERE (properly closed)
+
+// These functions are now OUTSIDE renderDSWDStats (fixed)
+function selectDSWDResident(element, username){
+  document.querySelectorAll('#dswd-resident-list .folder-item')
+    .forEach(el => el.classList.remove('active'));
+  element.classList.add('active');
+  const user = dswdResidents.find(r => r.username === username);
+  if(!user) return;
+  element.innerHTML = `
+    <input type="text" value="${user.name}" id="edit-name-${username}" style="width:150px;">
+    <select id="edit-gender-${username}">
+      <option value="Male" ${user.gender==='Male'?'selected':''}>Male</option>
+      <option value="Female" ${user.gender==='Female'?'selected':''}>Female</option>
+    </select>
+    <input type="number" value="${user.age}" id="edit-age-${username}" min="1" style="width:60px;">
+    <input type="text" value="${user.barangay}" id="edit-barangay-${username}" style="width:100px;">
+    <select id="edit-pwd-${username}">
+      <option value="No" ${user.pwd==='No'?'selected':''}>No</option>
+      <option value="Yes" ${user.pwd==='Yes'?'selected':''}>Yes</option>
+    </select>
+    <button onclick="saveDSWDResidentInline('${username}')">Save</button>
+  `;
+}
+
+function saveDSWDResidentInline(username){
+  const updatedData = {
+    name: document.getElementById(`edit-name-${username}`).value,
+    gender: document.getElementById(`edit-gender-${username}`).value,
+    age: parseInt(document.getElementById(`edit-age-${username}`).value),
+    barangay: document.getElementById(`edit-barangay-${username}`).value,
+    pwd: document.getElementById(`edit-pwd-${username}`).value
+  };
+  fetch(`${API_BASE}/api/update-resident/${username}`, {
+    method: 'PUT',
+    headers: { 'Content-Type':'application/json' },
+    body: JSON.stringify(updatedData)
+  })
+  .then(res => res.json())
+  .then(data => {
+    if(data.success){
+      alert('Resident updated successfully!');
+      showDSWDStats();
+    } else {
+      alert('Update failed.');
+    }
+  })
+  .catch(() => alert('Server error.'));
+}
+
+function openTrapicheCategory(category, trapiche = null) {
+  const body = document.getElementById('dashboard-body');
+  let filtered = dswdResidents.filter(r => {
+    if (trapiche && r.barangay !== trapiche) return false;
+    switch(category){
+      case 'total': return true;
+      case 'male': return r.gender === 'Male';
+      case 'female': return r.gender === 'Female';
+      case 'pwd': return r.pwd === 'Yes';
+      case 'senior': return r.age >= 60;
+      default: return true;
+    }
+  });
+  const title = trapiche ? `${trapiche} - ${category.toUpperCase()} Residents` : `${category.toUpperCase()} Residents (All Barangays)`;
+  body.innerHTML = `
+    <button onclick="showDSWDStats()" style="margin-bottom:15px;">Back</button>
+    <h3>${title}</h3>
+    <input type="text" placeholder="Search resident name..." oninput="filterCategoryResidents(this)">
+    <div id="category-resident-list">
+      ${filtered.length === 0 ? '<p>No residents found.</p>' :
+        filtered.map(r => `<p onclick="openDSWDResidentDetail('${r.username}')">${r.name} (${r.age}, ${r.gender}, PWD:${r.pwd}, ${r.barangay})</p>`).join('')}
+    </div>
+  `;
+}
+
+function filterCategoryResidents(input){
+  const keyword = input.value.toLowerCase();
+  document.querySelectorAll("#category-resident-list p").forEach(p=>{
+    p.style.display = p.innerText.toLowerCase().includes(keyword) ? "block" : "none";
+  });
+}
+
+function filterDSWDResidents(input){
+  const keyword = input.value.toLowerCase();
+  document.querySelectorAll("#dswd-resident-list p").forEach(p=>{
+    p.style.display = p.innerText.toLowerCase().includes(keyword) ? "block" : "none";
+  });
+}
+
+function openDSWDResidentDetail(username){
+  const user = dswdResidents.find(r => r.username === username);
+  if(!user) return;
+  const body = document.getElementById('dashboard-body');
+  body.innerHTML = `
+    <button onclick="showDSWDStats()" style="margin-bottom:15px;">⬅ Back to DSWD Dashboard</button>
+    <h3>Edit Resident: ${user.name}</h3>
+    <label>Name:</label>
+    <input type="text" id="dswd-name" value="${user.name}">
+    <label>Gender:</label>
+    <select id="dswd-gender">
+      <option value="Male" ${user.gender==='Male'?'selected':''}>Male</option>
+      <option value="Female" ${user.gender==='Female'?'selected':''}>Female</option>
+    </select>
+    <label>Age:</label>
+    <input type="number" id="dswd-age" value="${user.age}" min="1">
+    <label>Address:</label>
+    <input type="text" id="dswd-address" value="${user.address || ''}">
+    <label>Barangay:</label>
+    <select id="dswd-barangay">
+      <option value="Trapiche 1" ${user.barangay==='Trapiche 1'?'selected':''}>Trapiche 1</option>
+      <option value="Trapiche 2" ${user.barangay==='Trapiche 2'?'selected':''}>Trapiche 2</option>
+      <option value="Trapiche 3" ${user.barangay==='Trapiche 3'?'selected':''}>Trapiche 3</option>
+      <option value="Trapiche 4" ${user.barangay==='Trapiche 4'?'selected':''}>Trapiche 4</option>
+    </select>
+    <label>PWD:</label>
+    <select id="dswd-pwd">
+      <option value="No" ${user.pwd==='No'?'selected':''}>No</option>
+      <option value="Yes" ${user.pwd==='Yes'?'selected':''}>Yes</option>
+    </select>
+    <button onclick="saveDSWDResident('${user.username}')">Save Changes</button>
+  `;
+}
+
+function saveDSWDResident(username){
+  const updatedData = {
+    name: document.getElementById('dswd-name').value,
+    gender: document.getElementById('dswd-gender').value,
+    age: parseInt(document.getElementById('dswd-age').value),
+    address: document.getElementById('dswd-address').value,
+    barangay: document.getElementById('dswd-barangay').value,
+    pwd: document.getElementById('dswd-pwd').value
+  };
+  fetch(`${API_BASE}/api/update-resident/${username}`, {
+    method: 'PUT',
+    headers: { 'Content-Type':'application/json' },
+    body: JSON.stringify(updatedData)
+  })
+  .then(res => res.json())
+  .then(data => {
+    if(data.success){
+      alert('Resident updated successfully!');
+      showDSWDStats();
+    } else {
+      alert('Update failed.');
+    }
+  })
+  .catch(() => alert('Server error.'));
+}
+
+function toggleResidentsByAgeGroup(row,group){
+  row.classList.toggle('expanded');
+  if(row.nextElementSibling && row.nextElementSibling.classList.contains('age-residents')){
+    row.nextElementSibling.remove();
+    return;
+  }
+  const residentsList = dswdResidents.filter(r=>{
+    if(group==='0_10') return r.age<=10;
+    if(group==='11_14') return r.age>=11&&r.age<=14;
+    if(group==='15_30') return r.age>=15&&r.age<=30;
+    if(group==='31_59') return r.age>=31&&r.age<=59;
+    return r.age>=60;
+  });
+  const tr=document.createElement('tr');
+  tr.classList.add('age-residents');
+  const td=document.createElement('td');
+  td.colSpan=6;
+  td.innerHTML=residentsList.map(r=>`<p>${r.name} (${r.age}, ${r.gender}, ${r.barangay})</p>`).join('');
+  tr.appendChild(td);
+  row.parentNode.insertBefore(tr,row.nextSibling);
+}
+
+function toggleResidentsByTrapiche(row, trapiche) {
+  row.classList.toggle('expanded');
+  if (row.nextElementSibling && row.nextElementSibling.classList.contains('trapiche-residents')) {
+    row.nextElementSibling.remove();
+    return;
+  }
+  const residentsList = dswdResidents.filter(r => r.barangay === trapiche);
+  const tr = document.createElement('tr');
+  tr.classList.add('trapiche-residents');
+  const td = document.createElement('td');
+  td.colSpan = 6;
+  td.innerHTML = `<div class="folder-contents">${residentsList.map(r => `<p>${r.name} (${r.age}, ${r.gender}, PWD:${r.pwd})</p>`).join('')}</div>`;
+  tr.appendChild(td);
+  row.parentNode.insertBefore(tr, row.nextSibling);
+}
+
+function filterTrapicheResidents(input){
+  const keyword = input.value.toLowerCase();
+  document.querySelectorAll(".trapiche-residents p").forEach(p=>{
+    p.style.display = p.innerText.toLowerCase().includes(keyword) ? "block" : "none";
+  });
+}
+
+function openTrapicheFolder(trapiche) {
+  const body = document.getElementById('dashboard-body');
+  const residentsList = dswdResidents.filter(r => r.barangay === trapiche);
+  body.innerHTML = `
+    <button onclick="showDSWDStats()" style="margin-bottom:15px;">⬅ Back to Barangay Statistics</button>
+    <h3>${trapiche} Residents</h3>
+    <input type="text" class="search-box" placeholder="Search resident name..." oninput="filterFolderResidents(this)">
+    <div id="folder-residents">
+      ${residentsList.length === 0
+        ? '<p>No residents found.</p>'
+        : residentsList.map(r => `
+            <p class="folder-item" data-username="${r.username}" onclick="selectTrapicheResident(this, '${r.username}')">
+              ${r.name} (${r.age}, ${r.gender}, PWD: ${r.pwd})
+            </p>
+          `).join('')
+      }
+    </div>
+  `;
+}
+
+function selectTrapicheResident(element, username) {
+  document.querySelectorAll('#folder-residents .folder-item').forEach(el => el.classList.remove('active'));
+  element.classList.add('active');
+  openDSWDResidentDetail(username);
+}
+
+function filterFolderResidents(input) {
+  const keyword = input.value.toLowerCase();
+  document.querySelectorAll("#folder-residents p").forEach(p => {
+    p.style.display = p.innerText.toLowerCase().includes(keyword) ? "block" : "none";
+  });
+}
+
+function openAgeGroupFolder(group, gender = null) {
+  const body = document.getElementById('dashboard-body');
+  const residentsList = dswdResidents.filter(r => {
+    let inGroup = false;
+    if (group === '0_10') inGroup = r.age <= 10;
+    else if (group === '11_14') inGroup = r.age >= 11 && r.age <= 14;
+    else if (group === '15_30') inGroup = r.age >= 15 && r.age <= 30;
+    else if (group === '31_59') inGroup = r.age >= 31 && r.age <= 59;
+    else if (group === '60') inGroup = r.age >= 60;
+    if (gender) return inGroup && r.gender === gender;
+    return inGroup;
+  });
+  const groupNames = { '0_10': '0–10', '11_14': '11–14', '15_30': '15–30', '31_59': '31–59', '60': '60+' };
+  body.innerHTML = `
+    <button onclick="showDSWDStats()" style="margin-bottom:15px;">Back</button>
+    <h3>Age Group: ${groupNames[group]}${gender ? ' - ' + gender : ''}</h3>
+    <input type="text" class="search-box" placeholder="Search resident name..." oninput="filterAgeFolderResidents(this)">
+    ${residentsList.length === 0
+      ? '<p>No residents found.</p>'
+      : `
+        <table class="resident-table">
+          <thead>
+            <tr>
+              <th>Name</th><th>Age</th><th>Gender</th><th>Barangay</th><th>PWD</th><th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${residentsList.map(r => `
+              <tr>
+                <td><input type="text" value="${r.name}" style="width:150px;" readonly></td>
+                <td><input type="number" value="${r.age}" min="1" style="width:60px;" readonly></td>
+                <td>
+                  <select disabled>
+                    <option value="Male" ${r.gender==='Male'?'selected':''}>Male</option>
+                    <option value="Female" ${r.gender==='Female'?'selected':''}>Female</option>
+                  </select>
+                </td>
+                <td><input type="text" value="${r.barangay}" style="width:100px;" readonly></td>
+                <td>
+                  <select disabled>
+                    <option value="No" ${r.pwd==='No'?'selected':''}>No</option>
+                    <option value="Yes" ${r.pwd==='Yes'?'selected':''}>Yes</option>
+                  </select>
+                </td>
+                <td><button onclick="openDSWDResidentDetail('${r.username}')">Edit</button></td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `
+    }
+  `;
+}
+
+function selectAgeResident(element, username) {
+  document.querySelectorAll('#age-folder-residents .folder-item').forEach(el => el.classList.remove('active'));
+  element.classList.add('active');
+  openDSWDResidentDetail(username);
+}
+
+function filterAgeFolderResidents(input) {
+  const keyword = input.value.toLowerCase();
+  document.querySelectorAll("#age-folder-residents p").forEach(p => {
+    p.style.display = p.innerText.toLowerCase().includes(keyword) ? "block" : "none";
+  });
+}
+
+function generateRandomPassword(length = 10){
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let pw = '';
+  for(let i=0;i<length;i++){
+    pw += chars.charAt(Math.floor(Math.random()*chars.length));
+  }
+  return pw;
+}
+
+// FIX #3: callback changed from handleGoogleLogin → handleCredentialResponse
+window.onload = function () {
+  if (document.getElementById('google-signin-btn')) {
+    google.accounts.id.initialize({
+      client_id: '306495383550-a78829rjufomiidmq5h79677uemjoj4g.apps.googleusercontent.com',
+      callback: handleCredentialResponse  // ← FIXED (was handleGoogleLogin)
+    });
+    google.accounts.id.renderButton(
+      document.getElementById('google-signin-btn'),
+      { theme: 'outline', size: 'large' }
+    );
+  }
+};
+
+function handleCredentialResponse(response) {
+  fetch(`${API_BASE}/api/google-login`, {
+    method: 'POST',
+    headers: { 'Content-Type':'application/json' },
+    body: JSON.stringify({ credential: response.credential })
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (data.success) {
+  loggedInUser = data.user;
+  currentRole = data.user.role;
+  localStorage.setItem("user", JSON.stringify(data.user));
+  if (data.user.role === 'dswd') {
+    openDSWDPage();
+  } else if (data.user.role === 'manager') {
+    openManagerPage();
+  } else {
+    fetchFullProfileThenRender();
+  }
+} else {
+      const errBox = document.getElementById('login-error');
+      if (errBox) {
+        errBox.innerText = data.message || 'Google login failed';
+        errBox.style.display = 'block';
+      }
+    }
+  })
+  .catch(err => {
+    console.error("Google login error:", err);
+    const errBox = document.getElementById('login-error');
+    if (errBox) {
+      errBox.innerText = 'Google login failed: ' + (err.message || 'Server error');
+      errBox.style.display = 'block';
+    }
+  });
+}
+
+const savedUser = localStorage.getItem("user");
+if (savedUser) {
+  try {
+    loggedInUser = JSON.parse(savedUser);
+    currentRole = loggedInUser.role;
+    if (!currentRole) {
+      localStorage.removeItem("user");
+      loggedInUser = null;
+      throw new Error("No role found, clearing session.");
+    }
+    const lf = document.getElementById('login-footer');
+    if (lf) lf.style.display = 'none';
+    document.getElementById('login-page').style.display = 'none';
+    if (currentRole === 'dswd') {
+      openDSWDPage();
+    } else if (currentRole === 'manager') {
+      openManagerPage();
+    } else if (currentRole === 'resident') {
+      // Render immediately with cached data so nothing looks blank,
+      // then silently refresh from server in background
+      showDashboard();
+      renderResidentWelcome();
+      // Background sync — only update fields the server actually has
+      fetch(`${API_BASE}/api/resident/${loggedInUser.username}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.user) {
+            Object.keys(data.user).forEach(key => {
+              const serverVal = data.user[key];
+              if (serverVal !== undefined && serverVal !== null && serverVal !== '' && serverVal !== 'undefined') {
+                loggedInUser[key] = serverVal;
+              }
+            });
+            localStorage.setItem("user", JSON.stringify(loggedInUser));
+            renderResidentWelcome(); // re-render with any server-side updates
+          }
+        })
+        .catch(err => console.warn('Background sync failed, showing cached profile:', err));
+    }
+  } catch(e) {
+    localStorage.removeItem("user");
+  }
+}
+
+function toggleAccountMenu() {
+  const d = document.getElementById('account-dropdown');
+  d.style.display = d.style.display === 'none' ? 'block' : 'none';
+}
+
+function toggleManagerAccountMenu() {
+  const d = document.getElementById('manager-account-dropdown');
+  d.style.display = d.style.display === 'none' ? 'block' : 'none';
+}
+
+function toggleDSWDAccountMenu() {
+  const d = document.getElementById('dswd-account-dropdown');
+  d.style.display = d.style.display === 'none' ? 'block' : 'none';
+}
+
+function updateHeaderUI() {
+  if (!loggedInUser) return;
+  const name = (loggedInUser.name && loggedInUser.name !== 'undefined' && loggedInUser.name.trim() !== '')
+    ? loggedInUser.name
+    : (loggedInUser.username || 'User');
+  const pic = (loggedInUser.profile_pic && loggedInUser.profile_pic !== 'undefined')
+    ? loggedInUser.profile_pic
+    : `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=ffffff&color=c0392b&size=64`;
+
+  ['header-name','manager-header-name','dswd-header-name'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerText = name;
+  });
+
+  ['header-profile-pic','manager-header-profile-pic','dswd-header-profile-pic'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.src = pic;
+  });
+}
+
+function startHeaderClock() {
+  function tick() {
+    const now = new Date();
+    const str = now.toLocaleDateString('en-US', { weekday:'short', month:'long', day:'numeric', year:'numeric' })
+      + ' ' + now.toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+    ['header-datetime','manager-header-datetime','dswd-header-datetime'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.innerText = str;
+    });
+  }
+  tick();
+  setInterval(tick, 1000);
+}
+
+// Close dropdown when clicking outside
+document.addEventListener('click', function(e) {
+  ['account-dropdown','manager-account-dropdown','dswd-account-dropdown'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el && !el.contains(e.target) && !e.target.closest('[onclick*="toggleAccountMenu"], [onclick*="toggleManagerAccountMenu"], [onclick*="toggleDSWDAccountMenu"]')) {
+      el.style.display = 'none';
+    }
+  });
 });
 
-// ================= START SERVER =================
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Server running on port ${PORT}`);
-});
+function confirmGooglePassword(){
+  const user = window.tempGoogleUser;
+  if (!user) return;
+  const customPw = document.getElementById('custom-password').value.trim();
+  if (customPw.length >= 6) {
+    user.password = customPw;
+  }
+  residents.push(user);
+  loggedInUser = user;
+  currentRole = 'resident';
+  window.tempGoogleUser = null;
+  document.getElementById('password-modal').style.display = 'none';
+  alert('Google account linked successfully.');
+  showDashboard();
+}
