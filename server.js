@@ -492,13 +492,22 @@ app.post('/api/reject-request', async (req, res) => {
 
     // Send rejection email via Nodemailer
     try {
+      console.log('EMAIL_USER:', process.env.EMAIL_USER);
+      console.log('EMAIL_PASS set:', !!process.env.EMAIL_PASS);
+      console.log('Sending to:', request.email);
+
       const transporter = nodemailer.createTransport({
-        service: 'gmail',
+        host: 'smtp.gmail.com',
+        port: 465,
+        secure: true,
         auth: {
           user: process.env.EMAIL_USER,
-          pass: process.env.EMAIL_PASS
+          pass: (process.env.EMAIL_PASS || '').replace(/\s/g, '')
         }
       });
+
+      await transporter.verify();
+      console.log('Transporter verified OK');
 
       await transporter.sendMail({
         from: `"Barangay Trapiche" <${process.env.EMAIL_USER}>`,
@@ -516,7 +525,8 @@ app.post('/api/reject-request', async (req, res) => {
         `
       });
     } catch (emailErr) {
-      console.error('Rejection email error:', emailErr.message);
+      console.error('Rejection email FAILED:', emailErr.message);
+      console.error('Error code:', emailErr.code);
     }
 
     res.json({ success: true, email: request.email, purpose: request.purpose });
