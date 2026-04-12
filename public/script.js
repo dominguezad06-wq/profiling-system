@@ -1609,11 +1609,11 @@ function renderManagerRequests(allRequests, filter = 'all') {
                <span style="display:none; font-size:12px; color:#c0392b;">View</span>
              </a>` : '<span style="color:#bbb; font-size:12px;">None</span>'}
            </td>
-           <td><input type="date" id="date-${i}" value="${r.date || ''}" ${r.status!=='Pending'?'readonly':''}></td>
-           <td><input type="time" id="time-${i}" value="${r.time || ''}" ${r.status!=='Pending'?'readonly':''}></td>
+           <td>${r.date ? formatDate(r.date) : '<span style="color:#bbb;">—</span>'}</td>
+           <td>${r.time ? formatTime12Hour(r.time) : '<span style="color:#bbb;">—</span>'}</td>
            <td>
              ${r.status === 'Pending' ? `
-               <button class="approve-btn" data-username="${r.username}" data-doc="${r.document_type}" data-index="${i}">Approve</button>
+               <button class="approve-btn" data-username="${r.username}" data-doc="${r.document_type}" data-date="${r.date || ''}" data-time="${r.time || ''}">Approve</button>
                <button class="reject-btn" data-username="${r.username}" data-doc="${r.document_type}">Reject</button>
              ` : ''}
            </td>
@@ -1628,9 +1628,10 @@ function renderManagerRequests(allRequests, filter = 'all') {
   document.querySelectorAll('.approve-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const username = btn.getAttribute('data-username');
-      const docType = btn.getAttribute('data-doc');
-      const index = btn.getAttribute('data-index');
-      approveRequest(username, docType, index);
+      const docType  = btn.getAttribute('data-doc');
+      const date     = btn.getAttribute('data-date');
+      const time     = btn.getAttribute('data-time');
+      approveRequest(username, docType, date, time);
     });
   });
 
@@ -1673,19 +1674,16 @@ function sendRejectionEmail(residentEmail, documentType, purpose) {
   });
 }
 
-function approveRequest(username, documentType, index) {
-  const pickUpDate = document.getElementById(`date-${index}`).value;
-  const pickUpTime = document.getElementById(`time-${index}`).value;
-
-  if (!pickUpDate || !pickUpTime) {
-    alert('Please set both pick-up date and time before approving.');
+function approveRequest(username, documentType, date, time) {
+  if (!date || !time) {
+    alert('This request has no pick-up date or time set by the resident. Cannot approve.');
     return;
   }
 
   fetch(`${API_BASE}/api/approve-request`, {
     method: 'POST',
     headers: { 'Content-Type':'application/json' },
-    body: JSON.stringify({ username, documentType, date: pickUpDate, time: pickUpTime })
+    body: JSON.stringify({ username, documentType, date, time })
   })
   .then(res => res.json())
   .then(data => {
