@@ -1617,7 +1617,9 @@ function renderManagerRequests(allRequests, filter = 'all') {
 
   const cards = filteredRequests.map(r => {
     const cfg = statusCfg[r.status] || statusCfg['Pending'];
-    const initials = (r.username || 'U').charAt(0).toUpperCase();
+    const residentMatch = (window.dswdResidents || []).find(res => res.username === r.username);
+    const displayName = (residentMatch && residentMatch.name) ? residentMatch.name : r.username;
+    const initials = displayName.charAt(0).toUpperCase();
 
     return `
       <div style="background:#fff; border-radius:16px; border:1px solid #eaecf0; overflow:hidden; transition:box-shadow 0.2s;"
@@ -1636,8 +1638,8 @@ function renderManagerRequests(allRequests, filter = 'all') {
                 ${initials}
               </div>
               <div style="flex:1; min-width:0;">
-                <div style="font-size:15px; font-weight:700; color:#111827; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${r.username}</div>
-                <div style="font-size:12px; color:#9ca3af; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${r.email || 'No email on file'}</div>
+                <div style="font-size:15px; font-weight:700; color:#111827; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${displayName}</div>
+                <div style="font-size:12px; color:#9ca3af; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">@${r.username}</div>
               </div>
               <span style="flex-shrink:0; display:inline-flex; align-items:center; gap:5px; background:${cfg.badgeBg}; color:${cfg.badgeColor}; font-size:11px; font-weight:700; padding:4px 10px; border-radius:99px; letter-spacing:0.3px;">
                 <span style="width:5px; height:5px; border-radius:50%; background:${cfg.dot}; display:inline-block;"></span>
@@ -1667,44 +1669,48 @@ function renderManagerRequests(allRequests, filter = 'all') {
           </div>
 
           <!-- CENTER: Attachments + Gmail -->
-          <div style="padding:22px 16px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px; border-right:1px solid #f3f4f6; background:#fafafa;">
+          <div style="padding:22px 16px; display:flex; flex-direction:column; align-items:center; justify-content:space-between; border-right:1px solid #f3f4f6; background:#fafafa;">
 
-            <div style="font-size:10px; font-weight:700; color:#9ca3af; text-transform:uppercase; letter-spacing:0.6px;">Attachments</div>
-
-            <div style="display:flex; flex-direction:column; gap:10px; width:100%;">
-              <div style="text-align:center;">
-                <div style="font-size:10px; color:#9ca3af; font-weight:600; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.4px;">Gov ID</div>
-                ${r.gov_id ? `
-                  <a href="${r.gov_id}" target="_blank" style="display:inline-block;">
-                    <img src="${r.gov_id}" style="width:80px; height:64px; object-fit:cover; border-radius:8px; border:1.5px solid #e5e7eb; transition:transform 0.2s; display:block;"
-                      onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'"
-                      onerror="this.style.display='none';">
-                  </a>` : `
-                  <div style="width:80px; height:64px; background:#f3f4f6; border-radius:8px; border:1.5px dashed #d1d5db; display:inline-flex; align-items:center; justify-content:center; font-size:11px; color:#9ca3af;">None</div>`}
-              </div>
-              <div style="text-align:center;">
-                <div style="font-size:10px; color:#9ca3af; font-weight:600; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.4px;">2×2 Photo</div>
-                ${r.photo ? `
-                  <a href="${r.photo}" target="_blank" style="display:inline-block;">
-                    <img src="${r.photo}" style="width:80px; height:64px; object-fit:cover; border-radius:8px; border:1.5px solid #e5e7eb; transition:transform 0.2s; display:block;"
-                      onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'"
-                      onerror="this.style.display='none';">
-                  </a>` : `
-                  <div style="width:80px; height:64px; background:#f3f4f6; border-radius:8px; border:1.5px dashed #d1d5db; display:inline-flex; align-items:center; justify-content:center; font-size:11px; color:#9ca3af;">None</div>`}
+            <!-- Attachments top -->
+            <div style="width:100%; display:flex; flex-direction:column; align-items:center; gap:10px;">
+              <div style="font-size:10px; font-weight:700; color:#9ca3af; text-transform:uppercase; letter-spacing:0.6px;">Attachments</div>
+              <div style="display:flex; flex-direction:column; gap:10px; width:100%;">
+                <div style="text-align:center;">
+                  <div style="font-size:10px; color:#9ca3af; font-weight:600; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.4px;">Gov ID</div>
+                  ${r.gov_id ? `
+                    <a href="${r.gov_id}" target="_blank" style="display:inline-block;">
+                      <img src="${r.gov_id}" style="width:80px; height:64px; object-fit:cover; border-radius:8px; border:1.5px solid #e5e7eb; transition:transform 0.2s; display:block;"
+                        onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'"
+                        onerror="this.style.display='none';">
+                    </a>` : `
+                    <div style="width:80px; height:64px; background:#f3f4f6; border-radius:8px; border:1.5px dashed #d1d5db; display:inline-flex; align-items:center; justify-content:center; font-size:11px; color:#9ca3af;">None</div>`}
+                </div>
+                <div style="text-align:center;">
+                  <div style="font-size:10px; color:#9ca3af; font-weight:600; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.4px;">2×2 Photo</div>
+                  ${r.photo ? `
+                    <a href="${r.photo}" target="_blank" style="display:inline-block;">
+                      <img src="${r.photo}" style="width:80px; height:64px; object-fit:cover; border-radius:8px; border:1.5px solid #e5e7eb; transition:transform 0.2s; display:block;"
+                        onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'"
+                        onerror="this.style.display='none';">
+                    </a>` : `
+                    <div style="width:80px; height:64px; background:#f3f4f6; border-radius:8px; border:1.5px dashed #d1d5db; display:inline-flex; align-items:center; justify-content:center; font-size:11px; color:#9ca3af;">None</div>`}
+                </div>
               </div>
             </div>
 
-            <div style="width:100%; border-top:1px solid #e5e7eb; padding-top:14px; text-align:center;">
-              <div style="font-size:10px; font-weight:700; color:#9ca3af; text-transform:uppercase; letter-spacing:0.6px; margin-bottom:8px;">Notify resident</div>
+            <!-- Gmail button perfectly centered -->
+            <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; flex:1; width:100%; padding:16px 0;">
+              <div style="font-size:10px; font-weight:700; color:#9ca3af; text-transform:uppercase; letter-spacing:0.6px; margin-bottom:10px;">Notify resident</div>
               <a href="mailto:${r.email}"
-                style="display:inline-flex; align-items:center; justify-content:center; gap:6px; padding:8px 14px; background:#fff; border:1.5px solid #e5e7eb; border-radius:8px; font-size:12px; font-weight:600; color:#374151; text-decoration:none; transition:all 0.15s;"
-                onmouseover="this.style.background='#f9fafb'; this.style.borderColor='#8B0000'; this.style.color='#8B0000';"
+                style="display:inline-flex; align-items:center; justify-content:center; gap:7px; padding:10px 18px; background:#fff; border:1.5px solid #e5e7eb; border-radius:10px; font-size:12px; font-weight:700; color:#374151; text-decoration:none; transition:all 0.15s; width:100%; box-sizing:border-box;"
+                onmouseover="this.style.background='#fff8f8'; this.style.borderColor='#8B0000'; this.style.color='#8B0000';"
                 onmouseout="this.style.background='#fff'; this.style.borderColor='#e5e7eb'; this.style.color='#374151';">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;">
                   <rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 7 10 7 10-7"/>
                 </svg>
                 Send Gmail
               </a>
+              <div style="font-size:10px; color:#d1d5db; margin-top:6px; text-align:center;">${r.email || 'No email on file'}</div>
             </div>
 
           </div>
