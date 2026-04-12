@@ -1659,6 +1659,20 @@ function sendApprovalEmail(residentEmail, documentType, purpose, date, time) {
   });
 }
 
+function sendRejectionEmail(residentEmail, documentType, purpose) {
+  emailjs.send("service_9m8vyrc", "template_rejection", {
+    to_email: residentEmail,
+    document_type: documentType,
+    purpose: purpose
+  }, "Ndd7_r9gTrjDBG9-K")
+  .then(() => {
+    console.log("Rejection email sent successfully!");
+  })
+  .catch((error) => {
+    console.error("Error sending rejection email:", error);
+  });
+}
+
 function approveRequest(username, documentType, index) {
   const pickUpDate = document.getElementById(`date-${index}`).value;
   const pickUpTime = document.getElementById(`time-${index}`).value;
@@ -1693,13 +1707,13 @@ function rejectRequest(username, documentType) {
 
   fetch(`${API_BASE}/api/reject-request`, {
     method: 'POST',
-    headers: {'Content-Type':'application/json'},
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ username, documentType })
   })
   .then(res => res.json())
   .then(data => {
     if (data.success) {
-      alert(`Request rejected for ${username}`);
+      alert(`Request rejected and email sent to ${data.email}!`);
       showDocRequests();
     } else {
       alert(data.message || 'Failed to reject request.');
