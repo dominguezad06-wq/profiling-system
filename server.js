@@ -797,8 +797,8 @@ app.post('/api/update-account', async (req, res) => {
 
     // Also update name in residents table if resident
     await pool.query(
-      'UPDATE residents SET name=$1 WHERE username=$2',
-      [name, username]
+      'UPDATE residents SET name=$1, email=$2 WHERE username=$3',
+      [name, req.body.email || null, username]
     );
 
     res.json({ success: true, profilePicUrl });
