@@ -522,15 +522,15 @@ function logout(){
 
 function renderDashboardHeader(title){
   return `
-    <div class="page-header">
-      <img src="trapiche.png" alt="Barangay Logo" style="height:60px;">
+    <div class="page-header" style="padding:10px 16px; margin-bottom:0;">
+      <img src="trapiche.png" alt="Barangay Logo" style="height:40px;">
       <div>
-        <h2>Barangay Digital Profiling System</h2>
+        <h2 style="font-size:16px; margin:0;">Barangay Digital Profiling System</h2>
         <small>${title}</small><br>
         <small>Barangay Trapiche, Tanauan City, Batangas</small>
       </div>
     </div>
-    <hr>
+    <hr style="margin:6px 0;">
   `;
 }
 
@@ -939,7 +939,7 @@ function renderResidentWelcome() {
   if (!Array.isArray(children)) children = [];
 
   body.innerHTML = `
-    <div style="padding:16px; background:#f5f6fa; min-height:100%;">
+    <div style="padding:16px; background:#f5f6fa; height:100%; box-sizing:border-box;">
 
       <!-- Hero Banner -->
       <div style="background:#8B0000; border-radius:16px; padding:16px 24px; margin-bottom:14px; position:relative; overflow:hidden; box-shadow:0 8px 32px rgba(139,0,0,0.25);">
