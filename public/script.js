@@ -351,6 +351,12 @@ function showMyAccount() {
               style="width:100%; padding:11px 14px; border-radius:8px; border:1px solid #eee; font-size:14px; margin:0; background:#f8f8f8; color:#aaa;">
           </div>
 
+          <div style="margin-bottom:18px;">
+            <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:6px;">Email Address</label>
+            <input type="email" id="account-email" value="${loggedInUser.email || ''}" placeholder="your@gmail.com"
+              style="width:100%; padding:11px 14px; border-radius:8px; border:1px solid #ddd; font-size:14px; margin:0;">
+          </div>
+
           <hr style="border:none; border-top:1px solid #eee; margin:20px 0;">
           <div style="font-size:14px; font-weight:600; color:#333; margin-bottom:16px;">Change Password <span style="font-size:12px; color:#aaa; font-weight:400;">(leave blank to keep current)</span></div>
 
@@ -430,6 +436,7 @@ function saveMyAccount() {
   const formData = new FormData();
   formData.append('username', loggedInUser.username);
   formData.append('name', name);
+  formData.append('email', document.getElementById('account-email').value.trim());
   if (newPassword) {
     formData.append('oldPassword', oldPassword);
     formData.append('newPassword', newPassword);
@@ -449,6 +456,7 @@ function saveMyAccount() {
   .then(data => {
     if (data.success) {
       loggedInUser.name = name;
+      loggedInUser.email = document.getElementById('account-email').value.trim();
       if (data.profilePicUrl) loggedInUser.profile_pic = data.profilePicUrl;
       localStorage.setItem("user", JSON.stringify(loggedInUser));
       updateHeaderUI();
