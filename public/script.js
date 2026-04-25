@@ -961,11 +961,13 @@ function renderResidentWelcome() {
           { label:'PWD', value: u.pwd === 'Yes' ? 'Yes' : 'No', icon:'♿', color:'#e67e22' },
           { label:'Senior', value: (u.age >= 60) ? 'Yes' : 'No', icon:'⭐', color:'#27ae60' },
         ].map(card => `
-          <div style="background:#fff; border-radius:12px; padding:18px 20px; border:1px solid #ebebeb; box-shadow:0 2px 8px rgba(0,0,0,0.04);"
+          <div style="background:#fff; border-radius:10px; padding:10px 14px; border:1px solid #ebebeb; box-shadow:0 2px 8px rgba(0,0,0,0.04); display:flex; align-items:center; gap:10px;"
             onmouseover="this.style.boxShadow='0 6px 20px rgba(0,0,0,0.1)'" onmouseout="this.style.boxShadow='0 2px 8px rgba(0,0,0,0.04)'">
-            <div style="font-size:22px; margin-bottom:10px;">${card.icon}</div>
-            <div style="font-size:18px; font-weight:700; color:${card.color}; margin-bottom:2px;">${card.value}</div>
-            <div style="font-size:12px; color:#999; font-weight:500; text-transform:uppercase; letter-spacing:0.4px;">${card.label}</div>
+            <div style="font-size:18px;">${card.icon}</div>
+            <div>
+              <div style="font-size:15px; font-weight:700; color:${card.color};">${card.value}</div>
+              <div style="font-size:11px; color:#999; font-weight:500; text-transform:uppercase; letter-spacing:0.4px;">${card.label}</div>
+            </div>
           </div>
         `).join('')}
       </div>
@@ -975,10 +977,10 @@ function renderResidentWelcome() {
 
         <!-- Personal Information -->
         <div style="background:#fff; border-radius:16px; border:1px solid #ebebeb; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
-          <div style="padding:16px 22px; border-bottom:1px solid #f0f0f0; background:#fafafa;">
-            <div style="font-size:14px; font-weight:700; color:#c0392b;">🧍 Personal Information</div>
+          <div style="padding:10px 16px; border-bottom:1px solid #f0f0f0; background:#fafafa;">
+            <div style="font-size:13px; font-weight:700; color:#c0392b;">🧍 Personal Information</div>
           </div>
-          <div style="padding:18px 22px; display:flex; flex-direction:column; gap:12px;">
+          <div style="padding:10px 16px; display:flex; flex-direction:column; gap:7px;">
             ${[
               { label:'Date of Birth', value: u.dob ? formatDate(u.dob) : '—' },
               { label:'Place of Birth', value: u.place_of_birth || '—' },
@@ -997,10 +999,10 @@ function renderResidentWelcome() {
 
         <!-- Family Information -->
         <div style="background:#fff; border-radius:16px; border:1px solid #ebebeb; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
-          <div style="padding:16px 22px; border-bottom:1px solid #f0f0f0; background:#fafafa;">
-            <div style="font-size:14px; font-weight:700; color:#1a3f6c;">👨‍👩‍👧‍👦 Family Information</div>
+          <div style="padding:10px 16px; border-bottom:1px solid #f0f0f0; background:#fafafa;">
+            <div style="font-size:13px; font-weight:700; color:#1a3f6c;">👨‍👩‍👧‍👦 Family Information</div>
           </div>
-          <div style="padding:18px 22px; display:flex; flex-direction:column; gap:12px;">
+          <div style="padding:10px 16px; display:flex; flex-direction:column; gap:7px;">
             ${[
               { label:'Spouse', value: (u.spouse && u.spouse !== 'N/A') ? u.spouse : '—' },
             
@@ -1018,10 +1020,10 @@ function renderResidentWelcome() {
 
         <!-- Contact & Education -->
         <div style="background:#fff; border-radius:16px; border:1px solid #ebebeb; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
-          <div style="padding:16px 22px; border-bottom:1px solid #f0f0f0; background:#fafafa;">
-            <div style="font-size:14px; font-weight:700; color:#e67e22;">📞 Contact & Education</div>
+          <div style="padding:10px 16px; border-bottom:1px solid #f0f0f0; background:#fafafa;">
+            <div style="font-size:13px; font-weight:700; color:#e67e22;">📞 Contact & Education</div>
           </div>
-          <div style="padding:18px 22px; display:flex; flex-direction:column; gap:12px;">
+          <div style="padding:10px 16px; display:flex; flex-direction:column; gap:7px;">
             ${[
               { label:'Contact No.', value: u.contact || '—' },
               { label:'Email', value: u.email || '—' },
@@ -1037,10 +1039,10 @@ function renderResidentWelcome() {
 
         <!-- Emergency Contact -->
         <div style="background:#fff; border-radius:16px; border:1px solid #ebebeb; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
-          <div style="padding:16px 22px; border-bottom:1px solid #f0f0f0; background:#fafafa;">
-            <div style="font-size:14px; font-weight:700; color:#c0392b;">🚨 Emergency Contact</div>
+          <div style="padding:10px 16px; border-bottom:1px solid #f0f0f0; background:#fafafa;">
+            <div style="font-size:13px; font-weight:700; color:#c0392b;">🚨 Emergency Contact</div>
           </div>
-          <div style="padding:18px 22px; display:flex; flex-direction:column; gap:12px;">
+          <div style="padding:10px 16px; display:flex; flex-direction:column; gap:7px;">
             ${[
               { label:'Name', value: u.emergency_contact_name || '—' },
               { label:'Number', value: u.emergency_contact_number || '—' },
@@ -1077,17 +1079,17 @@ function renderResidentWelcome() {
 
       <!-- Recent Requests -->
       <div style="background:#fff; border-radius:16px; border:1px solid #ebebeb; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
-        <div style="display:flex; align-items:center; justify-content:space-between; padding:20px 24px; border-bottom:1px solid #f0f0f0;">
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:10px 16px; border-bottom:1px solid #f0f0f0;">
           <div>
-            <div style="font-size:16px; font-weight:700; color:#1a1a1a;">Recent Requests</div>
-            <div style="font-size:12px; color:#999; margin-top:2px;">Your latest document requests</div>
+            <div style="font-size:14px; font-weight:700; color:#1a1a1a;">Recent Requests</div>
+            <div style="font-size:11px; color:#999; margin-top:2px;">Your latest document requests</div>
           </div>
           <button onclick="showMyRequests()"
-            style="padding:8px 16px; background:#1a3f6c; color:white; border:none; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer;">
+            style="padding:6px 12px; background:#1a3f6c; color:white; border:none; border-radius:8px; font-size:12px; font-weight:600; cursor:pointer;">
             View All
           </button>
         </div>
-        <div id="recent-requests-container" style="padding:20px 24px;">
+        <div id="recent-requests-container" style="padding:10px 16px;">
           <div style="display:flex; align-items:center; gap:10px; color:#bbb; font-size:14px;">
             <div style="width:16px;height:16px;border:2px solid #ddd;border-top-color:#c0392b;border-radius:50%;animation:spin 0.8s linear infinite;"></div>
             Loading your requests...
