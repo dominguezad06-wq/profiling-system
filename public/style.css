@@ -1421,3 +1421,98 @@ html, body {
     padding: 20px 18px !important;
   }
 }
+
+/* ===== LARGE FONT OVERHAUL ===== */
+
+body {
+  font-size: 16px !important;
+}
+
+/* Login page */
+.login-header h1 {
+  font-size: 20px !important;
+  font-weight: 700 !important;
+}
+
+.login-header p {
+  font-size: 14px !important;
+}
+
+.login-box h2 {
+  font-size: 22px !important;
+}
+
+.login-box input {
+  font-size: 15px !important;
+  padding: 13px 14px !important;
+}
+
+.login-box button {
+  font-size: 16px !important;
+  padding: 14px !important;
+}
+
+.login-box p, .login-box a {
+  font-size: 14px !important;
+}
+
+/* Sidebar */
+.sidebar ul li a {
+  font-size: 15px !important;
+  font-weight: 600 !important;
+  padding: 12px 14px !important;
+}
+
+.sidebar ul li a span {
+  font-size: 18px !important;
+}
+
+/* Top header bar */
+#header-name,
+#manager-header-name,
+#dswd-header-name {
+  font-size: 15px !important;
+  font-weight: 700 !important;
+}
+
+#header-datetime,
+#manager-header-datetime,
+#dswd-header-datetime {
+  font-size: 13px !important;
+}
+
+/* Dashboard header */
+.page-header h2 {
+  font-size: 20px !important;
+  font-weight: 700 !important;
+}
+
+.page-header small {
+  font-size: 13px !important;
+}
+
+/* All inputs and selects */
+input, select, textarea {
+  font-size: 15px !important;
+}
+
+label {
+  font-size: 14px !important;
+  font-weight: 600 !important;
+}
+
+/* Tables */
+th {
+  font-size: 13px !important;
+  font-weight: 700 !important;
+}
+
+td {
+  font-size: 14px !important;
+}
+
+/* Buttons globally */
+button {
+  font-size: 14px !important;
+  font-weight: 600 !important;
+}
