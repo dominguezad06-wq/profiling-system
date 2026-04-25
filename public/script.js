@@ -939,10 +939,10 @@ function renderResidentWelcome() {
   if (!Array.isArray(children)) children = [];
 
   body.innerHTML = `
-    <div style="padding:28px; background:#f5f6fa; min-height:100%;">
+    <div style="padding:16px; background:#f5f6fa; min-height:100%;">
 
       <!-- Hero Banner -->
-      <div style="background:#8B0000; border-radius:16px; padding:32px 36px; margin-bottom:24px; position:relative; overflow:hidden; box-shadow:0 8px 32px rgba(139,0,0,0.25);">
+      <div style="background:#8B0000; border-radius:16px; padding:16px 24px; margin-bottom:14px; position:relative; overflow:hidden; box-shadow:0 8px 32px rgba(139,0,0,0.25);">
         <div style="position:absolute;top:-30px;right:-30px;width:180px;height:180px;background:rgba(255,255,255,0.07);border-radius:50%;"></div>
         <div style="position:absolute;bottom:-50px;right:60px;width:120px;height:120px;background:rgba(255,255,255,0.05);border-radius:50%;"></div>
         <div style="position:relative; z-index:1;">
@@ -953,7 +953,7 @@ function renderResidentWelcome() {
       </div>
 
       <!-- Stat Cards -->
-      <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:14px; margin-bottom:24px;">
+      <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:10px; margin-bottom:14px;">
         ${[
           { label:'Age', value: u.age || '—', icon:'🎂', color:'#1a3f6c' },
           { label:'Gender', value: u.gender || '—', icon:'👤', color:'#2c5aa0' },
@@ -971,7 +971,7 @@ function renderResidentWelcome() {
       </div>
 
       <!-- Profile Detail Cards -->
-      <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:24px;">
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px;">
 
         <!-- Personal Information -->
         <div style="background:#fff; border-radius:16px; border:1px solid #ebebeb; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
