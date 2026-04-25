@@ -237,7 +237,11 @@ app.post('/api/send-otp', async (req, res) => {
     if (!email) return res.json({ success: false, message: 'Email is required.' });
 
     const result = await pool.query(
-      'SELECT username FROM residents WHERE LOWER(email) = LOWER($1) LIMIT 1',
+      `SELECT r.username FROM residents r
+       LEFT JOIN users u ON r.username = u.username
+       WHERE LOWER(r.email) = LOWER($1) 
+          OR LOWER(u.email) = LOWER($1)
+       LIMIT 1`,
       [email]
     );
 
