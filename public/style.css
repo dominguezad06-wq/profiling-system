@@ -1516,3 +1516,122 @@ button {
   font-size: 14px !important;
   font-weight: 600 !important;
 }
+
+/* ===== LARGE FONT LIKE REFERENCE ===== */
+
+/* Sidebar */
+.sidebar ul li a {
+  font-size: 18px !important;
+  font-weight: 700 !important;
+  padding: 14px 16px !important;
+}
+
+.sidebar ul li a span:first-child {
+  font-size: 20px !important;
+}
+
+/* Stat cards - AGE, GENDER, etc */
+div[style*="font-size:22px; font-weight:700"] {
+  font-size: 32px !important;
+  font-weight: 800 !important;
+}
+
+div[style*="font-size:11px; color:#999; font-weight:600; text-transform:uppercase"] {
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  letter-spacing: 1px !important;
+}
+
+/* Card icons */
+div[style*="font-size:28px; margin-bottom:8px"] {
+  font-size: 36px !important;
+}
+
+/* Section headers - Personal Info, Family Info etc */
+div[style*="font-size:12px; font-weight:700; color:#c0392b"] {
+  font-size: 16px !important;
+  font-weight: 800 !important;
+}
+
+div[style*="font-size:12px; font-weight:700; color:#1a3f6c"] {
+  font-size: 16px !important;
+  font-weight: 800 !important;
+}
+
+div[style*="font-size:12px; font-weight:700; color:#e67e22"] {
+  font-size: 16px !important;
+  font-weight: 800 !important;
+}
+
+/* Row labels - DATE OF BIRTH, PLACE OF BIRTH etc */
+span[style*="font-size:11px; color:#aaa; font-weight:600; text-transform:uppercase"] {
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  color: #666 !important;
+}
+
+/* Row values */
+span[style*="font-size:12px; color:#1a1a1a; font-weight:600"] {
+  font-size: 15px !important;
+  font-weight: 700 !important;
+}
+
+/* Hero banner */
+div[style*="font-size:22px; font-weight:700; color:#fff"] {
+  font-size: 32px !important;
+  font-weight: 800 !important;
+}
+
+div[style*="font-size:11px; color:rgba(255,255,255,0.75)"] {
+  font-size: 14px !important;
+}
+
+div[style*="font-size:12px; color:rgba(255,255,255,0.7)"] {
+  font-size: 15px !important;
+}
+
+/* Recent Requests title */
+div[style*="font-size:13px; font-weight:700; color:#1a1a1a"] {
+  font-size: 18px !important;
+  font-weight: 800 !important;
+}
+
+/* Recent Requests card text */
+div[style*="font-size:14px; font-weight:600; color:#1a1a1a"] {
+  font-size: 16px !important;
+  font-weight: 700 !important;
+}
+
+div[style*="font-size:12px; color:#888; margin-top:2px"] {
+  font-size: 14px !important;
+}
+
+/* View All button */
+button[onclick="showMyRequests()"] {
+  font-size: 15px !important;
+  padding: 8px 18px !important;
+}
+
+/* Sidebar title */
+div[style*="font-size:14px; font-weight:600; color:white"] {
+  font-size: 18px !important;
+  font-weight: 800 !important;
+}
+
+/* Top header */
+span[style*="color:white; font-weight:700; font-size:17px"] {
+  font-size: 20px !important;
+}
+
+#header-name,
+#manager-header-name,
+#dswd-header-name {
+  font-size: 17px !important;
+  font-weight: 800 !important;
+}
+
+#header-datetime,
+#manager-header-datetime,
+#dswd-header-datetime {
+  font-size: 15px !important;
+}
