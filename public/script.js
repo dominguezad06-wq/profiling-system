@@ -1310,11 +1310,11 @@ function showMyProfile() {
       </div>
 
       <!-- SAVE BUTTON -->
-      <div style="margin-top:20px; text-align:right;">
+      <div style="margin-top:20px; margin-bottom:60px; text-align:right;">
         <div id="profile-message" style="font-size:13px; margin-bottom:10px; text-align:center;"></div>
         <button onclick="updateProfile()"
           style="padding:12px 40px; background:#8B0000; color:white; font-weight:bold; border:none; border-radius:8px; font-size:14px; cursor:pointer;">
-          Save Profile
+          💾 Save Profile
         </button>
       </div>
     </div>
