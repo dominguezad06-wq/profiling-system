@@ -540,10 +540,11 @@ app.post('/api/reject-request', async (req, res) => {
     );
 
     // Send rejection email via Nodemailer
+    let emailSent = false;
     try {
       console.log('EMAIL_USER:', process.env.EMAIL_USER);
       console.log('EMAIL_PASS set:', !!process.env.EMAIL_PASS);
-      console.log('Sending to:', request.email);
+      console.log('Sending rejection email to:', request.email);
 
       const transporter = nodemailer.createTransport({
         host: 'smtp.gmail.com',
@@ -564,24 +565,84 @@ app.post('/api/reject-request', async (req, res) => {
       await transporter.sendMail({
         from: `"Barangay Trapiche" <${process.env.EMAIL_USER}>`,
         to: request.email,
-        subject: 'Your Document Request Has Been Rejected',
+        subject: 'Your Document Request Has Been Rejected — Barangay Trapiche',
         html: `
-          <div style="font-family:Arial,sans-serif; max-width:500px; margin:0 auto; padding:24px; border:1px solid #eee; border-radius:10px;">
-            <h2 style="color:#8B0000;">Barangay Trapiche</h2>
-            <p>Dear Resident,</p>
-            <p>We regret to inform you that your request for a <strong>${documentType}</strong> (Purpose: <strong>${request.purpose}</strong>) has been <strong style="color:#c0392b;">rejected</strong>.</p>
-            <p>Please visit the Barangay Trapiche Hall for more information or to re-submit your request.</p>
-            <br>
-            <p>Thank you,<br><strong>Barangay Trapiche</strong><br>Tanauan City, Batangas</p>
+          <div style="font-family:Arial,sans-serif; max-width:520px; margin:0 auto; padding:0; border:1px solid #e0e0e0; border-radius:12px; overflow:hidden;">
+            
+            <!-- Header -->
+            <div style="background:#8B0000; padding:28px 32px; text-align:center;">
+              <h2 style="margin:0; color:white; font-size:20px; font-weight:700; letter-spacing:0.5px;">Barangay Trapiche</h2>
+              <p style="margin:4px 0 0; color:rgba(255,255,255,0.8); font-size:13px;">Tanauan City, Batangas</p>
+            </div>
+
+            <!-- Status Badge -->
+            <div style="background:#fff5f5; border-bottom:1px solid #fecaca; padding:16px 32px; text-align:center;">
+              <span style="display:inline-block; background:#fee2e2; color:#dc2626; font-size:13px; font-weight:700; padding:6px 18px; border-radius:99px; letter-spacing:0.3px;">
+                ✕ Request Rejected
+              </span>
+            </div>
+
+            <!-- Body -->
+            <div style="padding:28px 32px; background:#fff;">
+              <p style="margin:0 0 16px; font-size:15px; color:#1a1a1a;">Dear Resident,</p>
+              <p style="margin:0 0 20px; font-size:14px; color:#444; line-height:1.7;">
+                We regret to inform you that your document request has been <strong style="color:#dc2626;">rejected</strong>. Please see the details below:
+              </p>
+
+              <!-- Details Box -->
+              <div style="background:#f8f9fa; border:1px solid #e5e7eb; border-radius:10px; padding:18px 20px; margin-bottom:20px;">
+                <table style="width:100%; border-collapse:collapse;">
+                  <tr>
+                    <td style="padding:7px 0; font-size:13px; color:#888; font-weight:600; width:140px; text-transform:uppercase; letter-spacing:0.4px;">Document Type</td>
+                    <td style="padding:7px 0; font-size:14px; color:#1a1a1a; font-weight:600;">${request.document_type}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding:7px 0; font-size:13px; color:#888; font-weight:600; text-transform:uppercase; letter-spacing:0.4px;">Purpose</td>
+                    <td style="padding:7px 0; font-size:14px; color:#1a1a1a;">${request.purpose}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding:7px 0; font-size:13px; color:#888; font-weight:600; text-transform:uppercase; letter-spacing:0.4px;">Status</td>
+                    <td style="padding:7px 0;"><span style="color:#dc2626; font-weight:700; font-size:14px;">Rejected</span></td>
+                  </tr>
+                </table>
+              </div>
+
+              <p style="margin:0 0 20px; font-size:14px; color:#444; line-height:1.7;">
+                If you believe this is a mistake or would like to re-submit your request, please visit the <strong>Barangay Trapiche Hall</strong> during office hours or contact us directly.
+              </p>
+
+              <p style="margin:0; font-size:14px; color:#444;">
+                Thank you for your understanding.<br><br>
+                <strong>Barangay Trapiche</strong><br>
+                <span style="color:#888; font-size:13px;">Tanauan City, Batangas</span>
+              </p>
+            </div>
+
+            <!-- Footer -->
+            <div style="background:#f8f9fa; border-top:1px solid #e5e7eb; padding:16px 32px; text-align:center;">
+              <p style="margin:0; font-size:12px; color:#aaa;">
+                This is an automated message from the Barangay Trapiche Profiling System.<br>
+                Please do not reply to this email.
+              </p>
+            </div>
+
           </div>
         `
       });
+
+      emailSent = true;
+      console.log('Rejection email sent successfully to:', request.email);
     } catch (emailErr) {
       console.error('Rejection email FAILED:', emailErr.message);
       console.error('Error code:', emailErr.code);
     }
 
-    res.json({ success: true, email: request.email, purpose: request.purpose });
+    res.json({
+      success: true,
+      email: request.email,
+      purpose: request.purpose,
+      emailSent
+    });
   } catch (err) {
     console.error(err);
     res.json({ success: false, message: err.message });
