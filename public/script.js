@@ -2578,69 +2578,67 @@ function handleCredentialResponse(response) {
   })
   .then(res => res.json())
   .then(data => {
-    if (data.success && data.newUser) {
-      // Auto-register the Google user into the database
+    if (!data.success) {
+      const errBox = document.getElementById('login-error');
+      if (errBox) { errBox.innerText = data.message || 'Google login failed'; errBox.style.display = 'block'; }
+      return;
+    }
+
+    if (data.newUser) {
       const email = data.user.email;
-      const name = data.user.name;
-      const username = email; // use email as username for Google accounts
-      const password = Math.random().toString(36).slice(-10) + 'Gg1!'; // random secure password
+      const name  = data.user.name;
 
       fetch(`${API_BASE}/api/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name, username, password, email,
-          gender: '', age: 0, barangay: '', address: '',
+          name, username: email, email,
+          password: Math.random().toString(36).slice(-8) + 'Gg1!',
+          gender: '', age: '', barangay: '', address: '',
           status: '', sons: 0, daughters: 0, pwd: 'No',
           contact: '', spouse: '', family_members: 0,
-          senior: 'No', dob: ''
+          senior: 'No', dob: null
         })
       })
-      .then(res => res.json())
+      .then(r => r.json())
       .then(regData => {
-        if (regData.user || regData.message) {
-          // Now login to get the full user object
-          return fetch(`${API_BASE}/api/google-login`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ credential: response.credential })
-          }).then(r => r.json());
-        } else {
+        if (!regData.user && !regData.message) {
           throw new Error(regData.error || 'Registration failed');
         }
+        return fetch(`${API_BASE}/api/google-login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ credential: response.credential })
+        }).then(r => r.json());
       })
       .then(loginData => {
-        if (loginData.success && !loginData.newUser) {
-          loggedInUser = loginData.user;
-          currentRole = loginData.user.role;
-          localStorage.setItem("user", JSON.stringify(loginData.user));
-          fetchFullProfileThenRender();
-        } else {
+        if (!loginData.success || loginData.newUser) {
           throw new Error('Could not complete Google sign-in after registration.');
         }
+        loggedInUser = loginData.user;
+        currentRole  = loginData.user.role || 'resident';
+        localStorage.setItem("user", JSON.stringify(loggedInUser));
+        fetchFullProfileThenRender();
       })
       .catch(err => {
         const errBox = document.getElementById('login-error');
-        if (errBox) {
-          errBox.innerText = 'Google sign-up failed: ' + (err.message || 'Server error');
-          errBox.style.display = 'block';
-        }
+        if (errBox) { errBox.innerText = 'Google sign-up failed: ' + (err.message || 'Server error'); errBox.style.display = 'block'; }
       });
+
     } else {
-      const errBox = document.getElementById('login-error');
-      if (errBox) {
-        errBox.innerText = data.message || 'Google login failed';
-        errBox.style.display = 'block';
-      }
+      loggedInUser = data.user;
+      currentRole  = data.user.role || 'resident';
+      localStorage.setItem("user", JSON.stringify(loggedInUser));
+
+      if (currentRole === 'dswd')         openDSWDPage();
+      else if (currentRole === 'manager') openManagerPage();
+      else                                fetchFullProfileThenRender();
     }
   })
   .catch(err => {
     console.error("Google login error:", err);
     const errBox = document.getElementById('login-error');
-    if (errBox) {
-      errBox.innerText = 'Google login failed: ' + (err.message || 'Server error');
-      errBox.style.display = 'block';
-    }
+    if (errBox) { errBox.innerText = 'Google login failed: ' + (err.message || 'Server error'); errBox.style.display = 'block'; }
   });
 }
 
