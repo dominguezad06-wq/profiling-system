@@ -2578,18 +2578,7 @@ function handleCredentialResponse(response) {
   })
   .then(res => res.json())
   .then(data => {
-    if (data.success) {
-  loggedInUser = data.user;
-  currentRole = data.user.role;
-  localStorage.setItem("user", JSON.stringify(data.user));
-  if (data.user.role === 'dswd') {
-    openDSWDPage();
-  } else if (data.user.role === 'manager') {
-    openManagerPage();
-  } else {
-    fetchFullProfileThenRender();
-  }
-} else if (data.newUser) {
+    if (data.success && data.newUser) {
       // Auto-register the Google user into the database
       const email = data.user.email;
       const name = data.user.name;
