@@ -265,7 +265,9 @@ app.post('/api/google-login', async (req, res) => {
     const result = await pool.query('SELECT * FROM users WHERE username=$1', [email]);
 
     if (result.rows.length > 0) {
-      return res.json({ success: true, user: result.rows[0] });
+      const existingUser = result.rows[0];
+      if (!existingUser.role) existingUser.role = 'resident';
+      return res.json({ success: true, newUser: false, user: existingUser });
     } else {
       return res.json({ success: true, newUser: true, user: { email, name } });
     }
