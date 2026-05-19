@@ -267,7 +267,10 @@ app.post('/api/google-login', async (req, res) => {
     if (result.rows.length > 0) {
       const existingUser = result.rows[0];
       if (!existingUser.role) existingUser.role = 'resident';
-      return res.json({ success: true, newUser: false, user: existingUser });
+      const profileResult = await pool.query('SELECT * FROM residents WHERE username=$1', [email]);
+      const profile = profileResult.rows[0] || {};
+      const merged = Object.assign({}, profile, existingUser);
+      return res.json({ success: true, newUser: false, user: merged });
     } else {
       return res.json({ success: true, newUser: true, user: { email, name } });
     }
