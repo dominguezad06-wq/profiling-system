@@ -2104,6 +2104,65 @@ function renderDSWDMiniResidentList(residents) {
   `).join('');
 }
 
+// Compute a resident's exact age in months (supports infants from 1 month old).
+// Uses the stored date of birth when available; falls back to age(years)*12.
+function computeAgeInMonths(resident) {
+  if (resident && resident.dob) {
+    const cleanDob = String(resident.dob).split('T')[0];
+    const dob = new Date(cleanDob + 'T00:00:00');
+    if (!isNaN(dob.getTime())) {
+      const now = new Date();
+      let months = (now.getFullYear() - dob.getFullYear()) * 12 + (now.getMonth() - dob.getMonth());
+      if (now.getDate() < dob.getDate()) months--;
+      return Math.max(0, months);
+    }
+  }
+  return Math.max(0, (resident && resident.age ? resident.age : 0) * 12);
+}
+
+// Filter dswdResidents by a custom age range (min/max, each in months or years),
+// store the result for CSV download, and render it in the results panel.
+function applyDSWDAgeRangeFilter() {
+  const minInput = document.getElementById('age-range-min-value');
+  const maxInput = document.getElementById('age-range-max-value');
+  const minUnit = document.getElementById('age-range-min-unit')?.value || 'years';
+  const maxUnit = document.getElementById('age-range-max-unit')?.value || 'years';
+
+  const minRaw = parseFloat(minInput?.value);
+  const maxRaw = parseFloat(maxInput?.value);
+
+  const minMonths = isNaN(minRaw) ? 0 : (minUnit === 'months' ? minRaw : minRaw * 12);
+  const maxMonths = isNaN(maxRaw) || maxRaw <= 0 ? Infinity : (maxUnit === 'months' ? maxRaw : maxRaw * 12);
+
+  const filtered = dswdResidents.filter(r => {
+    const months = computeAgeInMonths(r);
+    return months >= minMonths && months <= maxMonths;
+  });
+
+  window.dswdGroupData['age-custom'] = filtered;
+
+  const male = filtered.filter(r => r.gender === 'Male').length;
+  const female = filtered.filter(r => r.gender === 'Female').length;
+
+  const summary = document.getElementById('age-range-summary');
+  if (summary) {
+    summary.innerHTML = `
+      <span style="font-size:18px; font-weight:700; color:#1a1a1a;">${filtered.length}</span>
+      <span style="font-size:14px; color:#888;">resident${filtered.length !== 1 ? 's' : ''} in this range</span>
+      <span style="margin-left:14px; background:#E6F1FB; color:#0C447C; font-size:13px; font-weight:600; padding:4px 12px; border-radius:99px;">${male} male</span>
+      <span style="background:#FBEAF0; color:#72243E; font-size:13px; font-weight:600; padding:4px 12px; border-radius:99px;">${female} female</span>
+    `;
+  }
+
+  const results = document.getElementById('age-range-results');
+  if (results) results.style.display = 'block';
+  const listEl = document.getElementById('dswd-list-age-custom');
+  if (listEl) listEl.innerHTML = renderDSWDMiniResidentList(filtered);
+
+  const searchBox = document.getElementById('age-range-search');
+  if (searchBox) searchBox.value = '';
+}
+
 // Filter residents inside a dropdown panel by search text
 function filterDSWDGroupResidents(input, key) {
   const keyword = input.value.toLowerCase();
@@ -2349,22 +2408,52 @@ function renderDSWDStats(residents){
       ${metricCards}
       <div style="background:#fff; border-radius:12px; border:0.5px solid #e0e0e0; overflow:hidden; margin-bottom:24px;">
         <div style="display:flex; align-items:center; justify-content:space-between; padding:18px 22px; border-bottom:0.5px solid #e0e0e0;">
-          <span style="font-size:18px; font-weight:600; color:#1a1a1a;">Age group breakdown</span>
-          <span style="font-size:14px; color:#aaa;">${n} residents total</span>
+          <span style="font-size:18px; font-weight:600; color:#1a1a1a;">Age range filter</span>
+          <span style="font-size:14px; color:#aaa;">From 1 month old up to any age</span>
         </div>
-        ${legend}
-        <table style="width:100%; border-collapse:collapse;">
-          <thead>
-            <tr>
-              <th style="${thStyle} width:130px;"></th>
-              <th style="${thStyle} width:150px;">Age group</th>
-              <th style="${thStyle} width:110px;">Total</th>
-              <th style="${thStyle} width:110px;">Male</th>
-              <th style="${thStyle} width:110px;">Female</th>
-            </tr>
-          </thead>
-          <tbody>${ageRows}</tbody>
-        </table>
+        <div style="padding:18px 22px; display:flex; align-items:flex-end; gap:16px; flex-wrap:wrap; border-bottom:0.5px solid #f0f0f0; background:#fafbfc;">
+          <div>
+            <label style="display:block; font-size:12px; font-weight:600; color:#888; margin-bottom:6px;">From</label>
+            <div style="display:flex; gap:6px;">
+              <input type="number" id="age-range-min-value" min="0" step="1" value="0"
+                style="width:80px; padding:9px 10px; border-radius:8px; border:1px solid #ddd; font-size:14px; margin:0;">
+              <select id="age-range-min-unit" style="padding:9px 10px; border-radius:8px; border:1px solid #ddd; font-size:14px;">
+                <option value="months">Months</option>
+                <option value="years" selected>Years</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label style="display:block; font-size:12px; font-weight:600; color:#888; margin-bottom:6px;">To</label>
+            <div style="display:flex; gap:6px;">
+              <input type="number" id="age-range-max-value" min="0" step="1" value="120"
+                style="width:80px; padding:9px 10px; border-radius:8px; border:1px solid #ddd; font-size:14px; margin:0;">
+              <select id="age-range-max-unit" style="padding:9px 10px; border-radius:8px; border:1px solid #ddd; font-size:14px;">
+                <option value="months">Months</option>
+                <option value="years" selected>Years</option>
+              </select>
+            </div>
+          </div>
+          <button onclick="applyDSWDAgeRangeFilter()"
+            style="padding:11px 24px; background:#8B0000; color:#fff; border:none; border-radius:8px; font-size:14px; font-weight:700; cursor:pointer; white-space:nowrap;">
+            Show Residents
+          </button>
+        </div>
+        <div id="age-range-summary" style="padding:16px 22px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; border-bottom:0.5px solid #f0f0f0;">
+          <span style="font-size:14px; color:#aaa;">Set a range above and click "Show Residents".</span>
+        </div>
+        <div id="age-range-results" style="display:none; padding:16px 22px 20px;">
+          <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px; flex-wrap:wrap;">
+            <input type="text" id="age-range-search" placeholder="Search residents in this range..."
+              oninput="filterDSWDGroupResidents(this, 'age-custom')"
+              style="flex:1; min-width:220px; padding:9px 14px; border-radius:8px; border:1px solid #ddd; font-size:14px; margin:0;">
+            <button onclick="downloadResidentsCSV('age-custom', 'Residents_Age_Range')"
+              style="padding:9px 18px; background:#8B0000; color:#fff; border:none; border-radius:8px; font-size:14px; font-weight:700; cursor:pointer; white-space:nowrap;">
+              ⬇ Download CSV
+            </button>
+          </div>
+          <div id="dswd-list-age-custom" style="display:flex; flex-direction:column; gap:6px; max-height:320px; overflow-y:auto;"></div>
+        </div>
       </div>
       <div style="background:#fff; border-radius:12px; border:0.5px solid #e0e0e0; overflow:hidden; margin-bottom:24px;">
         <div style="display:flex; align-items:center; justify-content:space-between; padding:18px 22px; border-bottom:0.5px solid #e0e0e0;">
