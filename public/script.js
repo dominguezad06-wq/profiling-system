@@ -1882,7 +1882,8 @@ function applyDSWDAgeRangeFilter(keepPage) {
   const minRaw = parseFloat(minInput?.value);
   const maxRaw = parseFloat(maxInput?.value);
   const minMonths = isNaN(minRaw) ? 0 : (minUnit === 'months' ? minRaw : minRaw * 12);
-  const maxMonths = isNaN(maxRaw) || maxRaw <= 0 ? Infinity : (maxUnit === 'months' ? maxRaw : maxRaw * 12);
+  // "To 22 years" includes everyone who is 22 (up to 22 years 11 months); months are counted exactly
+  const maxMonths = isNaN(maxRaw) || maxRaw <= 0 ? Infinity : (maxUnit === 'months' ? maxRaw : (maxRaw + 1) * 12 - 1);
 
   const filtered = dswdResidents.filter(r => {
     const months = computeAgeInMonths(r);
@@ -2251,9 +2252,13 @@ function openResidentDetail(key) {
     { title: '🎓 Education', color: '#2c5aa0', rows: [
       ['Educational Attainment', val(r.educational_attainment)],
       ['School Name', val(r.school_name)],
-      ['Year Level', val(r.year_level)]
+      ['Year Level', val(r.year_level)],
+      ['Out-of-School Youth', val(r.out_of_school_youth)]
     ]},
     { title: '🩺 Health & Status', color: '#27ae60', rows: [
+      ['PhilHealth Number', val(r.philhealth_number)],
+      ['Medical History', val(r.medical_history)],
+      ['Maintenance Medicine', val(r.maintenance_medicine)],
       ['PWD', dswdYes(r.pwd) ? 'Yes' : 'No'],
       ['Senior Citizen', dswdIsSenior(r) ? 'Yes' : 'No']
     ]}
@@ -2263,7 +2268,8 @@ function openResidentDetail(key) {
   const shown = new Set(['id','username','password','name','first_name','middle_name','last_name','gender','status','dob','age',
     'place_of_birth','religion','blood_type','voter_status','barangay','address','family_code','is_head','household_role',
     'spouse','sons','daughters','family_members','children_names','contact','email','emergency_contact_name',
-    'emergency_contact_number','educational_attainment','school_name','year_level','pwd','senior']);
+    'emergency_contact_number','educational_attainment','school_name','year_level','pwd','senior',
+    'out_of_school_youth','philhealth_number','medical_history','maintenance_medicine','fingerprint_id','photo_path','has_photo']);
   const photoKeys = ['photo','photo_url','picture','profile_pic','image','avatar'];
   const extraRows = [];
   Object.keys(r).forEach(k => {
@@ -2274,7 +2280,7 @@ function openResidentDetail(key) {
     if (typeof v === 'boolean') v = v ? 'Yes' : 'No';
     if (String(v).length > 300) return;
     if (/(_at|date)$/i.test(k) && /^\d{4}-\d{2}-\d{2}/.test(String(v))) v = formatDate(v);
-    const label = k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()).replace(/Philhealth/i, 'PhilHealth');
+    const label = k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()).replace(/Philhealth/i, 'PhilHealth').replace(/^Created At$/, 'Date Added');
     extraRows.push([label, dswdEsc(v)]);
   });
   if (extraRows.length) sections.push({ title: '📋 Other Details (PhilHealth & more)', color: '#6b7280', rows: extraRows });
@@ -2293,15 +2299,12 @@ function openResidentDetail(key) {
       </div>
     </div>`;
 
-  // photo (if the resident has one) or initials
-  let photo = '';
-  for (const k of photoKeys) {
-    const v = r[k];
-    if (typeof v === 'string' && /^(https?:|data:image|\/)/.test(v)) { photo = v; break; }
-  }
-  const avatar = photo
-    ? `<img src="${dswdEsc(photo)}" style="width:84px; height:84px; border-radius:50%; object-fit:cover; border:3px solid #fff;" onerror="this.style.display='none'">`
-    : `<div style="width:84px; height:84px; border-radius:50%; background:#fff; color:#8B0000; display:flex; align-items:center; justify-content:center; font-size:34px; font-weight:700;">${dswdEsc(String(fullName).charAt(0).toUpperCase())}</div>`;
+  // photo: loaded separately by id (photos are not in the list to keep it fast); initials until it arrives
+  const initialAvatar = `<div style="width:84px; height:84px; border-radius:50%; background:#fff; color:#8B0000; display:flex; align-items:center; justify-content:center; font-size:34px; font-weight:700;">${dswdEsc(String(fullName).charAt(0).toUpperCase())}</div>`;
+  const photoImg = src => `<img src="${dswdEsc(src)}" style="width:84px; height:84px; border-radius:50%; object-fit:cover; border:3px solid #fff;">`;
+  window.dswdPhotoCache = window.dswdPhotoCache || {};
+  const cachedPhoto = (r.id !== undefined && r.id !== null) ? window.dswdPhotoCache[r.id] : null;
+  const avatar = `<div id="dswd-detail-avatar">${cachedPhoto ? photoImg(cachedPhoto) : initialAvatar}</div>`;
 
   // other members of the same family
   let familyHTML = '';
@@ -2357,6 +2360,19 @@ function openResidentDetail(key) {
     </div>
   `;
   body.scrollTop = 0;
+
+  if (!cachedPhoto && r.has_photo && r.id !== undefined && r.id !== null) {
+    fetch(`${API_BASE}/api/resident-photo/${r.id}`)
+      .then(res => res.json())
+      .then(d => {
+        if (d.photo && /^(data:image|https?:)/.test(d.photo)) {
+          window.dswdPhotoCache[r.id] = d.photo;
+          const el = document.getElementById('dswd-detail-avatar');
+          if (el) el.innerHTML = photoImg(d.photo);
+        }
+      })
+      .catch(() => {});
+  }
 }
 
 // Back from a resident page: same open group, same page, same scroll position
