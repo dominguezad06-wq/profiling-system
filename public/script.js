@@ -16,13 +16,18 @@ function formatTime12Hour(time24){
 
 function formatDate(dateStr) {
   if (!dateStr) return '';
-  const cleanDate = dateStr.split('T')[0];
+  const cleanDate = String(dateStr).split('T')[0];
   const date = new Date(cleanDate + 'T00:00:00');
   return date.toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'long',
     day: 'numeric'
   });
+}
+
+// Show the BHW name instead of DSWD (the login username "dswd" stays the same)
+function bhwName(name) {
+  return currentRole === 'dswd' ? String(name || '').replace(/dswd/gi, 'BHW') : name;
 }
 
 // Show Forms
@@ -240,8 +245,8 @@ function login() {
       } else if (data.user.role === 'manager') {
         openManagerPage();
       } else {
-  fetchFullProfileThenRender();
-}
+        fetchFullProfileThenRender();
+      }
     } else {
       const errBox = document.getElementById('login-error');
       errBox.innerText = data.error || 'Invalid username or password!';
@@ -314,6 +319,8 @@ function showMyAccount() {
   }
 
   const picUrl = loggedInUser.profile_pic || null;
+  const shownName = bhwName(loggedInUser.name) || '';
+  const roleLabel = isDSWD ? 'BHW' : currentRole;
 
   body.innerHTML = `
     <div style="max-width:520px; margin:0 auto; padding:24px;">
@@ -323,7 +330,7 @@ function showMyAccount() {
         <div style="background:#8B0000; padding:32px; text-align:center;">
           <div style="position:relative; display:inline-block;">
             <img id="profile-pic-preview"
-              src="${picUrl || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(loggedInUser.name || 'User') + '&background=ffffff&color=c0392b&size=128'}"
+              src="${picUrl || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(shownName || 'User') + '&background=ffffff&color=c0392b&size=128'}"
               style="width:100px; height:100px; border-radius:50%; border:4px solid white; object-fit:cover;">
             <label for="profile-pic-input" style="position:absolute; bottom:0; right:0; background:#fff; border-radius:50%; width:30px; height:30px; display:flex; align-items:center; justify-content:center; cursor:pointer; box-shadow:0 2px 6px rgba(0,0,0,0.2);">
               <span style="font-size:14px;">✏️</span>
@@ -331,8 +338,8 @@ function showMyAccount() {
             <input type="file" id="profile-pic-input" accept="image/*" style="display:none;" onchange="previewProfilePic(this)">
           </div>
           <div style="margin-top:12px; color:white;">
-            <div style="font-size:18px; font-weight:600;">${loggedInUser.name || 'User'}</div>
-            <div style="font-size:13px; opacity:0.85; margin-top:4px; text-transform:capitalize;">${currentRole} Account</div>
+            <div style="font-size:18px; font-weight:600;">${shownName || 'User'}</div>
+            <div style="font-size:13px; opacity:0.85; margin-top:4px; text-transform:capitalize;">${roleLabel} Account</div>
             <div style="font-size:12px; opacity:0.7; margin-top:2px;">@${loggedInUser.username}</div>
           </div>
         </div>
@@ -341,7 +348,7 @@ function showMyAccount() {
 
           <div style="margin-bottom:18px;">
             <label style="font-size:13px; font-weight:600; color:#555; display:block; margin-bottom:6px;">Full Name</label>
-            <input type="text" id="account-name" value="${loggedInUser.name || ''}"
+            <input type="text" id="account-name" value="${shownName}"
               style="width:100%; padding:11px 14px; border-radius:8px; border:1px solid #ddd; font-size:14px; margin:0;">
           </div>
 
@@ -549,7 +556,7 @@ function showDashboard(){
   const title =
     currentRole === 'resident' ? 'Resident Dashboard' :
     currentRole === 'manager' ? 'Manager Dashboard' :
-    currentRole === 'dswd' ? 'DSWD Dashboard' :
+    currentRole === 'dswd' ? 'BHW Dashboard' :
     'Dashboard';
 
   document.getElementById('dashboard-title').innerText = title;
@@ -574,353 +581,18 @@ function openDSWDPage(){
   document.getElementById('login-page').style.display = 'none';
   document.getElementById('dashboard-page').style.display = 'none';
   document.getElementById('dswd-page').style.display = 'flex';
+
+  // Relabel the static "DSWD" / "Health Center" texts in the header and sidebar as BHW
+  document.querySelectorAll('#dswd-page div, #dswd-page span').forEach(el => {
+    if (el.children.length === 0) {
+      const t = el.textContent.trim();
+      if (t === 'DSWD' || t === 'Health Center') el.textContent = 'BHW';
+    }
+  });
+
   showDSWDStats();
   updateHeaderUI();
   startHeaderClock();
-}
-
-function showAgeStats() {
-  const body = document.getElementById('dashboard-body');
-  const n = dswdResidents.length;
-  const pct = (a, b) => b ? Math.round(a / b * 100) : 0;
-
-  const groups = {
-    '0_10':  { label: '0–10',   residents: dswdResidents.filter(r => r.age <= 10) },
-    '11_14': { label: '11–14',  residents: dswdResidents.filter(r => r.age >= 11 && r.age <= 14) },
-    '15_30': { label: '15–30',  residents: dswdResidents.filter(r => r.age >= 15 && r.age <= 30) },
-    '31_59': { label: '31–59',  residents: dswdResidents.filter(r => r.age >= 31 && r.age <= 59) },
-    '60':    { label: '60+',    residents: dswdResidents.filter(r => r.age >= 60) },
-  };
-
-  const ageRows = Object.keys(groups).map(group => {
-    const { label, residents } = groups[group];
-    const count = residents.length;
-    const totalPct = pct(count, n);
-    const male = residents.filter(r => r.gender === 'Male').length;
-    const female = residents.filter(r => r.gender === 'Female').length;
-    const mPct = pct(male, count);
-    const fPct = count ? (100 - mPct) : 0;
-
-    return `
-      <tr>
-        <td colspan="5" style="padding:0; border-bottom:0.5px solid #f0f0f0;">
-          <div onclick="selectAgeGroup('${group}')" id="row-age-${group}"
-            style="display:flex; align-items:center; padding:18px 22px; cursor:pointer; gap:20px; background:#fff; transition:background 0.15s;"
-            onmouseover="this.style.background='#f4f7ff'" onmouseout="document.getElementById('row-age-${group}').style.background = window._selectedAge === '${group}' ? '#EBF4FF' : '#fff'">
-            <div style="min-width:100px;">
-              <span style="font-size:17px; font-weight:500; color:#1a1a1a;">Age ${label}</span>
-            </div>
-            <div style="min-width:80px;">
-              <span style="color:#378ADD; font-weight:500; font-size:20px;">${count}</span>
-            </div>
-            <div style="flex:1; display:flex; align-items:center; gap:10px;">
-              <span style="background:#E6F1FB; color:#0C447C; font-size:13px; font-weight:500; padding:5px 14px; border-radius:99px; min-width:38px; text-align:center;">${male}</span>
-              <div style="flex:1; height:7px; background:#eee; border-radius:99px; overflow:hidden;">
-                <div style="width:${mPct}%; height:100%; background:#378ADD; border-radius:99px;"></div>
-              </div>
-              <span style="font-size:13px; color:#bbb; min-width:38px; text-align:right;">${mPct}%</span>
-            </div>
-            <div style="flex:1; display:flex; align-items:center; gap:10px;">
-              <span style="background:#FBEAF0; color:#72243E; font-size:13px; font-weight:500; padding:5px 14px; border-radius:99px; min-width:38px; text-align:center;">${female}</span>
-              <div style="flex:1; height:7px; background:#eee; border-radius:99px; overflow:hidden;">
-                <div style="width:${fPct}%; height:100%; background:#D4537E; border-radius:99px;"></div>
-              </div>
-              <span style="font-size:13px; color:#bbb; min-width:38px; text-align:right;">${fPct}%</span>
-            </div>
-            <div style="display:flex; align-items:center; gap:10px; min-width:140px;">
-              <div style="width:80px; height:7px; background:#eee; border-radius:99px; overflow:hidden;">
-                <div style="width:${totalPct}%; height:100%; background:#c0392b; border-radius:99px;"></div>
-              </div>
-              <span style="font-size:13px; color:#bbb; min-width:38px;">${totalPct}%</span>
-            </div>
-          </div>
-        </td>
-      </tr>
-    `;
-  }).join('');
-
-  body.innerHTML = `
-    <div style="padding:24px; background:#f5f6fa; min-height:100%; display:flex; flex-direction:column; gap:20px;">
-      <div style="display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px;">
-        <div style="background:#fff; border-radius:10px; padding:18px 20px; border:0.5px solid #e0e0e0;">
-          <div style="font-size:14px; color:#888; margin-bottom:8px;">Total residents</div>
-          <div style="font-size:32px; font-weight:500; color:#1a1a1a;">${n}</div>
-          <div style="font-size:13px; color:#aaa; margin-top:6px;">all age groups</div>
-        </div>
-        <div style="background:#fff; border-radius:10px; padding:18px 20px; border:0.5px solid #e0e0e0;">
-          <div style="font-size:14px; color:#3B6D11; margin-bottom:8px;">Seniors (60+)</div>
-          <div style="font-size:32px; font-weight:500; color:#3B6D11;">${groups['60'].residents.length}</div>
-          <div style="font-size:13px; color:#3B6D11; margin-top:6px; opacity:0.8;">${pct(groups['60'].residents.length, n)}% of total</div>
-        </div>
-        <div style="background:#fff; border-radius:10px; padding:18px 20px; border:0.5px solid #e0e0e0;">
-          <div style="font-size:14px; color:#185FA5; margin-bottom:8px;">Children (0–14)</div>
-          <div style="font-size:32px; font-weight:500; color:#185FA5;">${groups['0_10'].residents.length + groups['11_14'].residents.length}</div>
-          <div style="font-size:13px; color:#185FA5; margin-top:6px; opacity:0.8;">${pct(groups['0_10'].residents.length + groups['11_14'].residents.length, n)}% of total</div>
-        </div>
-      </div>
-      <div style="display:flex; gap:20px; align-items:flex-start;">
-        <div style="flex:1.2; background:#fff; border-radius:12px; border:0.5px solid #e0e0e0; overflow:hidden;">
-          <div style="display:flex; align-items:center; justify-content:space-between; padding:18px 22px; border-bottom:0.5px solid #eee;">
-            <span style="font-size:17px; font-weight:500; color:#1a1a1a;">Age group breakdown</span>
-            <span style="font-size:13px; color:#aaa;">Select a row to view residents</span>
-          </div>
-          <div style="display:flex; gap:20px; padding:12px 22px; border-bottom:0.5px solid #f0f0f0;">
-            <span style="display:flex; align-items:center; gap:6px; font-size:14px; color:#666;">
-              <span style="width:12px; height:12px; border-radius:2px; background:#378ADD; display:inline-block;"></span> Male
-            </span>
-            <span style="display:flex; align-items:center; gap:6px; font-size:14px; color:#666;">
-              <span style="width:12px; height:12px; border-radius:2px; background:#D4537E; display:inline-block;"></span> Female
-            </span>
-          </div>
-          <table style="width:100%; border-collapse:collapse;">
-            <tbody>${ageRows}</tbody>
-          </table>
-        </div>
-        <div id="age-resident-panel" style="flex:1; background:#fff; border-radius:12px; border:0.5px solid #e0e0e0; overflow:hidden; min-height:300px;">
-          <div style="padding:60px 20px; text-align:center; color:#bbb;">
-            <div style="font-size:40px; margin-bottom:12px;">👆</div>
-            <div style="font-size:15px; font-weight:500; color:#aaa;">Select an age group</div>
-            <div style="font-size:13px; color:#ccc; margin-top:6px;">Residents Name</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  `;
-  window._selectedAge = null;
-}
-
-function selectAgeGroup(group) {
-  const groups = {
-    '0_10':  { label: '0–10',  residents: dswdResidents.filter(r => r.age <= 10) },
-    '11_14': { label: '11–14', residents: dswdResidents.filter(r => r.age >= 11 && r.age <= 14) },
-    '15_30': { label: '15–30', residents: dswdResidents.filter(r => r.age >= 15 && r.age <= 30) },
-    '31_59': { label: '31–59', residents: dswdResidents.filter(r => r.age >= 31 && r.age <= 59) },
-    '60':    { label: '60+',   residents: dswdResidents.filter(r => r.age >= 60) },
-  };
-  Object.keys(groups).forEach(g => {
-    const row = document.getElementById(`row-age-${g}`);
-    if (row) row.style.background = '#fff';
-  });
-  const selectedRow = document.getElementById(`row-age-${group}`);
-  if (selectedRow) selectedRow.style.background = '#EBF4FF';
-  window._selectedAge = group;
-  window._ageGroupData = groups[group].residents;
-
-  const { label, residents } = groups[group];
-  const panel = document.getElementById('age-resident-panel');
-  panel.innerHTML = `
-    <div style="display:flex; align-items:center; justify-content:space-between; padding:16px 22px; border-bottom:0.5px solid #eee; background:#f8f9fa;">
-      <div>
-        <span style="font-size:16px; font-weight:500; color:#1a1a1a;">Age ${label}</span>
-        <span style="margin-left:10px; background:#E6F1FB; color:#0C447C; font-size:13px; font-weight:500; padding:4px 14px; border-radius:99px;">${residents.length} resident${residents.length !== 1 ? 's' : ''}</span>
-      </div>
-    </div>
-    <div style="padding:12px 22px; border-bottom:0.5px solid #f0f0f0;">
-      <input type="text" placeholder="Search residents..."
-        oninput="filterAgeResidents(this)"
-        style="padding:8px 14px; border-radius:8px; border:0.5px solid #ddd; font-size:14px; width:100%; margin:0;">
-    </div>
-    <div id="age-resident-list" style="padding:14px 22px; display:flex; flex-direction:column; gap:6px; max-height:500px; overflow-y:auto;">
-      ${residents.length === 0
-        ? `<p style="color:#aaa; font-size:14px; text-align:center; padding:30px 0;">No residents in this age group.</p>`
-        : residents.map(r => ageResidentCard(r)).join('')}
-    </div>
-  `;
-}
-
-function ageResidentCard(r) {
-  return `
-    <div onclick="openDSWDResidentDetail('${r.username}')"
-      style="display:flex; align-items:center; justify-content:space-between; padding:12px 16px; border-radius:10px; border:0.5px solid #eee; cursor:pointer; background:#fff;"
-      onmouseover="this.style.background='#f4f7ff'" onmouseout="this.style.background='#fff'">
-      <div>
-        <div style="font-size:15px; font-weight:500; color:#1a1a1a;">${r.name}</div>
-        <div style="font-size:13px; color:#888; margin-top:3px;">Age ${r.age} &nbsp;·&nbsp; ${r.gender} &nbsp;·&nbsp; ${r.barangay}</div>
-      </div>
-      <div style="display:flex; gap:8px; align-items:center;">
-        ${r.pwd === 'Yes' ? `<span style="background:#FAECE7; color:#712B13; font-size:12px; font-weight:500; padding:4px 12px; border-radius:99px;">PWD</span>` : ''}
-        ${r.age >= 60 ? `<span style="background:#EAF3DE; color:#27500A; font-size:12px; font-weight:500; padding:4px 12px; border-radius:99px;">Senior</span>` : ''}
-        <span style="font-size:13px; color:#bbb;">View →</span>
-      </div>
-    </div>
-  `;
-}
-
-function filterAgeResidents(input) {
-  const keyword = input.value.toLowerCase();
-  const filtered = (window._ageGroupData || []).filter(r => r.name.toLowerCase().includes(keyword));
-  document.getElementById('age-resident-list').innerHTML = filtered.length === 0
-    ? `<p style="color:#aaa; font-size:14px; text-align:center; padding:30px 0;">No residents match your search.</p>`
-    : filtered.map(r => ageResidentCard(r)).join('');
-}
-
-function showBarangayStats() {
-  const body = document.getElementById('dashboard-body');
-  const trapiches = ['Trapiche 1', 'Trapiche 2', 'Trapiche 3', 'Trapiche 4'];
-  const pct = (a, b) => b ? Math.round(a / b * 100) : 0;
-  const n = dswdResidents.length;
-
-  const bgyRows = trapiches.map(t => {
-    const residents = dswdResidents.filter(r => r.barangay === t);
-    const total = residents.length;
-    const male = residents.filter(r => r.gender === 'Male').length;
-    const female = residents.filter(r => r.gender === 'Female').length;
-    const pwd = residents.filter(r => r.pwd === 'Yes').length;
-    const senior = residents.filter(r => r.age >= 60).length;
-    const mPct = pct(male, total);
-    const fPct = total ? (100 - mPct) : 0;
-    const safeId = t.replace(' ', '-');
-
-    return `
-      <tr>
-        <td colspan="6" style="padding:0; border-bottom:0.5px solid #f0f0f0;">
-          <div onclick="selectBarangayGroup('${t}')" id="row-bgy-${safeId}"
-            style="display:flex; align-items:center; padding:18px 22px; cursor:pointer; gap:20px; background:#fff; transition:background 0.15s;"
-            onmouseover="this.style.background='#f4f7ff'" onmouseout="document.getElementById('row-bgy-${safeId}').style.background = window._selectedBgy === '${t}' ? '#EBF4FF' : '#fff'">
-            <div style="min-width:120px;">
-              <span style="font-size:17px; font-weight:500; color:#1a1a1a;">${t}</span>
-            </div>
-            <div style="min-width:70px;">
-              <span style="color:#378ADD; font-weight:500; font-size:20px;">${total}</span>
-            </div>
-            <div style="flex:1; display:flex; align-items:center; gap:10px;">
-              <span style="background:#E6F1FB; color:#0C447C; font-size:13px; font-weight:500; padding:5px 14px; border-radius:99px; min-width:38px; text-align:center;">${male}</span>
-              <div style="flex:1; height:7px; background:#eee; border-radius:99px; overflow:hidden;">
-                <div style="width:${mPct}%; height:100%; background:#378ADD; border-radius:99px;"></div>
-              </div>
-              <span style="font-size:13px; color:#bbb; min-width:38px; text-align:right;">${mPct}%</span>
-            </div>
-            <div style="flex:1; display:flex; align-items:center; gap:10px;">
-              <span style="background:#FBEAF0; color:#72243E; font-size:13px; font-weight:500; padding:5px 14px; border-radius:99px; min-width:38px; text-align:center;">${female}</span>
-              <div style="flex:1; height:7px; background:#eee; border-radius:99px; overflow:hidden;">
-                <div style="width:${fPct}%; height:100%; background:#D4537E; border-radius:99px;"></div>
-              </div>
-              <span style="font-size:13px; color:#bbb; min-width:38px; text-align:right;">${fPct}%</span>
-            </div>
-            <div style="min-width:80px; text-align:center;">
-              <span style="background:#FAECE7; color:#712B13; font-size:13px; font-weight:500; padding:5px 16px; border-radius:99px;">${pwd}</span>
-            </div>
-            <div style="min-width:80px; text-align:center;">
-              <span style="background:#EAF3DE; color:#27500A; font-size:13px; font-weight:500; padding:5px 16px; border-radius:99px;">${senior}</span>
-            </div>
-          </div>
-        </td>
-      </tr>
-    `;
-  }).join('');
-
-  body.innerHTML = `
-    <div style="padding:24px; background:#f5f6fa; min-height:100%; display:flex; flex-direction:column; gap:20px;">
-      <div style="display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px;">
-        ${trapiches.map(t => {
-          const total = dswdResidents.filter(r => r.barangay === t).length;
-          return `
-            <div style="background:#fff; border-radius:10px; padding:18px 20px; border:0.5px solid #e0e0e0;">
-              <div style="font-size:14px; color:#888; margin-bottom:8px;">${t}</div>
-              <div style="font-size:32px; font-weight:500; color:#1a1a1a;">${total}</div>
-              <div style="font-size:13px; color:#aaa; margin-top:6px;">${pct(total, n)}% of total</div>
-            </div>
-          `;
-        }).join('')}
-      </div>
-      <div style="display:flex; gap:20px; align-items:flex-start;">
-        <div style="flex:1.4; background:#fff; border-radius:12px; border:0.5px solid #e0e0e0; overflow:hidden;">
-          <div style="display:flex; align-items:center; justify-content:space-between; padding:18px 22px; border-bottom:0.5px solid #eee;">
-            <span style="font-size:17px; font-weight:500; color:#1a1a1a;">Barangay breakdown</span>
-            <span style="font-size:13px; color:#aaa;">Select a row to view residents</span>
-          </div>
-          <div style="display:flex; gap:20px; padding:12px 22px; border-bottom:0.5px solid #f0f0f0;">
-            <span style="display:flex; align-items:center; gap:6px; font-size:14px; color:#666;">
-              <span style="width:12px; height:12px; border-radius:2px; background:#378ADD; display:inline-block;"></span> Male
-            </span>
-            <span style="display:flex; align-items:center; gap:6px; font-size:14px; color:#666;">
-              <span style="width:12px; height:12px; border-radius:2px; background:#D4537E; display:inline-block;"></span> Female
-            </span>
-          </div>
-          <div style="display:flex; align-items:center; padding:12px 22px; gap:20px; background:#f8f9fa; border-bottom:0.5px solid #eee;">
-            <div style="min-width:120px; font-size:14px; font-weight:500; color:#888;">Barangay</div>
-            <div style="min-width:70px; font-size:14px; font-weight:500; color:#888;">Total</div>
-            <div style="flex:1; font-size:14px; font-weight:500; color:#888;">Male</div>
-            <div style="flex:1; font-size:14px; font-weight:500; color:#888;">Female</div>
-            <div style="min-width:80px; font-size:14px; font-weight:500; color:#888; text-align:center;">PWD</div>
-            <div style="min-width:80px; font-size:14px; font-weight:500; color:#888; text-align:center;">Senior</div>
-          </div>
-          <table style="width:100%; border-collapse:collapse;">
-            <tbody>${bgyRows}</tbody>
-          </table>
-        </div>
-        <div id="bgy-resident-panel" style="flex:1; background:#fff; border-radius:12px; border:0.5px solid #e0e0e0; overflow:hidden; min-height:300px;">
-          <div style="padding:60px 20px; text-align:center; color:#bbb;">
-            <div style="font-size:40px; margin-bottom:12px;">👆</div>
-            <div style="font-size:15px; font-weight:500; color:#aaa;">Select a barangay</div>
-            <div style="font-size:13px; color:#ccc; margin-top:6px;">Residents Name</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  `;
-  window._selectedBgy = null;
-}
-
-function selectBarangayGroup(barangay) {
-  const trapiches = ['Trapiche 1', 'Trapiche 2', 'Trapiche 3', 'Trapiche 4'];
-  trapiches.forEach(t => {
-    const row = document.getElementById(`row-bgy-${t.replace(' ', '-')}`);
-    if (row) row.style.background = '#fff';
-  });
-  const safeId = barangay.replace(' ', '-');
-  const selectedRow = document.getElementById(`row-bgy-${safeId}`);
-  if (selectedRow) selectedRow.style.background = '#EBF4FF';
-  window._selectedBgy = barangay;
-
-  const residents = dswdResidents.filter(r => r.barangay === barangay);
-  window._bgyGroupData = residents;
-
-  const panel = document.getElementById('bgy-resident-panel');
-  panel.innerHTML = `
-    <div style="display:flex; align-items:center; justify-content:space-between; padding:16px 22px; border-bottom:0.5px solid #eee; background:#f8f9fa;">
-      <div>
-        <span style="font-size:16px; font-weight:500; color:#1a1a1a;">${barangay}</span>
-        <span style="margin-left:10px; background:#E6F1FB; color:#0C447C; font-size:13px; font-weight:500; padding:4px 14px; border-radius:99px;">${residents.length} resident${residents.length !== 1 ? 's' : ''}</span>
-      </div>
-    </div>
-    <div style="padding:12px 22px; border-bottom:0.5px solid #f0f0f0;">
-      <input type="text" placeholder="Search residents..."
-        oninput="filterBgyResidents(this)"
-        style="padding:8px 14px; border-radius:8px; border:0.5px solid #ddd; font-size:14px; width:100%; margin:0;">
-    </div>
-    <div id="bgy-resident-list" style="padding:14px 22px; display:flex; flex-direction:column; gap:6px; max-height:500px; overflow-y:auto;">
-      ${residents.length === 0
-        ? `<p style="color:#aaa; font-size:14px; text-align:center; padding:30px 0;">No residents in this barangay.</p>`
-        : residents.map(r => bgyResidentCard(r)).join('')}
-    </div>
-  `;
-}
-
-function bgyResidentCard(r) {
-  return `
-    <div onclick="openDSWDResidentDetail('${r.username}')"
-      style="display:flex; align-items:center; justify-content:space-between; padding:12px 16px; border-radius:10px; border:0.5px solid #eee; cursor:pointer; background:#fff;"
-      onmouseover="this.style.background='#f4f7ff'" onmouseout="this.style.background='#fff'">
-      <div>
-        <div style="font-size:15px; font-weight:500; color:#1a1a1a;">${r.name}</div>
-        <div style="font-size:13px; color:#888; margin-top:3px;">Age ${r.age} &nbsp;·&nbsp; ${r.gender} &nbsp;·&nbsp; ${r.barangay}</div>
-      </div>
-      <div style="display:flex; gap:8px; align-items:center;">
-        ${r.pwd === 'Yes' ? `<span style="background:#FAECE7; color:#712B13; font-size:12px; font-weight:500; padding:4px 12px; border-radius:99px;">PWD</span>` : ''}
-        ${r.age >= 60 ? `<span style="background:#EAF3DE; color:#27500A; font-size:12px; font-weight:500; padding:4px 12px; border-radius:99px;">Senior</span>` : ''}
-        <span style="font-size:13px; color:#bbb;">View →</span>
-      </div>
-    </div>
-  `;
-}
-
-function filterBgyResidents(input) {
-  const keyword = input.value.toLowerCase();
-  const filtered = (window._bgyGroupData || []).filter(r => r.name.toLowerCase().includes(keyword));
-  document.getElementById('bgy-resident-list').innerHTML = filtered.length === 0
-    ? `<p style="color:#aaa; font-size:14px; text-align:center; padding:30px 0;">No residents match your search.</p>`
-    : filtered.map(r => bgyResidentCard(r)).join('');
 }
 
 function renderResidentWelcome() {
@@ -998,8 +670,6 @@ function renderResidentWelcome() {
           <div style="padding:10px 16px; display:flex; flex-direction:column; gap:7px;">
             ${[
               { label:'Spouse', value: (u.spouse && u.spouse !== 'N/A') ? u.spouse : '—' },
-            
-              
               { label:'Household Role', value: u.household_role || '—' },
               { label:'Voter Status', value: u.voter_status || '—' },
             ].map(row => `
@@ -2029,13 +1699,34 @@ function rejectRequest(username, documentType, requestId) {
 }
 
 /* =======================================================================
-   DSWD STATISTICS — CSV EXPORT + INLINE DROPDOWN HELPERS
-   (used by the redesigned renderDSWDStats below)
+   BHW DASHBOARD (formerly DSWD)
+   - Statistics / Age Statistics / Barangay Statistics pages
+   - Every group dropdown shows 10 residents per page (First/Prev/Next/Last)
+   - Clicking a resident opens a full details page
+   - Back returns to the same open group, page, search and scroll position
 ======================================================================= */
 
-// Holds the resident list currently associated with each expandable row,
-// keyed by a unique string like "age-60" or "bgy-Trapiche-1".
+const DSWD_PAGE_SIZE = 10;
+
+// Resident list for each expandable row, keyed like "age-60" or "bgy-Trapiche-1"
 window.dswdGroupData = window.dswdGroupData || {};
+
+// Remembers what the BHW had open so Back can restore it
+window.dswdUI = { mode: 'all', open: {}, page: {}, search: {}, range: null, scroll: 0, inDetail: false };
+
+function dswdEsc(s) {
+  return String(s === undefined || s === null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+function dswdAge(r) { return Number(r.age) || 0; }
+function dswdYes(v) { return v === true || v === 'Yes' || v === 'yes' || v === 'true' || v === 't'; }
+function dswdIsSenior(r) { return dswdYes(r.senior) || dswdAge(r) >= 60; }
+// Phone-uploaded residents share the same username, so identify residents by id when available
+function dswdKey(r) {
+  return (r.id !== undefined && r.id !== null)
+    ? 'id_' + r.id
+    : 'u_' + encodeURIComponent(r.username || '').replace(/'/g, '%27');
+}
 
 // Build a CSV string from an array of resident objects
 function residentsToCSV(residents) {
@@ -2045,8 +1736,8 @@ function residentsToCSV(residents) {
   residents.forEach(r => {
     lines.push([
       r.name, r.age, r.gender, r.barangay, r.status || '',
-      r.pwd === 'Yes' ? 'Yes' : 'No',
-      (r.age >= 60) ? 'Yes' : 'No',
+      dswdYes(r.pwd) ? 'Yes' : 'No',
+      dswdIsSenior(r) ? 'Yes' : 'No',
       r.contact || '', r.email || '', r.address || ''
     ].map(escapeCell).join(','));
   });
@@ -2072,7 +1763,7 @@ function downloadResidentsCSV(key, filename) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-// Toggle the inline dropdown panel for a given row key ("age-60", "bgy-Trapiche-1", ...)
+// Open / close a dropdown row and remember it
 function toggleDSWDGroupRow(key) {
   const detail = document.getElementById(`dswd-detail-${key}`);
   const chevron = document.getElementById(`dswd-chevron-${key}`);
@@ -2080,32 +1771,88 @@ function toggleDSWDGroupRow(key) {
   const isOpen = detail.style.display !== 'none';
   detail.style.display = isOpen ? 'none' : 'block';
   if (chevron) chevron.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(90deg)';
+  window.dswdUI.open[key] = !isOpen;
 }
 
-// Render the mini resident list used inside a dropdown panel
-function renderDSWDMiniResidentList(residents) {
-  if (!residents || residents.length === 0) {
-    return `<p style="color:#aaa; font-size:14px; text-align:center; padding:18px 0;">No residents found.</p>`;
-  }
-  return residents.map(r => `
-    <div onclick="openDSWDResidentDetail('${r.username}')"
+// One resident row inside a dropdown
+function dswdResidentCard(r) {
+  return `
+    <div onclick="openResidentDetail('${dswdKey(r)}')"
       style="display:flex; align-items:center; justify-content:space-between; padding:11px 16px; border-radius:9px; border:0.5px solid #eee; cursor:pointer; background:#fff;"
       onmouseover="this.style.background='#f4f7ff'" onmouseout="this.style.background='#fff'">
       <div>
-        <div style="font-size:15px; font-weight:600; color:#1a1a1a;">${r.name}</div>
-        <div style="font-size:13px; color:#888; margin-top:2px;">Age ${r.age} &nbsp;·&nbsp; ${r.gender} &nbsp;·&nbsp; ${r.barangay}</div>
+        <div style="font-size:15px; font-weight:600; color:#1a1a1a;">${dswdEsc(r.name || r.username)}</div>
+        <div style="font-size:13px; color:#888; margin-top:2px;">Age ${dswdEsc(r.age ?? '—')} &nbsp;·&nbsp; ${dswdEsc(r.gender || '—')} &nbsp;·&nbsp; ${dswdEsc(r.barangay || '—')}</div>
       </div>
       <div style="display:flex; gap:8px; align-items:center;">
-        ${r.pwd === 'Yes' ? `<span style="background:#FAECE7; color:#712B13; font-size:12px; font-weight:600; padding:4px 12px; border-radius:99px;">PWD</span>` : ''}
-        ${r.age >= 60 ? `<span style="background:#EAF3DE; color:#27500A; font-size:12px; font-weight:600; padding:4px 12px; border-radius:99px;">Senior</span>` : ''}
+        ${dswdYes(r.pwd) ? `<span style="background:#FAECE7; color:#712B13; font-size:12px; font-weight:600; padding:4px 12px; border-radius:99px;">PWD</span>` : ''}
+        ${dswdIsSenior(r) ? `<span style="background:#EAF3DE; color:#27500A; font-size:12px; font-weight:600; padding:4px 12px; border-radius:99px;">Senior</span>` : ''}
         <span style="font-size:13px; color:#bbb;">View →</span>
       </div>
     </div>
-  `).join('');
+  `;
+}
+
+// HTML for one page of a group's resident list (search applies to ALL residents in the group)
+function dswdGroupListHTML(key) {
+  const all = window.dswdGroupData[key] || [];
+  const kw = (window.dswdUI.search[key] || '').toLowerCase().trim();
+  const data = kw
+    ? all.filter(r => ((r.name || '') + ' ' + (r.address || '')).toLowerCase().includes(kw))
+    : all;
+
+  if (data.length === 0) {
+    return `<p style="color:#aaa; font-size:14px; text-align:center; padding:18px 0;">${kw ? 'No residents match your search.' : 'No residents found.'}</p>`;
+  }
+
+  const total = data.length;
+  const pages = Math.max(1, Math.ceil(total / DSWD_PAGE_SIZE));
+  let page = Math.min(Math.max(1, window.dswdUI.page[key] || 1), pages);
+  window.dswdUI.page[key] = page;
+
+  const start = (page - 1) * DSWD_PAGE_SIZE;
+  const slice = data.slice(start, start + DSWD_PAGE_SIZE);
+
+  const btn = (label, target, disabled) => `
+    <button ${disabled ? 'disabled' : ''} onclick="event.stopPropagation(); gotoDSWDPage('${key}', ${target})"
+      style="padding:7px 14px; border-radius:8px; border:1px solid #ddd; background:${disabled ? '#f3f4f6' : '#fff'}; color:${disabled ? '#bbb' : '#374151'}; font-size:13px; font-weight:600; cursor:${disabled ? 'default' : 'pointer'};">
+      ${label}
+    </button>`;
+
+  return `
+    <div style="display:flex; flex-direction:column; gap:6px;">
+      ${slice.map(dswdResidentCard).join('')}
+    </div>
+    <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-top:14px;">
+      <span style="font-size:13px; color:#888;">Showing ${(start + 1).toLocaleString()}–${(start + slice.length).toLocaleString()} of ${total.toLocaleString()}</span>
+      <div style="display:flex; align-items:center; gap:6px;">
+        ${btn('« First', 1, page === 1)}
+        ${btn('‹ Prev', page - 1, page === 1)}
+        <span style="font-size:13px; color:#555; padding:0 8px;">Page ${page} of ${pages}</span>
+        ${btn('Next ›', page + 1, page === pages)}
+        ${btn('Last »', pages, page === pages)}
+      </div>
+    </div>
+  `;
+}
+
+function refreshDSWDGroupList(key) {
+  const el = document.getElementById(`dswd-list-${key}`);
+  if (el) el.innerHTML = dswdGroupListHTML(key);
+}
+
+function gotoDSWDPage(key, page) {
+  window.dswdUI.page[key] = page;
+  refreshDSWDGroupList(key);
+}
+
+function filterDSWDGroupResidents(input, key) {
+  window.dswdUI.search[key] = input.value;
+  window.dswdUI.page[key] = 1;
+  refreshDSWDGroupList(key);
 }
 
 // Compute a resident's exact age in months (supports infants from 1 month old).
-// Uses the stored date of birth when available; falls back to age(years)*12.
 function computeAgeInMonths(resident) {
   if (resident && resident.dob) {
     const cleanDob = String(resident.dob).split('T')[0];
@@ -2120,17 +1867,20 @@ function computeAgeInMonths(resident) {
   return Math.max(0, (resident && resident.age ? resident.age : 0) * 12);
 }
 
-// Filter dswdResidents by a custom age range (min/max, each in months or years),
-// store the result for CSV download, and render it in the results panel.
-function applyDSWDAgeRangeFilter() {
+// Filter by a custom age range (months or years)
+function applyDSWDAgeRangeFilter(keepPage) {
   const minInput = document.getElementById('age-range-min-value');
   const maxInput = document.getElementById('age-range-max-value');
   const minUnit = document.getElementById('age-range-min-unit')?.value || 'years';
   const maxUnit = document.getElementById('age-range-max-unit')?.value || 'years';
 
+  window.dswdUI.range = {
+    minV: minInput ? minInput.value : '0', minU: minUnit,
+    maxV: maxInput ? maxInput.value : '120', maxU: maxUnit
+  };
+
   const minRaw = parseFloat(minInput?.value);
   const maxRaw = parseFloat(maxInput?.value);
-
   const minMonths = isNaN(minRaw) ? 0 : (minUnit === 'months' ? minRaw : minRaw * 12);
   const maxMonths = isNaN(maxRaw) || maxRaw <= 0 ? Infinity : (maxUnit === 'months' ? maxRaw : maxRaw * 12);
 
@@ -2140,6 +1890,12 @@ function applyDSWDAgeRangeFilter() {
   });
 
   window.dswdGroupData['age-custom'] = filtered;
+  if (!keepPage) {
+    window.dswdUI.page['age-custom'] = 1;
+    window.dswdUI.search['age-custom'] = '';
+    const searchBox = document.getElementById('age-range-search');
+    if (searchBox) searchBox.value = '';
+  }
 
   const male = filtered.filter(r => r.gender === 'Male').length;
   const female = filtered.filter(r => r.gender === 'Female').length;
@@ -2147,7 +1903,7 @@ function applyDSWDAgeRangeFilter() {
   const summary = document.getElementById('age-range-summary');
   if (summary) {
     summary.innerHTML = `
-      <span style="font-size:18px; font-weight:700; color:#1a1a1a;">${filtered.length}</span>
+      <span style="font-size:18px; font-weight:700; color:#1a1a1a;">${filtered.length.toLocaleString()}</span>
       <span style="font-size:14px; color:#888;">resident${filtered.length !== 1 ? 's' : ''} in this range</span>
       <span style="margin-left:14px; background:#E6F1FB; color:#0C447C; font-size:13px; font-weight:600; padding:4px 12px; border-radius:99px;">${male} male</span>
       <span style="background:#FBEAF0; color:#72243E; font-size:13px; font-weight:600; padding:4px 12px; border-radius:99px;">${female} female</span>
@@ -2156,23 +1912,10 @@ function applyDSWDAgeRangeFilter() {
 
   const results = document.getElementById('age-range-results');
   if (results) results.style.display = 'block';
-  const listEl = document.getElementById('dswd-list-age-custom');
-  if (listEl) listEl.innerHTML = renderDSWDMiniResidentList(filtered);
-
-  const searchBox = document.getElementById('age-range-search');
-  if (searchBox) searchBox.value = '';
+  refreshDSWDGroupList('age-custom');
 }
 
-// Filter residents inside a dropdown panel by search text
-function filterDSWDGroupResidents(input, key) {
-  const keyword = input.value.toLowerCase();
-  const data = window.dswdGroupData[key] || [];
-  const filtered = data.filter(r => (r.name || '').toLowerCase().includes(keyword));
-  const listEl = document.getElementById(`dswd-list-${key}`);
-  if (listEl) listEl.innerHTML = renderDSWDMiniResidentList(filtered);
-}
-
-// Clean two-line "number on top, percentage underneath" stat block (no bars)
+// Clean "number on top, percentage underneath" stat block
 function dswdStatBlock(count, pctVal, color, minWidth = 70) {
   return `
     <div style="display:flex; flex-direction:column; align-items:flex-start; min-width:${minWidth}px;">
@@ -2180,6 +1923,457 @@ function dswdStatBlock(count, pctVal, color, minWidth = 70) {
       <span style="font-size:13px; color:#a4a4a4; font-weight:600; margin-top:2px;">${pctVal}%</span>
     </div>
   `;
+}
+
+// One expandable row (used for age groups and Trapiche zones)
+function dswdGroupRowHTML(o) {
+  const ui = window.dswdUI;
+  const isOpen = !!ui.open[o.key];
+  const searchVal = dswdEsc(ui.search[o.key] || '');
+  return `
+    <div style="border-bottom:0.5px solid #f0f0f0;">
+      <div id="dswd-row-${o.key}" onclick="toggleDSWDGroupRow('${o.key}')"
+        style="display:flex; align-items:center; padding:18px 22px; cursor:pointer; gap:22px; background:#fff; transition:background 0.15s;"
+        onmouseover="this.style.background='#fafcff'" onmouseout="this.style.background='#fff'">
+        <span id="dswd-chevron-${o.key}" style="display:inline-block; width:13px; font-size:13px; color:#bbb; transition:transform 0.2s; transform:rotate(${isOpen ? 90 : 0}deg);">▶</span>
+        <div style="min-width:${o.labelWidth}px;">
+          <span style="font-size:18px; font-weight:600; color:#1a1a1a;">${o.label}</span>
+        </div>
+        ${dswdStatBlock(o.total, o.totalPct, '#c0392b', o.statWidth)}
+        ${dswdStatBlock(o.male, o.mPct, '#378ADD', o.statWidth)}
+        ${dswdStatBlock(o.female, o.fPct, '#D4537E', o.statWidth)}
+        ${o.extra || ''}
+      </div>
+      <div id="dswd-detail-${o.key}" style="display:${isOpen ? 'block' : 'none'}; background:#fafbfc; border-top:1px solid #eee; padding:16px 22px 20px;">
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px; flex-wrap:wrap;">
+          <input type="text" placeholder="${dswdEsc(o.placeholder)}" value="${searchVal}"
+            oninput="filterDSWDGroupResidents(this, '${o.key}')"
+            onclick="event.stopPropagation()"
+            style="flex:1; min-width:220px; padding:9px 14px; border-radius:8px; border:1px solid #ddd; font-size:14px; margin:0;">
+          <button onclick="event.stopPropagation(); downloadResidentsCSV('${o.key}', '${o.filename}')"
+            style="padding:9px 18px; background:#8B0000; color:#fff; border:none; border-radius:8px; font-size:14px; font-weight:700; cursor:pointer; white-space:nowrap;">
+            ⬇ Download CSV
+          </button>
+        </div>
+        <div id="dswd-list-${o.key}">${dswdGroupListHTML(o.key)}</div>
+      </div>
+    </div>
+  `;
+}
+
+// Load residents from the server, then draw the page.
+// mode: 'all' (Statistics), 'age' (Age Statistics), 'bgy' (Barangay Statistics)
+function showDSWDStats(mode) {
+  window.dswdUI = { mode: (typeof mode === 'string') ? mode : 'all', open: {}, page: {}, search: {}, range: null, scroll: 0, inDetail: false };
+  fetch(`${API_BASE}/api/residents`)
+    .then(res => res.json())
+    .then(data => {
+      dswdResidents = data.residents || [];
+      renderDSWDStats(dswdResidents, window.dswdUI.mode);
+    })
+    .catch(err => alert('Failed to load resident data from server.'));
+}
+function showAgeStats() { showDSWDStats('age'); }
+function showBarangayStats() { showDSWDStats('bgy'); }
+
+function renderDSWDStats(residents, mode) {
+  mode = mode || window.dswdUI.mode || 'all';
+  window.dswdUI.mode = mode;
+
+  const body = document.getElementById('dashboard-body');
+  const trapiches = ['Trapiche 1', 'Trapiche 2', 'Trapiche 3', 'Trapiche 4'];
+  const n = residents.length;
+  const pct = (a, b) => b ? Math.round(a / b * 100) : 0;
+
+  let totalMale = 0, totalFemale = 0, totalPWD = 0, totalSenior = 0;
+  const ageGroups = [
+    { k: '0_10',  label: '0–10',  test: a => a <= 10 },
+    { k: '11_14', label: '11–14', test: a => a >= 11 && a <= 14 },
+    { k: '15_30', label: '15–30', test: a => a >= 15 && a <= 30 },
+    { k: '31_59', label: '31–59', test: a => a >= 31 && a <= 59 },
+    { k: '60',    label: '60+',   test: a => a >= 60 }
+  ];
+  ageGroups.forEach(g => { g.residents = []; g.male = 0; g.female = 0; });
+
+  const bgy = {};
+  trapiches.forEach(t => { bgy[t] = { male: 0, female: 0, total: 0, pwd: 0, senior: 0, residents: [] }; });
+
+  residents.forEach(r => {
+    const isMale = r.gender === 'Male';
+    const a = dswdAge(r);
+    if (isMale) totalMale++; else totalFemale++;
+    if (dswdYes(r.pwd)) totalPWD++;
+    if (dswdIsSenior(r)) totalSenior++;
+
+    if (bgy[r.barangay]) {
+      const b = bgy[r.barangay];
+      b[isMale ? 'male' : 'female']++;
+      b.total++;
+      if (dswdYes(r.pwd)) b.pwd++;
+      if (dswdIsSenior(r)) b.senior++;
+      b.residents.push(r);
+    }
+
+    const g = ageGroups.find(x => x.test(a)) || ageGroups[0];
+    g.residents.push(r);
+    g[isMale ? 'male' : 'female']++;
+  });
+
+  ageGroups.forEach(g => { window.dswdGroupData[`age-${g.k}`] = g.residents; });
+  trapiches.forEach(t => { window.dswdGroupData[`bgy-${t.replace(/\s+/g, '-')}`] = bgy[t].residents; });
+
+  const metricCard = (label, value, sub, color, labelColor) => `
+    <div style="background:#fff; border-radius:10px; padding:18px 20px; border:0.5px solid #e0e0e0;">
+      <div style="font-size:15px; color:${labelColor || '#888'}; margin-bottom:8px;">${label}</div>
+      <div style="font-size:34px; font-weight:700; color:${color};">${value}</div>
+      <div style="font-size:14px; color:${labelColor || '#aaa'}; margin-top:6px; ${labelColor ? 'opacity:0.8;' : ''}">${sub}</div>
+    </div>`;
+
+  const metricCards = `
+    <div style="display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:12px; margin-bottom:24px;">
+      ${metricCard('Total residents', n.toLocaleString(), 'all barangays', '#1a1a1a')}
+      ${metricCard('Male', totalMale.toLocaleString(), pct(totalMale, n) + '% of total', '#185FA5', '#185FA5')}
+      ${metricCard('Female', totalFemale.toLocaleString(), pct(totalFemale, n) + '% of total', '#993556', '#993556')}
+      ${metricCard('Senior (60+)', totalSenior.toLocaleString(), pct(totalSenior, n) + '% of total', '#3B6D11', '#3B6D11')}
+      ${metricCard('PWD', totalPWD.toLocaleString(), pct(totalPWD, n) + '% of total', '#712B13', '#712B13')}
+    </div>
+  `;
+
+  const legend = `
+    <div style="display:flex; gap:20px; padding:14px 22px; border-bottom:0.5px solid #f0f0f0;">
+      <span style="display:flex; align-items:center; gap:6px; font-size:15px; color:#666;">
+        <span style="width:12px; height:12px; border-radius:2px; background:#378ADD; display:inline-block;"></span> Male
+      </span>
+      <span style="display:flex; align-items:center; gap:6px; font-size:15px; color:#666;">
+        <span style="width:12px; height:12px; border-radius:2px; background:#D4537E; display:inline-block;"></span> Female
+      </span>
+      <span style="margin-left:auto; font-size:13px; color:#bbb;">Click a row to expand residents &amp; download</span>
+    </div>
+  `;
+
+  const headCell = (t, w, center) => `<div style="min-width:${w}px; font-size:14px; font-weight:600; color:#888; ${center ? 'text-align:center;' : ''}">${t}</div>`;
+
+  // ---- Age group section ----
+  const ageRows = ageGroups.map(g => {
+    const rt = g.male + g.female;
+    const mPct = pct(g.male, rt);
+    return dswdGroupRowHTML({
+      key: `age-${g.k}`, label: g.label, labelWidth: 110, statWidth: 90,
+      total: rt, totalPct: pct(rt, n), male: g.male, mPct, female: g.female, fPct: rt ? 100 - mPct : 0,
+      placeholder: 'Search residents in this age group...',
+      filename: `Residents_Age_${g.label.replace(/[^0-9A-Za-z]+/g, '_')}`
+    });
+  }).join('');
+
+  const ageSection = `
+    <div style="background:#fff; border-radius:12px; border:0.5px solid #e0e0e0; overflow:hidden; margin-bottom:24px;">
+      <div style="display:flex; align-items:center; justify-content:space-between; padding:18px 22px; border-bottom:0.5px solid #e0e0e0;">
+        <span style="font-size:18px; font-weight:600; color:#1a1a1a;">Age group breakdown</span>
+        <span style="font-size:14px; color:#aaa;">5 groups</span>
+      </div>
+      ${legend}
+      <div style="display:flex; align-items:center; padding:12px 22px; gap:22px; background:#f8f9fa; border-bottom:0.5px solid #eee;">
+        <span style="width:13px;"></span>
+        ${headCell('Age', 110)}${headCell('Total', 90)}${headCell('Male', 90)}${headCell('Female', 90)}
+      </div>
+      ${ageRows}
+    </div>
+  `;
+
+  // ---- Age range filter section ----
+  const rg = window.dswdUI.range || { minV: '0', minU: 'years', maxV: '120', maxU: 'years' };
+  const unitOpts = (sel) => `
+    <option value="months" ${sel === 'months' ? 'selected' : ''}>Months</option>
+    <option value="years" ${sel === 'years' ? 'selected' : ''}>Years</option>`;
+  const rangeSection = `
+    <div style="background:#fff; border-radius:12px; border:0.5px solid #e0e0e0; overflow:hidden; margin-bottom:24px;">
+      <div style="display:flex; align-items:center; justify-content:space-between; padding:18px 22px; border-bottom:0.5px solid #e0e0e0;">
+        <span style="font-size:18px; font-weight:600; color:#1a1a1a;">Age range filter</span>
+        <span style="font-size:14px; color:#aaa;">From 1 month old up to any age</span>
+      </div>
+      <div style="padding:18px 22px; display:flex; align-items:flex-end; gap:16px; flex-wrap:wrap; border-bottom:0.5px solid #f0f0f0; background:#fafbfc;">
+        <div>
+          <label style="display:block; font-size:12px; font-weight:600; color:#888; margin-bottom:6px;">From</label>
+          <div style="display:flex; gap:6px;">
+            <input type="number" id="age-range-min-value" min="0" step="1" value="${dswdEsc(rg.minV)}"
+              style="width:80px; padding:9px 10px; border-radius:8px; border:1px solid #ddd; font-size:14px; margin:0;">
+            <select id="age-range-min-unit" style="padding:9px 10px; border-radius:8px; border:1px solid #ddd; font-size:14px;">${unitOpts(rg.minU)}</select>
+          </div>
+        </div>
+        <div>
+          <label style="display:block; font-size:12px; font-weight:600; color:#888; margin-bottom:6px;">To</label>
+          <div style="display:flex; gap:6px;">
+            <input type="number" id="age-range-max-value" min="0" step="1" value="${dswdEsc(rg.maxV)}"
+              style="width:80px; padding:9px 10px; border-radius:8px; border:1px solid #ddd; font-size:14px; margin:0;">
+            <select id="age-range-max-unit" style="padding:9px 10px; border-radius:8px; border:1px solid #ddd; font-size:14px;">${unitOpts(rg.maxU)}</select>
+          </div>
+        </div>
+        <button onclick="applyDSWDAgeRangeFilter()"
+          style="padding:11px 24px; background:#8B0000; color:#fff; border:none; border-radius:8px; font-size:14px; font-weight:700; cursor:pointer; white-space:nowrap;">
+          Show Residents
+        </button>
+      </div>
+      <div id="age-range-summary" style="padding:16px 22px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; border-bottom:0.5px solid #f0f0f0;">
+        <span style="font-size:14px; color:#aaa;">Set a range above and click "Show Residents".</span>
+      </div>
+      <div id="age-range-results" style="display:none; padding:16px 22px 20px;">
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px; flex-wrap:wrap;">
+          <input type="text" id="age-range-search" placeholder="Search residents in this range..."
+            value="${dswdEsc(window.dswdUI.search['age-custom'] || '')}"
+            oninput="filterDSWDGroupResidents(this, 'age-custom')"
+            style="flex:1; min-width:220px; padding:9px 14px; border-radius:8px; border:1px solid #ddd; font-size:14px; margin:0;">
+          <button onclick="downloadResidentsCSV('age-custom', 'Residents_Age_Range')"
+            style="padding:9px 18px; background:#8B0000; color:#fff; border:none; border-radius:8px; font-size:14px; font-weight:700; cursor:pointer; white-space:nowrap;">
+            ⬇ Download CSV
+          </button>
+        </div>
+        <div id="dswd-list-age-custom"></div>
+      </div>
+    </div>
+  `;
+
+  // ---- Barangay section ----
+  const badge = (v, bg, color) => `
+    <div style="min-width:70px; text-align:center;">
+      <span style="background:${bg}; color:${color}; font-size:15px; font-weight:700; padding:6px 16px; border-radius:99px;">${v}</span>
+    </div>`;
+
+  const bgyRows = trapiches.map(t => {
+    const d = bgy[t];
+    const mPct = pct(d.male, d.total);
+    const safeId = t.replace(/\s+/g, '-');
+    return dswdGroupRowHTML({
+      key: `bgy-${safeId}`, label: t, labelWidth: 130, statWidth: 80,
+      total: d.total, totalPct: pct(d.total, n), male: d.male, mPct, female: d.female, fPct: d.total ? 100 - mPct : 0,
+      extra: badge(d.pwd, '#FAECE7', '#712B13') + badge(d.senior, '#EAF3DE', '#27500A'),
+      placeholder: `Search residents in ${t}...`,
+      filename: `Residents_${safeId}`
+    });
+  }).join('');
+
+  const bgySection = `
+    <div style="background:#fff; border-radius:12px; border:0.5px solid #e0e0e0; overflow:hidden; margin-bottom:24px;">
+      <div style="display:flex; align-items:center; justify-content:space-between; padding:18px 22px; border-bottom:0.5px solid #e0e0e0;">
+        <span style="font-size:18px; font-weight:600; color:#1a1a1a;">Barangay breakdown</span>
+        <span style="font-size:14px; color:#aaa;">4 zones</span>
+      </div>
+      ${legend}
+      <div style="display:flex; align-items:center; padding:12px 22px; gap:22px; background:#f8f9fa; border-bottom:0.5px solid #eee;">
+        <span style="width:13px;"></span>
+        ${headCell('Barangay', 130)}${headCell('Total', 80)}${headCell('Male', 80)}${headCell('Female', 80)}${headCell('PWD', 70, true)}${headCell('Senior', 70, true)}
+      </div>
+      ${bgyRows}
+    </div>
+  `;
+
+  const sections =
+    mode === 'age' ? ageSection + rangeSection :
+    mode === 'bgy' ? bgySection :
+    rangeSection + bgySection;
+
+  body.innerHTML = `
+    <div style="padding:24px; background:#f5f6fa; min-height:100%;">
+      ${metricCards}
+      ${sections}
+    </div>
+  `;
+
+  // Re-apply a previously chosen custom age range (e.g. after coming back from a resident page)
+  if (window.dswdUI.range && document.getElementById('age-range-min-value') && mode !== 'bgy') {
+    applyDSWDAgeRangeFilter(true);
+  }
+}
+
+/* ----------------------- Resident details page ----------------------- */
+
+function openResidentDetail(key) {
+  const r = dswdResidents.find(x => dswdKey(x) === key);
+  if (!r) return;
+  const body = document.getElementById('dashboard-body');
+  if (!window.dswdUI.inDetail) {
+    window.dswdUI.scroll = body.scrollTop;
+    window.dswdUI.inDetail = true;
+  }
+
+  const val = v => (v === undefined || v === null || String(v).trim() === '') ? '—' : dswdEsc(v);
+  const fullName = r.name || [r.first_name, r.middle_name, r.last_name].filter(Boolean).join(' ') || r.username || 'Resident';
+  const isHead = r.is_head === true || r.is_head === 'Yes' || r.is_head === 'true' || r.is_head === 't';
+
+  // children list (JSON array or plain text)
+  let childrenHTML = '—';
+  if (r.children_names) {
+    let kids = null;
+    try { kids = JSON.parse(r.children_names); } catch (e) { kids = null; }
+    if (Array.isArray(kids) && kids.length) {
+      childrenHTML = kids.map(c => typeof c === 'object'
+        ? `${dswdEsc(c.name)} <span style="color:#999;">(Age ${dswdEsc(c.age ?? '—')}, ${dswdEsc(c.gender || '—')})</span>`
+        : dswdEsc(c)).join('<br>');
+    } else if (Array.isArray(kids)) {
+      childrenHTML = '—';
+    } else {
+      childrenHTML = dswdEsc(r.children_names);
+    }
+  }
+
+  const sections = [
+    { title: '🧍 Personal Information', color: '#c0392b', rows: [
+      ['Full Name', val(fullName)],
+      ['First Name', val(r.first_name)],
+      ['Middle Name', val(r.middle_name)],
+      ['Last Name', val(r.last_name)],
+      ['Sex', val(r.gender)],
+      ['Civil Status', val(r.status)],
+      ['Date of Birth', r.dob ? dswdEsc(formatDate(r.dob)) : '—'],
+      ['Age', val(r.age)],
+      ['Place of Birth', val(r.place_of_birth)],
+      ['Religion', val(r.religion)],
+      ['Blood Type', val(r.blood_type)],
+      ['Voter Status', val(r.voter_status)],
+      ['Barangay', val(r.barangay)],
+      ['Address', val(r.address)]
+    ]},
+    { title: '👨‍👩‍👧‍👦 Family Information', color: '#1a3f6c', rows: [
+      ['Family Code', val(r.family_code)],
+      ['Head of Family', r.is_head === undefined || r.is_head === null ? '—' : (isHead ? 'Yes' : 'No')],
+      ['Household Role', val(r.household_role)],
+      ['Spouse', (r.spouse && r.spouse !== 'N/A') ? dswdEsc(r.spouse) : '—'],
+      ['Sons', val(r.sons)],
+      ['Daughters', val(r.daughters)],
+      ['Family Members', val(r.family_members)],
+      ['Children', childrenHTML]
+    ]},
+    { title: '📞 Contact & Emergency', color: '#e67e22', rows: [
+      ['Contact No.', val(r.contact)],
+      ['Email', val(r.email)],
+      ['Emergency Contact', val(r.emergency_contact_name)],
+      ['Emergency Number', val(r.emergency_contact_number)]
+    ]},
+    { title: '🎓 Education', color: '#2c5aa0', rows: [
+      ['Educational Attainment', val(r.educational_attainment)],
+      ['School Name', val(r.school_name)],
+      ['Year Level', val(r.year_level)]
+    ]},
+    { title: '🩺 Health & Status', color: '#27ae60', rows: [
+      ['PWD', dswdYes(r.pwd) ? 'Yes' : 'No'],
+      ['Senior Citizen', dswdIsSenior(r) ? 'Yes' : 'No']
+    ]}
+  ];
+
+  // Any other saved information (PhilHealth, etc.) is shown automatically
+  const shown = new Set(['id','username','password','name','first_name','middle_name','last_name','gender','status','dob','age',
+    'place_of_birth','religion','blood_type','voter_status','barangay','address','family_code','is_head','household_role',
+    'spouse','sons','daughters','family_members','children_names','contact','email','emergency_contact_name',
+    'emergency_contact_number','educational_attainment','school_name','year_level','pwd','senior']);
+  const photoKeys = ['photo','photo_url','picture','profile_pic','image','avatar'];
+  const extraRows = [];
+  Object.keys(r).forEach(k => {
+    if (shown.has(k) || photoKeys.includes(k)) return;
+    let v = r[k];
+    if (v === undefined || v === null || v === '') return;
+    if (typeof v === 'object') v = JSON.stringify(v);
+    if (typeof v === 'boolean') v = v ? 'Yes' : 'No';
+    if (String(v).length > 300) return;
+    if (/(_at|date)$/i.test(k) && /^\d{4}-\d{2}-\d{2}/.test(String(v))) v = formatDate(v);
+    const label = k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()).replace(/Philhealth/i, 'PhilHealth');
+    extraRows.push([label, dswdEsc(v)]);
+  });
+  if (extraRows.length) sections.push({ title: '📋 Other Details (PhilHealth & more)', color: '#6b7280', rows: extraRows });
+
+  const sectionHTML = s => `
+    <div style="background:#fff; border-radius:16px; border:1px solid #ebebeb; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+      <div style="padding:12px 18px; border-bottom:1px solid #f0f0f0; background:#fafafa;">
+        <div style="font-size:14px; font-weight:700; color:${s.color};">${s.title}</div>
+      </div>
+      <div style="padding:12px 18px; display:flex; flex-direction:column; gap:9px;">
+        ${s.rows.map(row => `
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px;">
+            <span style="font-size:12px; color:#999; font-weight:500; text-transform:uppercase; letter-spacing:0.4px; min-width:130px; padding-top:1px;">${row[0]}</span>
+            <span style="font-size:14px; color:#1a1a1a; font-weight:500; text-align:right; word-break:break-word;">${row[1]}</span>
+          </div>`).join('')}
+      </div>
+    </div>`;
+
+  // photo (if the resident has one) or initials
+  let photo = '';
+  for (const k of photoKeys) {
+    const v = r[k];
+    if (typeof v === 'string' && /^(https?:|data:image|\/)/.test(v)) { photo = v; break; }
+  }
+  const avatar = photo
+    ? `<img src="${dswdEsc(photo)}" style="width:84px; height:84px; border-radius:50%; object-fit:cover; border:3px solid #fff;" onerror="this.style.display='none'">`
+    : `<div style="width:84px; height:84px; border-radius:50%; background:#fff; color:#8B0000; display:flex; align-items:center; justify-content:center; font-size:34px; font-weight:700;">${dswdEsc(String(fullName).charAt(0).toUpperCase())}</div>`;
+
+  // other members of the same family
+  let familyHTML = '';
+  if (r.family_code) {
+    const mates = dswdResidents.filter(x => x.family_code && x.family_code === r.family_code && dswdKey(x) !== key);
+    if (mates.length) {
+      familyHTML = `
+        <div style="background:#fff; border-radius:16px; border:1px solid #ebebeb; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.04); margin-top:14px;">
+          <div style="padding:12px 18px; border-bottom:1px solid #f0f0f0; background:#fafafa;">
+            <div style="font-size:14px; font-weight:700; color:#1a3f6c;">👪 Other Family Members (${mates.length})</div>
+          </div>
+          <div style="padding:14px 18px; display:flex; flex-direction:column; gap:6px;">
+            ${mates.map(m => `
+              <div onclick="openResidentDetail('${dswdKey(m)}')"
+                style="display:flex; align-items:center; justify-content:space-between; padding:10px 14px; border-radius:9px; border:0.5px solid #eee; cursor:pointer; background:#fff;"
+                onmouseover="this.style.background='#f4f7ff'" onmouseout="this.style.background='#fff'">
+                <div>
+                  <div style="font-size:14px; font-weight:600; color:#1a1a1a;">${dswdEsc(m.name || m.username)}</div>
+                  <div style="font-size:12px; color:#888; margin-top:2px;">${dswdEsc(m.household_role || '—')} &nbsp;·&nbsp; Age ${dswdEsc(m.age ?? '—')} &nbsp;·&nbsp; ${dswdEsc(m.gender || '—')}</div>
+                </div>
+                <span style="font-size:13px; color:#bbb;">View →</span>
+              </div>`).join('')}
+          </div>
+        </div>`;
+    }
+  }
+
+  body.innerHTML = `
+    <div style="padding:24px; background:#f5f6fa; min-height:100%; box-sizing:border-box;">
+      <button onclick="backToDSWDList()"
+        style="margin-bottom:16px; padding:9px 18px; background:#1a3f6c; color:#fff; border:none; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer;">
+        ← Back
+      </button>
+
+      <div style="background:#8B0000; border-radius:16px; padding:22px 26px; margin-bottom:16px; display:flex; align-items:center; gap:20px; box-shadow:0 8px 32px rgba(139,0,0,0.2);">
+        ${avatar}
+        <div style="color:#fff; min-width:0;">
+          <div style="font-size:24px; font-weight:700; word-break:break-word;">${dswdEsc(fullName)}</div>
+          <div style="font-size:13px; color:rgba(255,255,255,0.8); margin-top:4px;">
+            ${dswdEsc(r.barangay || '—')} &nbsp;·&nbsp; Age ${dswdEsc(r.age ?? '—')} &nbsp;·&nbsp; ${dswdEsc(r.gender || '—')}
+          </div>
+          <div style="margin-top:10px; display:flex; gap:8px;">
+            ${dswdYes(r.pwd) ? `<span style="background:#FAECE7; color:#712B13; font-size:12px; font-weight:600; padding:4px 12px; border-radius:99px;">PWD</span>` : ''}
+            ${dswdIsSenior(r) ? `<span style="background:#EAF3DE; color:#27500A; font-size:12px; font-weight:600; padding:4px 12px; border-radius:99px;">Senior</span>` : ''}
+          </div>
+        </div>
+      </div>
+
+      <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(340px,1fr)); gap:14px; align-items:start;">
+        ${sections.map(sectionHTML).join('')}
+      </div>
+      ${familyHTML}
+    </div>
+  `;
+  body.scrollTop = 0;
+}
+
+// Back from a resident page: same open group, same page, same scroll position
+function backToDSWDList() {
+  window.dswdUI.inDetail = false;
+  renderDSWDStats(dswdResidents, window.dswdUI.mode);
+  const body = document.getElementById('dashboard-body');
+  if (body) body.scrollTop = window.dswdUI.scroll || 0;
+}
+
+function generateRandomPassword(length = 10){
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let pw = '';
+  for(let i=0;i<length;i++){
+    pw += chars.charAt(Math.floor(Math.random()*chars.length));
+  }
+  return pw;
 }
 
 // FIX #3: callback changed from handleGoogleLogin → handleCredentialResponse
@@ -2195,591 +2389,6 @@ window.onload = function () {
     );
   }
 };
-
-// DSWD Dashboard
-// FIX #3: Removed the duplicate showDSWDStats that was nested inside renderDSWDStats
-// This is now the only definition of showDSWDStats
-function showDSWDStats(){
-  fetch(`${API_BASE}/api/residents`)
-    .then(res => res.json())
-    .then(data => {
-      dswdResidents = data.residents || [];
-      renderDSWDStats(dswdResidents);
-    })
-    .catch(err => alert('Failed to load resident data from server.'));
-}
-
-// FIX #4: renderDSWDStats now properly closed — no nested functions inside it
-function renderDSWDStats(residents){
-  const body = document.getElementById('dashboard-body');
-  const trapiches=['Trapiche 1','Trapiche 2','Trapiche 3','Trapiche 4'];
-
-  let totalMale=0, totalFemale=0, totalPWD=0, totalSenior=0;
-
-  const ageCounts = {
-    '0_10':  { male:0, female:0 },
-    '11_14': { male:0, female:0 },
-    '15_30': { male:0, female:0 },
-    '31_59': { male:0, female:0 },
-    '60':    { male:0, female:0 }
-  };
-
-  let trapicheTotals = {};
-  trapiches.forEach(t => {
-    trapicheTotals[t] = { male:0, female:0, total:0, pwd:0, senior:0, residents:[] };
-  });
-
-  // Also keep a full resident list per age group so the dropdown/download can use it
-  const ageResidentLists = {
-    '0_10': [], '11_14': [], '15_30': [], '31_59': [], '60': []
-  };
-
-  residents.forEach(r => {
-    if(r.gender==='Male') totalMale++; else totalFemale++;
-    if(r.pwd==='Yes') totalPWD++;
-    if(r.age>=60) totalSenior++;
-
-    if(trapicheTotals[r.barangay]){
-      trapicheTotals[r.barangay][r.gender==='Male'?'male':'female']++;
-      trapicheTotals[r.barangay].total++;
-      if(r.pwd==='Yes') trapicheTotals[r.barangay].pwd++;
-      if(r.age>=60) trapicheTotals[r.barangay].senior++;
-      trapicheTotals[r.barangay].residents.push(r);
-    }
-
-    if(r.age<=10){      ageCounts['0_10'][r.gender==='Male'?'male':'female']++; ageResidentLists['0_10'].push(r); }
-    else if(r.age<=14){ ageCounts['11_14'][r.gender==='Male'?'male':'female']++; ageResidentLists['11_14'].push(r); }
-    else if(r.age<=30){ ageCounts['15_30'][r.gender==='Male'?'male':'female']++; ageResidentLists['15_30'].push(r); }
-    else if(r.age<=59){ ageCounts['31_59'][r.gender==='Male'?'male':'female']++; ageResidentLists['31_59'].push(r); }
-    else{               ageCounts['60'][r.gender==='Male'?'male':'female']++; ageResidentLists['60'].push(r); }
-  });
-
-  // Store data for dropdown + CSV download lookups
-  Object.keys(ageResidentLists).forEach(group => {
-    window.dswdGroupData[`age-${group}`] = ageResidentLists[group];
-  });
-  trapiches.forEach(t => {
-    window.dswdGroupData[`bgy-${t.replace(/\s+/g,'-')}`] = trapicheTotals[t].residents;
-  });
-
-  const n = residents.length;
-  const pct = (a, b) => b ? Math.round(a / b * 100) : 0;
-
-  const thStyle = `padding:14px 22px; text-align:left; font-size:15px; font-weight:600; color:#888; border-bottom:0.5px solid #eee; background:#f8f9fa; white-space:nowrap;`;
-
-  const legend = `
-    <div style="display:flex; gap:20px; padding:14px 22px; border-bottom:0.5px solid #f0f0f0;">
-      <span style="display:flex; align-items:center; gap:6px; font-size:15px; color:#666;">
-        <span style="width:12px; height:12px; border-radius:2px; background:#378ADD; display:inline-block;"></span> Male
-      </span>
-      <span style="display:flex; align-items:center; gap:6px; font-size:15px; color:#666;">
-        <span style="width:12px; height:12px; border-radius:2px; background:#D4537E; display:inline-block;"></span> Female
-      </span>
-      <span style="margin-left:auto; font-size:13px; color:#bbb;">Click a row to expand residents &amp; download</span>
-    </div>
-  `;
-
-  const metricCards = `
-    <div style="display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:12px; margin-bottom:24px;">
-      <div style="background:#fff; border-radius:10px; padding:18px 20px; border:0.5px solid #e0e0e0;">
-        <div style="font-size:15px; color:#888; margin-bottom:8px;">Total residents</div>
-        <div style="font-size:34px; font-weight:700; color:#1a1a1a;">${n}</div>
-        <div style="font-size:14px; color:#aaa; margin-top:6px;">all barangays</div>
-      </div>
-      <div style="background:#fff; border-radius:10px; padding:18px 20px; border:0.5px solid #e0e0e0;">
-        <div style="font-size:15px; color:#185FA5; margin-bottom:8px;">Male</div>
-        <div style="font-size:34px; font-weight:700; color:#185FA5;">${totalMale}</div>
-        <div style="font-size:14px; color:#185FA5; margin-top:6px; opacity:0.8;">${pct(totalMale,n)}% of total</div>
-      </div>
-      <div style="background:#fff; border-radius:10px; padding:18px 20px; border:0.5px solid #e0e0e0;">
-        <div style="font-size:15px; color:#993556; margin-bottom:8px;">Female</div>
-        <div style="font-size:34px; font-weight:700; color:#993556;">${totalFemale}</div>
-        <div style="font-size:14px; color:#993556; margin-top:6px; opacity:0.8;">${pct(totalFemale,n)}% of total</div>
-      </div>
-      <div style="background:#fff; border-radius:10px; padding:18px 20px; border:0.5px solid #e0e0e0;">
-        <div style="font-size:15px; color:#3B6D11; margin-bottom:8px;">Senior (60+)</div>
-        <div style="font-size:34px; font-weight:700; color:#3B6D11;">${totalSenior}</div>
-        <div style="font-size:14px; color:#3B6D11; margin-top:6px; opacity:0.8;">${pct(totalSenior,n)}% of total</div>
-      </div>
-      <div style="background:#fff; border-radius:10px; padding:18px 20px; border:0.5px solid #e0e0e0;">
-        <div style="font-size:15px; color:#712B13; margin-bottom:8px;">PWD</div>
-        <div style="font-size:34px; font-weight:700; color:#712B13;">${totalPWD}</div>
-        <div style="font-size:14px; color:#712B13; margin-top:6px; opacity:0.8;">${pct(totalPWD,n)}% of total</div>
-      </div>
-    </div>
-  `;
-
-  const ageLabels = { '0_10':'0–10', '11_14':'11–14', '15_30':'15–30', '31_59':'31–59', '60':'60+' };
-
-  const ageRows = Object.keys(ageCounts).map(group => {
-    const m = ageCounts[group].male;
-    const f = ageCounts[group].female;
-    const rt = m + f;
-    const totalPct = pct(rt, n);
-    const mPct = pct(m, rt);
-    const fPct = rt ? (100 - mPct) : 0;
-    const key = `age-${group}`;
-    const filename = `Residents_Age_${ageLabels[group].replace(/[^0-9A-Za-z]+/g,'_')}`;
-
-    return `
-      <tr>
-        <td colspan="5" style="padding:0; border-bottom:0.5px solid #f0f0f0;">
-          <div id="dswd-row-${key}" onclick="toggleDSWDGroupRow('${key}')"
-            style="display:flex; align-items:center; padding:18px 22px; cursor:pointer; gap:22px; background:#fff; transition:background 0.15s;"
-            onmouseover="this.style.background='#fafcff'" onmouseout="this.style.background='#fff'">
-            <span id="dswd-chevron-${key}" style="display:inline-block; font-size:13px; color:#bbb; transition:transform 0.2s; transform:rotate(0deg);">▶</span>
-            <div style="min-width:110px;">
-              <span style="font-size:18px; font-weight:600; color:#1a1a1a;">${ageLabels[group]}</span>
-            </div>
-            ${dswdStatBlock(rt, totalPct, '#c0392b', 90)}
-            ${dswdStatBlock(m, mPct, '#378ADD', 90)}
-            ${dswdStatBlock(f, fPct, '#D4537E', 90)}
-          </div>
-          <div id="dswd-detail-${key}" style="display:none; background:#fafbfc; border-top:1px solid #eee; padding:16px 22px 20px;">
-            <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px; flex-wrap:wrap;">
-              <input type="text" placeholder="Search residents in this age group..."
-                oninput="filterDSWDGroupResidents(this, '${key}')"
-                onclick="event.stopPropagation()"
-                style="flex:1; min-width:220px; padding:9px 14px; border-radius:8px; border:1px solid #ddd; font-size:14px; margin:0;">
-              <button onclick="event.stopPropagation(); downloadResidentsCSV('${key}', '${filename}')"
-                style="padding:9px 18px; background:#8B0000; color:#fff; border:none; border-radius:8px; font-size:14px; font-weight:700; cursor:pointer; white-space:nowrap;">
-                ⬇ Download CSV
-              </button>
-            </div>
-            <div id="dswd-list-${key}" style="display:flex; flex-direction:column; gap:6px; max-height:320px; overflow-y:auto;">
-              ${renderDSWDMiniResidentList(ageResidentLists[group])}
-            </div>
-          </div>
-        </td>
-      </tr>
-    `;
-  }).join('');
-
-  const bgyRows = trapiches.map(t => {
-    const d = trapicheTotals[t];
-    const mPct = pct(d.male, d.total);
-    const fPct = d.total ? (100 - mPct) : 0;
-    const safeId = t.replace(/\s+/g,'-');
-    const key = `bgy-${safeId}`;
-    const filename = `Residents_${safeId}`;
-
-    return `
-      <tr>
-        <td colspan="6" style="padding:0; border-bottom:0.5px solid #f0f0f0;">
-          <div id="dswd-row-${key}" onclick="toggleDSWDGroupRow('${key}')"
-            style="display:flex; align-items:center; padding:18px 22px; cursor:pointer; gap:22px; background:#fff; transition:background 0.15s;"
-            onmouseover="this.style.background='#fafcff'" onmouseout="this.style.background='#fff'">
-            <span id="dswd-chevron-${key}" style="display:inline-block; font-size:13px; color:#bbb; transition:transform 0.2s; transform:rotate(0deg);">▶</span>
-            <div style="min-width:130px;">
-              <span style="font-size:18px; font-weight:600; color:#1a1a1a;">${t}</span>
-            </div>
-            ${dswdStatBlock(d.total, pct(d.total, n), '#c0392b', 80)}
-            ${dswdStatBlock(d.male, mPct, '#378ADD', 80)}
-            ${dswdStatBlock(d.female, fPct, '#D4537E', 80)}
-            <div style="min-width:70px; text-align:center;">
-              <span style="background:#FAECE7; color:#712B13; font-size:15px; font-weight:700; padding:6px 16px; border-radius:99px;">${d.pwd}</span>
-            </div>
-            <div style="min-width:70px; text-align:center;">
-              <span style="background:#EAF3DE; color:#27500A; font-size:15px; font-weight:700; padding:6px 16px; border-radius:99px;">${d.senior}</span>
-            </div>
-          </div>
-          <div id="dswd-detail-${key}" style="display:none; background:#fafbfc; border-top:1px solid #eee; padding:16px 22px 20px;">
-            <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px; flex-wrap:wrap;">
-              <input type="text" placeholder="Search residents in ${t}..."
-                oninput="filterDSWDGroupResidents(this, '${key}')"
-                onclick="event.stopPropagation()"
-                style="flex:1; min-width:220px; padding:9px 14px; border-radius:8px; border:1px solid #ddd; font-size:14px; margin:0;">
-              <button onclick="event.stopPropagation(); downloadResidentsCSV('${key}', '${filename}')"
-                style="padding:9px 18px; background:#8B0000; color:#fff; border:none; border-radius:8px; font-size:14px; font-weight:700; cursor:pointer; white-space:nowrap;">
-                ⬇ Download CSV
-              </button>
-            </div>
-            <div id="dswd-list-${key}" style="display:flex; flex-direction:column; gap:6px; max-height:320px; overflow-y:auto;">
-              ${renderDSWDMiniResidentList(d.residents)}
-            </div>
-          </div>
-        </td>
-      </tr>
-    `;
-  }).join('');
-
-  body.innerHTML = `
-    <div style="padding:24px; background:#f5f6fa; min-height:100%;">
-      ${metricCards}
-      <div style="background:#fff; border-radius:12px; border:0.5px solid #e0e0e0; overflow:hidden; margin-bottom:24px;">
-        <div style="display:flex; align-items:center; justify-content:space-between; padding:18px 22px; border-bottom:0.5px solid #e0e0e0;">
-          <span style="font-size:18px; font-weight:600; color:#1a1a1a;">Age range filter</span>
-          <span style="font-size:14px; color:#aaa;">From 1 month old up to any age</span>
-        </div>
-        <div style="padding:18px 22px; display:flex; align-items:flex-end; gap:16px; flex-wrap:wrap; border-bottom:0.5px solid #f0f0f0; background:#fafbfc;">
-          <div>
-            <label style="display:block; font-size:12px; font-weight:600; color:#888; margin-bottom:6px;">From</label>
-            <div style="display:flex; gap:6px;">
-              <input type="number" id="age-range-min-value" min="0" step="1" value="0"
-                style="width:80px; padding:9px 10px; border-radius:8px; border:1px solid #ddd; font-size:14px; margin:0;">
-              <select id="age-range-min-unit" style="padding:9px 10px; border-radius:8px; border:1px solid #ddd; font-size:14px;">
-                <option value="months">Months</option>
-                <option value="years" selected>Years</option>
-              </select>
-            </div>
-          </div>
-          <div>
-            <label style="display:block; font-size:12px; font-weight:600; color:#888; margin-bottom:6px;">To</label>
-            <div style="display:flex; gap:6px;">
-              <input type="number" id="age-range-max-value" min="0" step="1" value="120"
-                style="width:80px; padding:9px 10px; border-radius:8px; border:1px solid #ddd; font-size:14px; margin:0;">
-              <select id="age-range-max-unit" style="padding:9px 10px; border-radius:8px; border:1px solid #ddd; font-size:14px;">
-                <option value="months">Months</option>
-                <option value="years" selected>Years</option>
-              </select>
-            </div>
-          </div>
-          <button onclick="applyDSWDAgeRangeFilter()"
-            style="padding:11px 24px; background:#8B0000; color:#fff; border:none; border-radius:8px; font-size:14px; font-weight:700; cursor:pointer; white-space:nowrap;">
-            Show Residents
-          </button>
-        </div>
-        <div id="age-range-summary" style="padding:16px 22px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; border-bottom:0.5px solid #f0f0f0;">
-          <span style="font-size:14px; color:#aaa;">Set a range above and click "Show Residents".</span>
-        </div>
-        <div id="age-range-results" style="display:none; padding:16px 22px 20px;">
-          <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px; flex-wrap:wrap;">
-            <input type="text" id="age-range-search" placeholder="Search residents in this range..."
-              oninput="filterDSWDGroupResidents(this, 'age-custom')"
-              style="flex:1; min-width:220px; padding:9px 14px; border-radius:8px; border:1px solid #ddd; font-size:14px; margin:0;">
-            <button onclick="downloadResidentsCSV('age-custom', 'Residents_Age_Range')"
-              style="padding:9px 18px; background:#8B0000; color:#fff; border:none; border-radius:8px; font-size:14px; font-weight:700; cursor:pointer; white-space:nowrap;">
-              ⬇ Download CSV
-            </button>
-          </div>
-          <div id="dswd-list-age-custom" style="display:flex; flex-direction:column; gap:6px; max-height:320px; overflow-y:auto;"></div>
-        </div>
-      </div>
-      <div style="background:#fff; border-radius:12px; border:0.5px solid #e0e0e0; overflow:hidden; margin-bottom:24px;">
-        <div style="display:flex; align-items:center; justify-content:space-between; padding:18px 22px; border-bottom:0.5px solid #e0e0e0;">
-          <span style="font-size:18px; font-weight:600; color:#1a1a1a;">Barangay breakdown</span>
-          <span style="font-size:14px; color:#aaa;">4 zones</span>
-        </div>
-        ${legend}
-        <table style="width:100%; border-collapse:collapse;">
-          <thead>
-            <tr>
-              <th style="${thStyle} width:130px;"></th>
-              <th style="${thStyle} width:160px;">Barangay</th>
-              <th style="${thStyle} width:100px;">Total</th>
-              <th style="${thStyle} width:100px;">Male</th>
-              <th style="${thStyle} width:100px;">Female</th>
-              <th style="${thStyle} text-align:center; width:90px;">PWD</th>
-              <th style="${thStyle} text-align:center; width:90px;">Senior</th>
-            </tr>
-          </thead>
-          <tbody>${bgyRows}</tbody>
-        </table>
-      </div>
-    </div>
-  `;
-} // <-- renderDSWDStats ends HERE (properly closed)
-
-// These functions are now OUTSIDE renderDSWDStats (fixed)
-function selectDSWDResident(element, username){
-  document.querySelectorAll('#dswd-resident-list .folder-item')
-    .forEach(el => el.classList.remove('active'));
-  element.classList.add('active');
-  const user = dswdResidents.find(r => r.username === username);
-  if(!user) return;
-  element.innerHTML = `
-    <input type="text" value="${user.name}" id="edit-name-${username}" style="width:150px;">
-    <select id="edit-gender-${username}">
-      <option value="Male" ${user.gender==='Male'?'selected':''}>Male</option>
-      <option value="Female" ${user.gender==='Female'?'selected':''}>Female</option>
-    </select>
-    <input type="number" value="${user.age}" id="edit-age-${username}" min="1" style="width:60px;">
-    <input type="text" value="${user.barangay}" id="edit-barangay-${username}" style="width:100px;">
-    <select id="edit-pwd-${username}">
-      <option value="No" ${user.pwd==='No'?'selected':''}>No</option>
-      <option value="Yes" ${user.pwd==='Yes'?'selected':''}>Yes</option>
-    </select>
-    <button onclick="saveDSWDResidentInline('${username}')">Save</button>
-  `;
-}
-
-function saveDSWDResidentInline(username){
-  const updatedData = {
-    name: document.getElementById(`edit-name-${username}`).value,
-    gender: document.getElementById(`edit-gender-${username}`).value,
-    age: parseInt(document.getElementById(`edit-age-${username}`).value),
-    barangay: document.getElementById(`edit-barangay-${username}`).value,
-    pwd: document.getElementById(`edit-pwd-${username}`).value
-  };
-  fetch(`${API_BASE}/api/update-resident/${username}`, {
-    method: 'PUT',
-    headers: { 'Content-Type':'application/json' },
-    body: JSON.stringify(updatedData)
-  })
-  .then(res => res.json())
-  .then(data => {
-    if(data.success){
-      alert('Resident updated successfully!');
-      showDSWDStats();
-    } else {
-      alert('Update failed.');
-    }
-  })
-  .catch(() => alert('Server error.'));
-}
-
-function openTrapicheCategory(category, trapiche = null) {
-  const body = document.getElementById('dashboard-body');
-  let filtered = dswdResidents.filter(r => {
-    if (trapiche && r.barangay !== trapiche) return false;
-    switch(category){
-      case 'total': return true;
-      case 'male': return r.gender === 'Male';
-      case 'female': return r.gender === 'Female';
-      case 'pwd': return r.pwd === 'Yes';
-      case 'senior': return r.age >= 60;
-      default: return true;
-    }
-  });
-  const title = trapiche ? `${trapiche} - ${category.toUpperCase()} Residents` : `${category.toUpperCase()} Residents (All Barangays)`;
-  body.innerHTML = `
-    <button onclick="showDSWDStats()" style="margin-bottom:15px;">Back</button>
-    <h3>${title}</h3>
-    <input type="text" placeholder="Search resident name..." oninput="filterCategoryResidents(this)">
-    <div id="category-resident-list">
-      ${filtered.length === 0 ? '<p>No residents found.</p>' :
-        filtered.map(r => `<p onclick="openDSWDResidentDetail('${r.username}')">${r.name} (${r.age}, ${r.gender}, PWD:${r.pwd}, ${r.barangay})</p>`).join('')}
-    </div>
-  `;
-}
-
-function filterCategoryResidents(input){
-  const keyword = input.value.toLowerCase();
-  document.querySelectorAll("#category-resident-list p").forEach(p=>{
-    p.style.display = p.innerText.toLowerCase().includes(keyword) ? "block" : "none";
-  });
-}
-
-function filterDSWDResidents(input){
-  const keyword = input.value.toLowerCase();
-  document.querySelectorAll("#dswd-resident-list p").forEach(p=>{
-    p.style.display = p.innerText.toLowerCase().includes(keyword) ? "block" : "none";
-  });
-}
-
-function openDSWDResidentDetail(username){
-  const user = dswdResidents.find(r => r.username === username);
-  if(!user) return;
-  const body = document.getElementById('dashboard-body');
-  body.innerHTML = `
-    <button onclick="showDSWDStats()" style="margin-bottom:15px;">⬅ Back to DSWD Dashboard</button>
-    <h3>Edit Resident: ${user.name}</h3>
-    <label>Name:</label>
-    <input type="text" id="dswd-name" value="${user.name}">
-    <label>Gender:</label>
-    <select id="dswd-gender">
-      <option value="Male" ${user.gender==='Male'?'selected':''}>Male</option>
-      <option value="Female" ${user.gender==='Female'?'selected':''}>Female</option>
-    </select>
-    <label>Age:</label>
-    <input type="number" id="dswd-age" value="${user.age}" min="1">
-    <label>Address:</label>
-    <input type="text" id="dswd-address" value="${user.address || ''}">
-    <label>Barangay:</label>
-    <select id="dswd-barangay">
-      <option value="Trapiche 1" ${user.barangay==='Trapiche 1'?'selected':''}>Trapiche 1</option>
-      <option value="Trapiche 2" ${user.barangay==='Trapiche 2'?'selected':''}>Trapiche 2</option>
-      <option value="Trapiche 3" ${user.barangay==='Trapiche 3'?'selected':''}>Trapiche 3</option>
-      <option value="Trapiche 4" ${user.barangay==='Trapiche 4'?'selected':''}>Trapiche 4</option>
-    </select>
-    <label>PWD:</label>
-    <select id="dswd-pwd">
-      <option value="No" ${user.pwd==='No'?'selected':''}>No</option>
-      <option value="Yes" ${user.pwd==='Yes'?'selected':''}>Yes</option>
-    </select>
-    <button onclick="saveDSWDResident('${user.username}')">Save Changes</button>
-  `;
-}
-
-function saveDSWDResident(username){
-  const updatedData = {
-    name: document.getElementById('dswd-name').value,
-    gender: document.getElementById('dswd-gender').value,
-    age: parseInt(document.getElementById('dswd-age').value),
-    address: document.getElementById('dswd-address').value,
-    barangay: document.getElementById('dswd-barangay').value,
-    pwd: document.getElementById('dswd-pwd').value
-  };
-  fetch(`${API_BASE}/api/update-resident/${username}`, {
-    method: 'PUT',
-    headers: { 'Content-Type':'application/json' },
-    body: JSON.stringify(updatedData)
-  })
-  .then(res => res.json())
-  .then(data => {
-    if(data.success){
-      alert('Resident updated successfully!');
-      showDSWDStats();
-    } else {
-      alert('Update failed.');
-    }
-  })
-  .catch(() => alert('Server error.'));
-}
-
-function toggleResidentsByAgeGroup(row,group){
-  row.classList.toggle('expanded');
-  if(row.nextElementSibling && row.nextElementSibling.classList.contains('age-residents')){
-    row.nextElementSibling.remove();
-    return;
-  }
-  const residentsList = dswdResidents.filter(r=>{
-    if(group==='0_10') return r.age<=10;
-    if(group==='11_14') return r.age>=11&&r.age<=14;
-    if(group==='15_30') return r.age>=15&&r.age<=30;
-    if(group==='31_59') return r.age>=31&&r.age<=59;
-    return r.age>=60;
-  });
-  const tr=document.createElement('tr');
-  tr.classList.add('age-residents');
-  const td=document.createElement('td');
-  td.colSpan=6;
-  td.innerHTML=residentsList.map(r=>`<p>${r.name} (${r.age}, ${r.gender}, ${r.barangay})</p>`).join('');
-  tr.appendChild(td);
-  row.parentNode.insertBefore(tr,row.nextSibling);
-}
-
-function toggleResidentsByTrapiche(row, trapiche) {
-  row.classList.toggle('expanded');
-  if (row.nextElementSibling && row.nextElementSibling.classList.contains('trapiche-residents')) {
-    row.nextElementSibling.remove();
-    return;
-  }
-  const residentsList = dswdResidents.filter(r => r.barangay === trapiche);
-  const tr = document.createElement('tr');
-  tr.classList.add('trapiche-residents');
-  const td = document.createElement('td');
-  td.colSpan = 6;
-  td.innerHTML = `<div class="folder-contents">${residentsList.map(r => `<p>${r.name} (${r.age}, ${r.gender}, PWD:${r.pwd})</p>`).join('')}</div>`;
-  tr.appendChild(td);
-  row.parentNode.insertBefore(tr, row.nextSibling);
-}
-
-function filterTrapicheResidents(input){
-  const keyword = input.value.toLowerCase();
-  document.querySelectorAll(".trapiche-residents p").forEach(p=>{
-    p.style.display = p.innerText.toLowerCase().includes(keyword) ? "block" : "none";
-  });
-}
-
-function openTrapicheFolder(trapiche) {
-  const body = document.getElementById('dashboard-body');
-  const residentsList = dswdResidents.filter(r => r.barangay === trapiche);
-  body.innerHTML = `
-    <button onclick="showDSWDStats()" style="margin-bottom:15px;">⬅ Back to Barangay Statistics</button>
-    <h3>${trapiche} Residents</h3>
-    <input type="text" class="search-box" placeholder="Search resident name..." oninput="filterFolderResidents(this)">
-    <div id="folder-residents">
-      ${residentsList.length === 0
-        ? '<p>No residents found.</p>'
-        : residentsList.map(r => `
-            <p class="folder-item" data-username="${r.username}" onclick="selectTrapicheResident(this, '${r.username}')">
-              ${r.name} (${r.age}, ${r.gender}, PWD: ${r.pwd})
-            </p>
-          `).join('')
-      }
-    </div>
-  `;
-}
-
-function selectTrapicheResident(element, username) {
-  document.querySelectorAll('#folder-residents .folder-item').forEach(el => el.classList.remove('active'));
-  element.classList.add('active');
-  openDSWDResidentDetail(username);
-}
-
-function filterFolderResidents(input) {
-  const keyword = input.value.toLowerCase();
-  document.querySelectorAll("#folder-residents p").forEach(p => {
-    p.style.display = p.innerText.toLowerCase().includes(keyword) ? "block" : "none";
-  });
-}
-
-function openAgeGroupFolder(group, gender = null) {
-  const body = document.getElementById('dashboard-body');
-  const residentsList = dswdResidents.filter(r => {
-    let inGroup = false;
-    if (group === '0_10') inGroup = r.age <= 10;
-    else if (group === '11_14') inGroup = r.age >= 11 && r.age <= 14;
-    else if (group === '15_30') inGroup = r.age >= 15 && r.age <= 30;
-    else if (group === '31_59') inGroup = r.age >= 31 && r.age <= 59;
-    else if (group === '60') inGroup = r.age >= 60;
-    if (gender) return inGroup && r.gender === gender;
-    return inGroup;
-  });
-  const groupNames = { '0_10': '0–10', '11_14': '11–14', '15_30': '15–30', '31_59': '31–59', '60': '60+' };
-  body.innerHTML = `
-    <button onclick="showDSWDStats()" style="margin-bottom:15px;">Back</button>
-    <h3>Age Group: ${groupNames[group]}${gender ? ' - ' + gender : ''}</h3>
-    <input type="text" class="search-box" placeholder="Search resident name..." oninput="filterAgeFolderResidents(this)">
-    ${residentsList.length === 0
-      ? '<p>No residents found.</p>'
-      : `
-        <table class="resident-table">
-          <thead>
-            <tr>
-              <th>Name</th><th>Age</th><th>Gender</th><th>Barangay</th><th>PWD</th><th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${residentsList.map(r => `
-              <tr>
-                <td><input type="text" value="${r.name}" style="width:150px;" readonly></td>
-                <td><input type="number" value="${r.age}" min="1" style="width:60px;" readonly></td>
-                <td>
-                  <select disabled>
-                    <option value="Male" ${r.gender==='Male'?'selected':''}>Male</option>
-                    <option value="Female" ${r.gender==='Female'?'selected':''}>Female</option>
-                  </select>
-                </td>
-                <td><input type="text" value="${r.barangay}" style="width:100px;" readonly></td>
-                <td>
-                  <select disabled>
-                    <option value="No" ${r.pwd==='No'?'selected':''}>No</option>
-                    <option value="Yes" ${r.pwd==='Yes'?'selected':''}>Yes</option>
-                  </select>
-                </td>
-                <td><button onclick="openDSWDResidentDetail('${r.username}')">Edit</button></td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      `
-    }
-  `;
-}
-
-function selectAgeResident(element, username) {
-  document.querySelectorAll('#age-folder-residents .folder-item').forEach(el => el.classList.remove('active'));
-  element.classList.add('active');
-  openDSWDResidentDetail(username);
-}
-
-function filterAgeFolderResidents(input) {
-  const keyword = input.value.toLowerCase();
-  document.querySelectorAll("#age-folder-residents p").forEach(p => {
-    p.style.display = p.innerText.toLowerCase().includes(keyword) ? "block" : "none";
-  });
-}
-
-function generateRandomPassword(length = 10){
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  let pw = '';
-  for(let i=0;i<length;i++){
-    pw += chars.charAt(Math.floor(Math.random()*chars.length));
-  }
-  return pw;
-}
 
 function handleCredentialResponse(response) {
   fetch(`${API_BASE}/api/google-login`, {
@@ -2914,9 +2523,10 @@ function toggleDSWDAccountMenu() {
 
 function updateHeaderUI() {
   if (!loggedInUser) return;
-  const name = (loggedInUser.name && loggedInUser.name !== 'undefined' && loggedInUser.name.trim() !== '')
+  const rawName = (loggedInUser.name && loggedInUser.name !== 'undefined' && loggedInUser.name.trim() !== '')
     ? loggedInUser.name
     : (loggedInUser.username || 'User');
+  const name = bhwName(rawName);
   const pic = (loggedInUser.profile_pic && loggedInUser.profile_pic !== 'undefined')
     ? loggedInUser.profile_pic
     : `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=ffffff&color=c0392b&size=64`;
