@@ -1885,7 +1885,17 @@ function applyDSWDAgeRangeFilter(keepPage) {
   // "To 22 years" includes everyone who is 22 (up to 22 years 11 months); months are counted exactly
   const maxMonths = isNaN(maxRaw) || maxRaw <= 0 ? Infinity : (maxUnit === 'months' ? maxRaw : (maxRaw + 1) * 12 - 1);
 
+  const bothYears = minUnit === 'years' && maxUnit === 'years';
+  const minYears = isNaN(minRaw) ? 0 : minRaw;
+  const maxYears = isNaN(maxRaw) || maxRaw <= 0 ? Infinity : maxRaw;
+
   const filtered = dswdResidents.filter(r => {
+    // Years on both ends: use the same age number that is shown in the resident list
+    if (bothYears && r.age !== undefined && r.age !== null && r.age !== '') {
+      const a = dswdAge(r);
+      return a >= minYears && a <= maxYears;
+    }
+    // Months involved (or no saved age): use the exact date of birth
     const months = computeAgeInMonths(r);
     return months >= minMonths && months <= maxMonths;
   });
