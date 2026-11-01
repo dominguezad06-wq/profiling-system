@@ -654,25 +654,20 @@ app.post('/api/reject-request', async (req, res) => {
   }
 });
 
-// ================= DSWD: GET RESIDENTS =================
+// ================= BHW: GET RESIDENTS =================
+// Returns every column (including id) so the BHW dashboard can show full resident details
+// and tell apart residents that share the same username (e.g. phone-uploaded ones).
 app.get('/api/residents', async (req, res) => {
   try {
-    const result = await pool.query(
-      `SELECT username, name, gender, status, age, barangay, address, dob, pwd,
-              place_of_birth, blood_type, voter_status, household_role,
-              children_names, educational_attainment, emergency_contact_name,
-              emergency_contact_number, contact, religion, spouse, sons, daughters,
-              family_members, email, senior
-       FROM residents
-       ORDER BY name`
-    );
+    const result = await pool.query('SELECT * FROM residents ORDER BY name');
     res.json({ residents: result.rows });
   } catch (err) {
+    console.error(err);
     res.status(500).json({ residents: [] });
   }
 });
 
-// ================= DSWD: UPDATE RESIDENT =================
+// ================= BHW: UPDATE RESIDENT =================
 app.put('/api/update-resident/:username', async (req, res) => {
   try {
     const username = req.params.username;
@@ -789,10 +784,11 @@ app.get('/create-admins', async (req, res) => {
     const managerPw = await bcrypt.hash('1234', 10);
     const dswdPw = await bcrypt.hash('1234', 10);
 
+    // The BHW account keeps the username "dswd" and role "dswd" so existing logins still work
     await pool.query(`
       INSERT INTO users(username, password, role, name) VALUES
       ('manager',$1,'manager','Manager Account'),
-      ('dswd',$2,'dswd','DSWD Account')
+      ('dswd',$2,'dswd','BHW Account')
       ON CONFLICT (username) DO NOTHING
     `, [managerPw, dswdPw]);
 
