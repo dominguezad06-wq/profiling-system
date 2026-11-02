@@ -300,6 +300,7 @@ function openManagerPage(){
   document.getElementById('dswd-page').style.display = 'none';
   document.getElementById('manager-page').style.display = 'flex';
   showDocRequests();
+  startManagerAutoRefresh();
   updateHeaderUI();
   startHeaderClock();
 }
@@ -482,6 +483,7 @@ function saveMyAccount() {
 }
 
 function logout(){ 
+  if (window._mgrTimer) { clearInterval(window._mgrTimer); window._mgrTimer = null; }
   loggedInUser = null; 
   currentRole = null;
   const f = document.getElementById('site-footer');
@@ -1201,6 +1203,7 @@ function requestDocument() {
 
   const btn = document.querySelector('button[onclick="requestDocument()"]');
   if (btn) { btn.disabled = true; btn.innerText = 'Submitting...'; }
+  const resetBtn = () => { if (btn) { btn.disabled = false; btn.innerText = 'Request'; } };
 
   fetch(`${API_BASE}/api/request-document`, {
     method: 'POST',
@@ -1208,44 +1211,23 @@ function requestDocument() {
   })
   .then(res => res.json())
   .then(data => {
-    if (btn) { btn.disabled = false; btn.innerText = 'Request'; }
-    const successBox = document.getElementById('request-result');
-    if (successBox) {
-      successBox.style.display = 'block';
-      successBox.style.background = '#f0fdf4';
-      successBox.style.border = '1px solid #86efac';
-      successBox.style.color = '#16a34a';
-      successBox.style.padding = '14px 18px';
-      successBox.style.borderRadius = '10px';
-      successBox.style.fontSize = '14px';
-      successBox.style.fontWeight = '500';
-      successBox.style.marginTop = '12px';
-      successBox.innerText = '✅ Your request has been submitted successfully! The barangay will review it and notify you by email.';
-      setTimeout(() => { successBox.style.display = 'none'; }, 5000);
+    resetBtn();
+    if (!data.success) {
+      showToast(data.message || 'Your request could not be submitted. Please try again.', 'error', 'Request not sent');
+      return;
     }
-    fetch(`${API_BASE}/api/my-requests?username=${loggedInUser.username}`)
+    // Reload the resident's own list right away so the new request shows without refreshing the page
+    return fetch(`${API_BASE}/api/my-requests?username=${loggedInUser.username}`)
       .then(r => r.json())
       .then(d => {
         loggedInUser.requests = d.requests || [];
-        const listDiv = document.querySelector('#dashboard-body .flex-2, #dashboard-body div[style*="flex:2"]');
-        if (listDiv) showMyRequests();
+        showMyRequests();
+        showToast('Your request was submitted. The barangay will review it and notify you by email.', 'success', 'Request Sent');
       });
   })
   .catch(() => {
-    if (btn) { btn.disabled = false; btn.innerText = 'Request'; }
-    const successBox = document.getElementById('request-result');
-    if (successBox) {
-      successBox.style.display = 'block';
-      successBox.style.background = '#fff5f5';
-      successBox.style.border = '1px solid #fca5a5';
-      successBox.style.color = '#dc2626';
-      successBox.style.padding = '14px 18px';
-      successBox.style.borderRadius = '10px';
-      successBox.style.fontSize = '14px';
-      successBox.style.fontWeight = '500';
-      successBox.style.marginTop = '12px';
-      successBox.innerText = '❌ Could not connect to the server. Please check your connection and try again.';
-    }
+    resetBtn();
+    showToast('Could not connect to the server. Please check your connection and try again.', 'error', 'Request not sent');
   });
 }
 
@@ -1276,6 +1258,31 @@ function loadMyRequests() {
 }
 
 // Manager Functions 
+
+// Checks for new / changed requests every 10 seconds and redraws only when something changed
+function startManagerAutoRefresh() {
+  if (window._mgrTimer) clearInterval(window._mgrTimer);
+  window._mgrTimer = setInterval(refreshManagerSilently, 10000);
+}
+
+function refreshManagerSilently() {
+  if (currentRole !== 'manager') return;
+  if (document.getElementById('toast-overlay')) return;          // a pop-up is open
+  if (document.querySelector('.approve-btn:disabled')) return;   // an approval is in progress
+  fetch(`${API_BASE}/api/document-requests`)
+    .then(res => res.json())
+    .then(d => {
+      const list = d.requests || [];
+      const sig = arr => arr.map(r => r.id + ':' + r.status).join('|');
+      if (sig(list) === sig(window.allRequests || [])) return;
+      const hadNew = list.length > (window.allRequests || []).length;
+      window.allRequests = list;
+      renderManagerRequests(list, window.managerFilter || 'pending');
+      if (hadNew) showToast('A new document request just came in.', 'info', 'New request');
+    })
+    .catch(() => {});
+}
+
 function showDocRequests() {
   Promise.all([
     fetch(`${API_BASE}/api/document-requests`).then(res => res.json()),
@@ -1290,6 +1297,7 @@ function showDocRequests() {
 }
 
 function renderManagerRequests(allRequests, filter = 'all') {
+  window.managerFilter = filter;
   const body = document.getElementById('manager-table');
 
   let filteredRequests = allRequests;
