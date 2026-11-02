@@ -2006,7 +2006,7 @@ function renderDSWDStats(residents, mode) {
     { k: '31_59', label: '31–59', test: a => a >= 31 && a <= 59 },
     { k: '60',    label: '60+',   test: a => a >= 60 }
   ];
-  ageGroups.forEach(g => { g.residents = []; g.male = 0; g.female = 0; });
+  ageGroups.forEach(g => { g.residents = []; g.male = 0; g.female = 0; g.pwd = 0; g.senior = 0; });
 
   const bgy = {};
   trapiches.forEach(t => { bgy[t] = { male: 0, female: 0, total: 0, pwd: 0, senior: 0, residents: [] }; });
@@ -2030,6 +2030,8 @@ function renderDSWDStats(residents, mode) {
     const g = ageGroups.find(x => x.test(a)) || ageGroups[0];
     g.residents.push(r);
     g[isMale ? 'male' : 'female']++;
+    if (dswdYes(r.pwd)) g.pwd++;
+    if (dswdIsSenior(r)) g.senior++;
   });
 
   ageGroups.forEach(g => { window.dswdGroupData[`age-${g.k}`] = g.residents; });
@@ -2110,7 +2112,7 @@ function renderDSWDStats(residents, mode) {
           <label style="display:block; font-size:12px; font-weight:600; color:#888; margin-bottom:6px;">From</label>
           <div style="display:flex; gap:6px;">
             <input type="number" id="age-range-min-value" min="0" step="1" value="${dswdEsc(rg.minV)}"
-              style="width:80px; padding:9px 10px; border-radius:8px; border:1px solid #ddd; font-size:14px; margin:0;">
+              style="width:62px; padding:9px 8px; border-radius:8px; border:1px solid #ddd; font-size:14px; margin:0;">
             <select id="age-range-min-unit" style="padding:9px 10px; border-radius:8px; border:1px solid #ddd; font-size:14px;">${unitOpts(rg.minU)}</select>
           </div>
         </div>
@@ -2118,7 +2120,7 @@ function renderDSWDStats(residents, mode) {
           <label style="display:block; font-size:12px; font-weight:600; color:#888; margin-bottom:6px;">To</label>
           <div style="display:flex; gap:6px;">
             <input type="number" id="age-range-max-value" min="0" step="1" value="${dswdEsc(rg.maxV)}"
-              style="width:80px; padding:9px 10px; border-radius:8px; border:1px solid #ddd; font-size:14px; margin:0;">
+              style="width:62px; padding:9px 8px; border-radius:8px; border:1px solid #ddd; font-size:14px; margin:0;">
             <select id="age-range-max-unit" style="padding:9px 10px; border-radius:8px; border:1px solid #ddd; font-size:14px;">${unitOpts(rg.maxU)}</select>
           </div>
         </div>
@@ -2199,26 +2201,54 @@ function renderDSWDStats(residents, mode) {
       ${inner}
     </div>`;
 
-  const dashAge = numHead(['Age group', 'Total', 'Male', 'Female']) +
-    ageGroups.map(g => numRow(g.label, [
-      [(g.male + g.female).toLocaleString(), '#c0392b'],
-      [g.male.toLocaleString(), '#378ADD'],
-      [g.female.toLocaleString(), '#D4537E']
-    ])).join('');
+  const dashHeads = ['Total', 'Male', 'Female', 'PWD', 'Senior'];
+  const dashRow = (label, o) => numRow(label, [
+    [o.total.toLocaleString(), '#c0392b'],
+    [o.male.toLocaleString(), '#378ADD'],
+    [o.female.toLocaleString(), '#D4537E'],
+    [o.pwd.toLocaleString(), '#712B13'],
+    [o.senior.toLocaleString(), '#3B6D11']
+  ]);
 
-  const dashBgy = numHead(['Barangay', 'Total', 'Male', 'Female', 'PWD', 'Senior']) +
-    trapiches.map(t => numRow(t, [
-      [bgy[t].total.toLocaleString(), '#c0392b'],
-      [bgy[t].male.toLocaleString(), '#378ADD'],
-      [bgy[t].female.toLocaleString(), '#D4537E'],
-      [bgy[t].pwd.toLocaleString(), '#712B13'],
-      [bgy[t].senior.toLocaleString(), '#3B6D11']
-    ])).join('');
+  const dashAge = numHead(['Age group', ...dashHeads]) +
+    ageGroups.map(g => dashRow(g.label, { total: g.male + g.female, male: g.male, female: g.female, pwd: g.pwd, senior: g.senior })).join('');
+
+  const dashBgy = numHead(['Barangay', ...dashHeads]) +
+    trapiches.map(t => dashRow(t, bgy[t])).join('');
+
+  // Percentage panel (right side)
+  const pRow = (label, count, color) => {
+    const p = pct(count, n);
+    return `
+      <div style="margin-bottom:12px;">
+        <div style="display:flex; justify-content:space-between; font-size:14px; margin-bottom:4px;">
+          <span style="font-weight:600; color:#1a1a1a;">${label}</span>
+          <span style="color:#888;">${count.toLocaleString()} &nbsp;·&nbsp; <b style="color:${color};">${p}%</b></span>
+        </div>
+        <div style="height:6px; background:#f0f0f0; border-radius:99px; overflow:hidden;">
+          <div style="width:${p}%; height:100%; background:${color};"></div>
+        </div>
+      </div>`;
+  };
+  const pGroup = (title, rows) => `
+    <div style="padding:14px 18px 4px; border-bottom:0.5px solid #f0f0f0;">
+      <div style="font-size:12px; font-weight:700; color:#9ca3af; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:10px;">${title}</div>
+      ${rows}
+    </div>`;
+
+  const dashPercent = numCard('Percentage of residents',
+    pGroup('Gender', pRow('Male', totalMale, '#378ADD') + pRow('Female', totalFemale, '#D4537E')) +
+    pGroup('Special groups', pRow('Senior (60+)', totalSenior, '#3B6D11') + pRow('PWD', totalPWD, '#712B13')) +
+    pGroup('Age groups', ageGroups.map(g => pRow(g.label, g.male + g.female, '#c0392b')).join('')) +
+    pGroup('Trapiche', trapiches.map(t => pRow(t, bgy[t].total, '#1a3f6c')).join('')));
 
   const dashboardSection = `
-    <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(360px,1fr)); gap:16px; align-items:start; margin-bottom:24px;">
-      ${numCard('Residents by age group', dashAge)}
-      ${numCard('Residents by Trapiche', dashBgy)}
+    <div style="display:grid; grid-template-columns:minmax(0,1.5fr) minmax(0,1fr); gap:16px; align-items:start; margin-bottom:24px;">
+      <div style="display:flex; flex-direction:column; gap:16px;">
+        ${numCard('Residents by age group', dashAge)}
+        ${numCard('Residents by Trapiche', dashBgy)}
+      </div>
+      ${dashPercent}
     </div>
   `;
 
@@ -2229,7 +2259,7 @@ function renderDSWDStats(residents, mode) {
     </div>` : '';
 
   const sections =
-    mode === 'age' ? ageSection + rangeSection :
+    mode === 'age' ? `<div style="display:grid; grid-template-columns:minmax(0,1.15fr) minmax(0,1fr); gap:20px; align-items:start;">${ageSection}${rangeSection}</div>` :
     mode === 'bgy' ? bgySection :
     dashboardSection;
 
