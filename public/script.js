@@ -1700,7 +1700,9 @@ function rejectRequest(username, documentType, requestId) {
 
 /* =======================================================================
    BHW DASHBOARD (formerly DSWD)
-   - Statistics / Age Statistics / Barangay Statistics pages
+   - Statistic Dashboard: small cards + numbers only (no filter, no dropdowns)
+   - Age Statistics: age groups + age range filter
+   - Barangay Statistics: Trapiche 1-4 dropdowns
    - Every group dropdown shows 10 residents per page (First/Prev/Next/Last)
    - Clicking a resident opens a full details page
    - Back returns to the same open group, page, search and scroll position
@@ -1973,7 +1975,7 @@ function dswdGroupRowHTML(o) {
 }
 
 // Load residents from the server, then draw the page.
-// mode: 'all' (Statistics), 'age' (Age Statistics), 'bgy' (Barangay Statistics)
+// mode: 'all' (Statistic Dashboard), 'age' (Age Statistics), 'bgy' (Barangay Statistics)
 function showDSWDStats(mode) {
   window.dswdUI = { mode: (typeof mode === 'string') ? mode : 'all', open: {}, page: {}, search: {}, range: null, scroll: 0, inDetail: false };
   fetch(`${API_BASE}/api/residents`)
@@ -2033,15 +2035,16 @@ function renderDSWDStats(residents, mode) {
   ageGroups.forEach(g => { window.dswdGroupData[`age-${g.k}`] = g.residents; });
   trapiches.forEach(t => { window.dswdGroupData[`bgy-${t.replace(/\s+/g, '-')}`] = bgy[t].residents; });
 
+  // Small summary cards (they only take the space they need)
   const metricCard = (label, value, sub, color, labelColor) => `
-    <div style="background:#fff; border-radius:10px; padding:18px 20px; border:0.5px solid #e0e0e0;">
-      <div style="font-size:15px; color:${labelColor || '#888'}; margin-bottom:8px;">${label}</div>
-      <div style="font-size:34px; font-weight:700; color:${color};">${value}</div>
-      <div style="font-size:14px; color:${labelColor || '#aaa'}; margin-top:6px; ${labelColor ? 'opacity:0.8;' : ''}">${sub}</div>
+    <div style="background:#fff; border-radius:10px; padding:10px 14px; border:0.5px solid #e0e0e0; width:170px;">
+      <div style="font-size:13px; color:${labelColor || '#888'}; margin-bottom:2px;">${label}</div>
+      <div style="font-size:22px; font-weight:700; color:${color}; line-height:1.2;">${value}</div>
+      <div style="font-size:12px; color:${labelColor || '#aaa'}; margin-top:2px; ${labelColor ? 'opacity:0.8;' : ''}">${sub}</div>
     </div>`;
 
   const metricCards = `
-    <div style="display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:12px; margin-bottom:24px;">
+    <div style="display:flex; flex-wrap:wrap; gap:10px; margin-bottom:20px;">
       ${metricCard('Total residents', n.toLocaleString(), 'all barangays', '#1a1a1a')}
       ${metricCard('Male', totalMale.toLocaleString(), pct(totalMale, n) + '% of total', '#185FA5', '#185FA5')}
       ${metricCard('Female', totalFemale.toLocaleString(), pct(totalFemale, n) + '% of total', '#993556', '#993556')}
@@ -2064,7 +2067,7 @@ function renderDSWDStats(residents, mode) {
 
   const headCell = (t, w, center) => `<div style="min-width:${w}px; font-size:14px; font-weight:600; color:#888; ${center ? 'text-align:center;' : ''}">${t}</div>`;
 
-  // ---- Age group section ----
+  // ---- Age group section (Age Statistics page) ----
   const ageRows = ageGroups.map(g => {
     const rt = g.male + g.female;
     const mPct = pct(g.male, rt);
@@ -2091,7 +2094,7 @@ function renderDSWDStats(residents, mode) {
     </div>
   `;
 
-  // ---- Age range filter section ----
+  // ---- Age range filter section (Age Statistics page) ----
   const rg = window.dswdUI.range || { minV: '0', minU: 'years', maxV: '120', maxU: 'years' };
   const unitOpts = (sel) => `
     <option value="months" ${sel === 'months' ? 'selected' : ''}>Months</option>
@@ -2143,7 +2146,7 @@ function renderDSWDStats(residents, mode) {
     </div>
   `;
 
-  // ---- Barangay section ----
+  // ---- Barangay section (Barangay Statistics page) ----
   const badge = (v, bg, color) => `
     <div style="min-width:70px; text-align:center;">
       <span style="background:${bg}; color:${color}; font-size:15px; font-weight:700; padding:6px 16px; border-radius:99px;">${v}</span>
@@ -2177,13 +2180,62 @@ function renderDSWDStats(residents, mode) {
     </div>
   `;
 
+  // ---- Statistic Dashboard (main page): numbers only, no filter, no dropdowns ----
+  const numHead = (labels) => `
+    <div style="display:flex; align-items:center; gap:12px; padding:10px 18px; background:#f8f9fa; border-bottom:0.5px solid #eee;">
+      <span style="flex:1.2; font-size:13px; font-weight:600; color:#888;">${labels[0]}</span>
+      ${labels.slice(1).map(l => `<span style="flex:1; text-align:center; font-size:13px; font-weight:600; color:#888;">${l}</span>`).join('')}
+    </div>`;
+  const numRow = (label, cells) => `
+    <div style="display:flex; align-items:center; gap:12px; padding:11px 18px; border-bottom:0.5px solid #f0f0f0;">
+      <span style="flex:1.2; font-size:15px; font-weight:600; color:#1a1a1a;">${label}</span>
+      ${cells.map(c => `<span style="flex:1; text-align:center; font-size:16px; font-weight:700; color:${c[1]};">${c[0]}</span>`).join('')}
+    </div>`;
+  const numCard = (title, inner) => `
+    <div style="background:#fff; border-radius:12px; border:0.5px solid #e0e0e0; overflow:hidden;">
+      <div style="padding:14px 18px; border-bottom:0.5px solid #e0e0e0;">
+        <span style="font-size:17px; font-weight:600; color:#1a1a1a;">${title}</span>
+      </div>
+      ${inner}
+    </div>`;
+
+  const dashAge = numHead(['Age group', 'Total', 'Male', 'Female']) +
+    ageGroups.map(g => numRow(g.label, [
+      [(g.male + g.female).toLocaleString(), '#c0392b'],
+      [g.male.toLocaleString(), '#378ADD'],
+      [g.female.toLocaleString(), '#D4537E']
+    ])).join('');
+
+  const dashBgy = numHead(['Barangay', 'Total', 'Male', 'Female', 'PWD', 'Senior']) +
+    trapiches.map(t => numRow(t, [
+      [bgy[t].total.toLocaleString(), '#c0392b'],
+      [bgy[t].male.toLocaleString(), '#378ADD'],
+      [bgy[t].female.toLocaleString(), '#D4537E'],
+      [bgy[t].pwd.toLocaleString(), '#712B13'],
+      [bgy[t].senior.toLocaleString(), '#3B6D11']
+    ])).join('');
+
+  const dashboardSection = `
+    <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(360px,1fr)); gap:16px; align-items:start; margin-bottom:24px;">
+      ${numCard('Residents by age group', dashAge)}
+      ${numCard('Residents by Trapiche', dashBgy)}
+    </div>
+  `;
+
+  const dashTitle = mode === 'all' ? `
+    <div style="margin-bottom:16px;">
+      <div style="font-size:22px; font-weight:700; color:#1a1a1a;">Statistic Dashboard</div>
+      <div style="font-size:14px; color:#9ca3af; margin-top:2px;">Overview of all residents in Barangay Trapiche</div>
+    </div>` : '';
+
   const sections =
     mode === 'age' ? ageSection + rangeSection :
     mode === 'bgy' ? bgySection :
-    rangeSection + bgySection;
+    dashboardSection;
 
   body.innerHTML = `
     <div style="padding:24px; background:#f5f6fa; min-height:100%;">
+      ${dashTitle}
       ${metricCards}
       ${sections}
     </div>
