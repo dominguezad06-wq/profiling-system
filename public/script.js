@@ -1928,43 +1928,39 @@ function applyDSWDAgeRangeFilter(keepPage) {
   refreshDSWDGroupList('age-custom');
 }
 
-// Clean "number on top, percentage underneath" stat block
-function dswdStatBlock(count, pctVal, color, minWidth = 70) {
+// Number on top, percentage underneath (percentage is skipped when pctVal is null)
+function dswdStatBlock(count, pctVal, color) {
   return `
-    <div style="display:flex; flex-direction:column; align-items:flex-start; min-width:${minWidth}px;">
-      <span style="font-size:21px; font-weight:700; color:${color}; line-height:1.1;">${count}</span>
-      <span style="font-size:13px; color:#a4a4a4; font-weight:600; margin-top:2px;">${pctVal}%</span>
-    </div>
-  `;
+    <div class="bhw-stat">
+      <span class="bhw-num" style="color:${color};">${count}</span>
+      ${pctVal === null || pctVal === undefined ? '' : `<span class="bhw-pct">${pctVal}%</span>`}
+    </div>`;
 }
 
-// One expandable row (used for age groups and Trapiche zones)
+// One expandable row (age groups and Trapiche zones)
 function dswdGroupRowHTML(o) {
   const ui = window.dswdUI;
   const isOpen = !!ui.open[o.key];
   const searchVal = dswdEsc(ui.search[o.key] || '');
+  const hasExtra = o.pwd !== undefined;
   return `
     <div style="border-bottom:0.5px solid #f0f0f0;">
-      <div id="dswd-row-${o.key}" onclick="toggleDSWDGroupRow('${o.key}')"
-        style="display:flex; align-items:center; padding:18px 22px; cursor:pointer; gap:22px; background:#fff; transition:background 0.15s;"
-        onmouseover="this.style.background='#fafcff'" onmouseout="this.style.background='#fff'">
-        <span id="dswd-chevron-${o.key}" style="display:inline-block; width:13px; font-size:13px; color:#bbb; transition:transform 0.2s; transform:rotate(${isOpen ? 90 : 0}deg);">▶</span>
-        <div style="min-width:${o.labelWidth}px;">
-          <span style="font-size:18px; font-weight:600; color:#1a1a1a;">${o.label}</span>
-        </div>
-        ${dswdStatBlock(o.total, o.totalPct, '#c0392b', o.statWidth)}
-        ${dswdStatBlock(o.male, o.mPct, '#378ADD', o.statWidth)}
-        ${dswdStatBlock(o.female, o.fPct, '#D4537E', o.statWidth)}
-        ${o.extra || ''}
+      <div id="dswd-row-${o.key}" class="bhw-grow" style="--n:${hasExtra ? 5 : 3};" onclick="toggleDSWDGroupRow('${o.key}')">
+        <span id="dswd-chevron-${o.key}" class="bhw-chev" style="transform:rotate(${isOpen ? 90 : 0}deg);">▶</span>
+        <span class="bhw-glabel">${o.label}</span>
+        ${dswdStatBlock(o.total, o.totalPct, '#c0392b')}
+        ${dswdStatBlock(o.male, o.mPct, '#378ADD')}
+        ${dswdStatBlock(o.female, o.fPct, '#D4537E')}
+        ${hasExtra ? dswdStatBlock(o.pwd, null, '#712B13') + dswdStatBlock(o.senior, null, '#3B6D11') : ''}
       </div>
-      <div id="dswd-detail-${o.key}" style="display:${isOpen ? 'block' : 'none'}; background:#fafbfc; border-top:1px solid #eee; padding:16px 22px 20px;">
+      <div id="dswd-detail-${o.key}" style="display:${isOpen ? 'block' : 'none'}; background:#fafbfc; border-top:1px solid #eee; padding:14px 16px 18px;">
         <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px; flex-wrap:wrap;">
           <input type="text" placeholder="${dswdEsc(o.placeholder)}" value="${searchVal}"
             oninput="filterDSWDGroupResidents(this, '${o.key}')"
             onclick="event.stopPropagation()"
-            style="flex:1; min-width:220px; padding:9px 14px; border-radius:8px; border:1px solid #ddd; font-size:14px; margin:0;">
+            style="flex:1; min-width:180px; padding:9px 14px; border-radius:8px; border:1px solid #ddd; margin:0;">
           <button onclick="event.stopPropagation(); downloadResidentsCSV('${o.key}', '${o.filename}')"
-            style="padding:9px 18px; background:#8B0000; color:#fff; border:none; border-radius:8px; font-size:14px; font-weight:700; cursor:pointer; white-space:nowrap;">
+            style="padding:9px 18px; background:#8B0000; color:#fff; border:none; border-radius:8px; font-weight:700; cursor:pointer; white-space:nowrap;">
             ⬇ Download CSV
           </button>
         </div>
@@ -2037,234 +2033,185 @@ function renderDSWDStats(residents, mode) {
   ageGroups.forEach(g => { window.dswdGroupData[`age-${g.k}`] = g.residents; });
   trapiches.forEach(t => { window.dswdGroupData[`bgy-${t.replace(/\s+/g, '-')}`] = bgy[t].residents; });
 
-  // Small summary cards (they only take the space they need)
+  // ---------- summary cards ----------
   const metricCard = (label, value, sub, color, labelColor) => `
-    <div style="background:#fff; border-radius:10px; padding:10px 14px; border:0.5px solid #e0e0e0; width:170px;">
-      <div style="font-size:13px; color:${labelColor || '#888'}; margin-bottom:2px;">${label}</div>
-      <div style="font-size:22px; font-weight:700; color:${color}; line-height:1.2;">${value}</div>
-      <div style="font-size:12px; color:${labelColor || '#aaa'}; margin-top:2px; ${labelColor ? 'opacity:0.8;' : ''}">${sub}</div>
+    <div class="bhw-card">
+      <div class="bhw-card-label" style="color:${labelColor || '#888'};">${label}</div>
+      <div class="bhw-card-value" style="color:${color};">${value}</div>
+      <div class="bhw-card-sub" style="color:${labelColor || '#aaa'};">${sub}</div>
     </div>`;
 
   const metricCards = `
-    <div style="display:flex; flex-wrap:wrap; gap:10px; margin-bottom:20px;">
+    <div class="bhw-cards">
       ${metricCard('Total residents', n.toLocaleString(), 'all barangays', '#1a1a1a')}
       ${metricCard('Male', totalMale.toLocaleString(), pct(totalMale, n) + '% of total', '#185FA5', '#185FA5')}
       ${metricCard('Female', totalFemale.toLocaleString(), pct(totalFemale, n) + '% of total', '#993556', '#993556')}
       ${metricCard('Senior (60+)', totalSenior.toLocaleString(), pct(totalSenior, n) + '% of total', '#3B6D11', '#3B6D11')}
       ${metricCard('PWD', totalPWD.toLocaleString(), pct(totalPWD, n) + '% of total', '#712B13', '#712B13')}
-    </div>
-  `;
+    </div>`;
+
+  const panel = (title, note, inner) => `
+    <div class="bhw-panel">
+      <div class="bhw-panel-h">
+        <span class="bhw-panel-t">${title}</span>
+        ${note ? `<span class="bhw-panel-n">${note}</span>` : ''}
+      </div>
+      ${inner}
+    </div>`;
 
   const legend = `
-    <div style="display:flex; gap:20px; padding:14px 22px; border-bottom:0.5px solid #f0f0f0;">
-      <span style="display:flex; align-items:center; gap:6px; font-size:15px; color:#666;">
-        <span style="width:12px; height:12px; border-radius:2px; background:#378ADD; display:inline-block;"></span> Male
-      </span>
-      <span style="display:flex; align-items:center; gap:6px; font-size:15px; color:#666;">
-        <span style="width:12px; height:12px; border-radius:2px; background:#D4537E; display:inline-block;"></span> Female
-      </span>
-      <span style="margin-left:auto; font-size:13px; color:#bbb;">Click a row to expand residents &amp; download</span>
-    </div>
-  `;
+    <div class="bhw-legend">
+      <span><i style="background:#378ADD;"></i> Male</span>
+      <span><i style="background:#D4537E;"></i> Female</span>
+      <span class="hint">Click a row to expand residents &amp; download</span>
+    </div>`;
 
-  const headCell = (t, w, center) => `<div style="min-width:${w}px; font-size:14px; font-weight:600; color:#888; ${center ? 'text-align:center;' : ''}">${t}</div>`;
+  const gridHead = (labels) => `
+    <div class="bhw-grow bhw-ghead" style="--n:${labels.length - 1};">
+      <span></span>
+      ${labels.map(l => `<span>${l}</span>`).join('')}
+    </div>`;
 
-  // ---- Age group section (Age Statistics page) ----
+  // ---------- Age Statistics page ----------
   const ageRows = ageGroups.map(g => {
     const rt = g.male + g.female;
     const mPct = pct(g.male, rt);
     return dswdGroupRowHTML({
-      key: `age-${g.k}`, label: g.label, labelWidth: 110, statWidth: 90,
+      key: `age-${g.k}`, label: g.label,
       total: rt, totalPct: pct(rt, n), male: g.male, mPct, female: g.female, fPct: rt ? 100 - mPct : 0,
       placeholder: 'Search residents in this age group...',
       filename: `Residents_Age_${g.label.replace(/[^0-9A-Za-z]+/g, '_')}`
     });
   }).join('');
 
-  const ageSection = `
-    <div style="background:#fff; border-radius:12px; border:0.5px solid #e0e0e0; overflow:hidden; margin-bottom:24px;">
-      <div style="display:flex; align-items:center; justify-content:space-between; padding:18px 22px; border-bottom:0.5px solid #e0e0e0;">
-        <span style="font-size:18px; font-weight:600; color:#1a1a1a;">Age group breakdown</span>
-        <span style="font-size:14px; color:#aaa;">5 groups</span>
-      </div>
-      ${legend}
-      <div style="display:flex; align-items:center; padding:12px 22px; gap:22px; background:#f8f9fa; border-bottom:0.5px solid #eee;">
-        <span style="width:13px;"></span>
-        ${headCell('Age', 110)}${headCell('Total', 90)}${headCell('Male', 90)}${headCell('Female', 90)}
-      </div>
-      ${ageRows}
-    </div>
-  `;
+  const ageSection = panel('Age group breakdown', '5 groups',
+    legend + gridHead(['Age', 'Total', 'Male', 'Female']) + ageRows);
 
-  // ---- Age range filter section (Age Statistics page) ----
   const rg = window.dswdUI.range || { minV: '0', minU: 'years', maxV: '120', maxU: 'years' };
   const unitOpts = (sel) => `
     <option value="months" ${sel === 'months' ? 'selected' : ''}>Months</option>
     <option value="years" ${sel === 'years' ? 'selected' : ''}>Years</option>`;
+
   const rangeSection = `
-    <div style="background:#fff; border-radius:12px; border:0.5px solid #e0e0e0; overflow:hidden; margin-bottom:24px;">
-      <div style="display:flex; align-items:center; justify-content:space-between; padding:18px 22px; border-bottom:0.5px solid #e0e0e0;">
-        <span style="font-size:18px; font-weight:600; color:#1a1a1a;">Age range filter</span>
-        <span style="font-size:14px; color:#aaa;">From 1 month old up to any age</span>
+    <div class="bhw-panel">
+      <div class="bhw-panel-h">
+        <span class="bhw-panel-t">Age range filter</span>
+        <span class="bhw-panel-n">From 1 month old up to any age</span>
       </div>
-      <div style="padding:18px 22px; display:flex; align-items:flex-end; gap:16px; flex-wrap:wrap; border-bottom:0.5px solid #f0f0f0; background:#fafbfc;">
+      <div class="bhw-rg-row">
         <div>
-          <label style="display:block; font-size:12px; font-weight:600; color:#888; margin-bottom:6px;">From</label>
-          <div style="display:flex; gap:6px;">
-            <input type="number" id="age-range-min-value" min="0" step="1" value="${dswdEsc(rg.minV)}"
-              style="width:62px; padding:9px 8px; border-radius:8px; border:1px solid #ddd; font-size:14px; margin:0;">
-            <select id="age-range-min-unit" style="padding:9px 10px; border-radius:8px; border:1px solid #ddd; font-size:14px;">${unitOpts(rg.minU)}</select>
+          <label class="bhw-rg-label">From</label>
+          <div class="bhw-rg-pair">
+            <input class="bhw-box" type="number" id="age-range-min-value" min="0" step="1" value="${dswdEsc(rg.minV)}">
+            <select class="bhw-box" id="age-range-min-unit">${unitOpts(rg.minU)}</select>
           </div>
         </div>
         <div>
-          <label style="display:block; font-size:12px; font-weight:600; color:#888; margin-bottom:6px;">To</label>
-          <div style="display:flex; gap:6px;">
-            <input type="number" id="age-range-max-value" min="0" step="1" value="${dswdEsc(rg.maxV)}"
-              style="width:62px; padding:9px 8px; border-radius:8px; border:1px solid #ddd; font-size:14px; margin:0;">
-            <select id="age-range-max-unit" style="padding:9px 10px; border-radius:8px; border:1px solid #ddd; font-size:14px;">${unitOpts(rg.maxU)}</select>
+          <label class="bhw-rg-label">To</label>
+          <div class="bhw-rg-pair">
+            <input class="bhw-box" type="number" id="age-range-max-value" min="0" step="1" value="${dswdEsc(rg.maxV)}">
+            <select class="bhw-box" id="age-range-max-unit">${unitOpts(rg.maxU)}</select>
           </div>
         </div>
-        <button onclick="applyDSWDAgeRangeFilter()"
-          style="padding:11px 24px; background:#8B0000; color:#fff; border:none; border-radius:8px; font-size:14px; font-weight:700; cursor:pointer; white-space:nowrap;">
-          Show Residents
-        </button>
+        <button class="bhw-rg-btn" onclick="applyDSWDAgeRangeFilter()">Show Residents</button>
       </div>
-      <div id="age-range-summary" style="padding:16px 22px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; border-bottom:0.5px solid #f0f0f0;">
+      <div id="age-range-summary" style="padding:14px 20px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; border-bottom:0.5px solid #f0f0f0;">
         <span style="font-size:14px; color:#aaa;">Set a range above and click "Show Residents".</span>
       </div>
-      <div id="age-range-results" style="display:none; padding:16px 22px 20px;">
+      <div id="age-range-results" style="display:none; padding:14px 16px 18px;">
         <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px; flex-wrap:wrap;">
           <input type="text" id="age-range-search" placeholder="Search residents in this range..."
             value="${dswdEsc(window.dswdUI.search['age-custom'] || '')}"
             oninput="filterDSWDGroupResidents(this, 'age-custom')"
-            style="flex:1; min-width:220px; padding:9px 14px; border-radius:8px; border:1px solid #ddd; font-size:14px; margin:0;">
+            style="flex:1; min-width:180px; padding:9px 14px; border-radius:8px; border:1px solid #ddd; margin:0;">
           <button onclick="downloadResidentsCSV('age-custom', 'Residents_Age_Range')"
-            style="padding:9px 18px; background:#8B0000; color:#fff; border:none; border-radius:8px; font-size:14px; font-weight:700; cursor:pointer; white-space:nowrap;">
+            style="padding:9px 18px; background:#8B0000; color:#fff; border:none; border-radius:8px; font-weight:700; cursor:pointer; white-space:nowrap;">
             ⬇ Download CSV
           </button>
         </div>
         <div id="dswd-list-age-custom"></div>
       </div>
-    </div>
-  `;
-
-  // ---- Barangay section (Barangay Statistics page) ----
-  const badge = (v, bg, color) => `
-    <div style="min-width:70px; text-align:center;">
-      <span style="background:${bg}; color:${color}; font-size:15px; font-weight:700; padding:6px 16px; border-radius:99px;">${v}</span>
     </div>`;
 
+  // ---------- Barangay Statistics page ----------
   const bgyRows = trapiches.map(t => {
     const d = bgy[t];
     const mPct = pct(d.male, d.total);
     const safeId = t.replace(/\s+/g, '-');
     return dswdGroupRowHTML({
-      key: `bgy-${safeId}`, label: t, labelWidth: 130, statWidth: 80,
+      key: `bgy-${safeId}`, label: t,
       total: d.total, totalPct: pct(d.total, n), male: d.male, mPct, female: d.female, fPct: d.total ? 100 - mPct : 0,
-      extra: badge(d.pwd, '#FAECE7', '#712B13') + badge(d.senior, '#EAF3DE', '#27500A'),
+      pwd: d.pwd, senior: d.senior,
       placeholder: `Search residents in ${t}...`,
       filename: `Residents_${safeId}`
     });
   }).join('');
 
-  const bgySection = `
-    <div style="background:#fff; border-radius:12px; border:0.5px solid #e0e0e0; overflow:hidden; margin-bottom:24px;">
-      <div style="display:flex; align-items:center; justify-content:space-between; padding:18px 22px; border-bottom:0.5px solid #e0e0e0;">
-        <span style="font-size:18px; font-weight:600; color:#1a1a1a;">Barangay breakdown</span>
-        <span style="font-size:14px; color:#aaa;">4 zones</span>
-      </div>
-      ${legend}
-      <div style="display:flex; align-items:center; padding:12px 22px; gap:22px; background:#f8f9fa; border-bottom:0.5px solid #eee;">
-        <span style="width:13px;"></span>
-        ${headCell('Barangay', 130)}${headCell('Total', 80)}${headCell('Male', 80)}${headCell('Female', 80)}${headCell('PWD', 70, true)}${headCell('Senior', 70, true)}
-      </div>
-      ${bgyRows}
-    </div>
-  `;
+  const bgySection = panel('Barangay breakdown', '4 zones',
+    legend + gridHead(['Barangay', 'Total', 'Male', 'Female', 'PWD', 'Senior']) + bgyRows);
 
-  // ---- Statistic Dashboard (main page): numbers only, no filter, no dropdowns ----
-  const numHead = (labels) => `
-    <div style="display:flex; align-items:center; gap:12px; padding:10px 18px; background:#f8f9fa; border-bottom:0.5px solid #eee;">
-      <span style="flex:1.2; font-size:13px; font-weight:600; color:#888;">${labels[0]}</span>
-      ${labels.slice(1).map(l => `<span style="flex:1; text-align:center; font-size:13px; font-weight:600; color:#888;">${l}</span>`).join('')}
+  // ---------- Statistic Dashboard (numbers only) ----------
+  const tRow = (label, v, head) => `
+    <div class="bhw-trow ${head ? 'bhw-thead' : ''}">
+      <span>${label}</span>
+      ${head
+        ? v.map(x => `<span>${x}</span>`).join('')
+        : `<span style="color:#c0392b;">${v.total.toLocaleString()}</span>
+           <span style="color:#378ADD;">${v.male.toLocaleString()}</span>
+           <span style="color:#D4537E;">${v.female.toLocaleString()}</span>
+           <span style="color:#712B13;">${v.pwd.toLocaleString()}</span>
+           <span style="color:#3B6D11;">${v.senior.toLocaleString()}</span>`}
     </div>`;
-  const numRow = (label, cells) => `
-    <div style="display:flex; align-items:center; gap:12px; padding:11px 18px; border-bottom:0.5px solid #f0f0f0;">
-      <span style="flex:1.2; font-size:15px; font-weight:600; color:#1a1a1a;">${label}</span>
-      ${cells.map(c => `<span style="flex:1; text-align:center; font-size:16px; font-weight:700; color:${c[1]};">${c[0]}</span>`).join('')}
-    </div>`;
-  const numCard = (title, inner) => `
-    <div style="background:#fff; border-radius:12px; border:0.5px solid #e0e0e0; overflow:hidden;">
-      <div style="padding:14px 18px; border-bottom:0.5px solid #e0e0e0;">
-        <span style="font-size:17px; font-weight:600; color:#1a1a1a;">${title}</span>
-      </div>
-      ${inner}
-    </div>`;
+  const heads = ['Total', 'Male', 'Female', 'PWD', 'Senior'];
 
-  const dashHeads = ['Total', 'Male', 'Female', 'PWD', 'Senior'];
-  const dashRow = (label, o) => numRow(label, [
-    [o.total.toLocaleString(), '#c0392b'],
-    [o.male.toLocaleString(), '#378ADD'],
-    [o.female.toLocaleString(), '#D4537E'],
-    [o.pwd.toLocaleString(), '#712B13'],
-    [o.senior.toLocaleString(), '#3B6D11']
-  ]);
+  const dashAge = tRow('Age group', heads, true) +
+    ageGroups.map(g => tRow(g.label, { total: g.male + g.female, male: g.male, female: g.female, pwd: g.pwd, senior: g.senior })).join('');
+  const dashBgy = tRow('Barangay', heads, true) +
+    trapiches.map(t => tRow(t, bgy[t])).join('');
 
-  const dashAge = numHead(['Age group', ...dashHeads]) +
-    ageGroups.map(g => dashRow(g.label, { total: g.male + g.female, male: g.male, female: g.female, pwd: g.pwd, senior: g.senior })).join('');
-
-  const dashBgy = numHead(['Barangay', ...dashHeads]) +
-    trapiches.map(t => dashRow(t, bgy[t])).join('');
-
-  // Percentage panel (right side)
   const pRow = (label, count, color) => {
     const p = pct(count, n);
     return `
-      <div style="margin-bottom:12px;">
-        <div style="display:flex; justify-content:space-between; font-size:14px; margin-bottom:4px;">
-          <span style="font-weight:600; color:#1a1a1a;">${label}</span>
-          <span style="color:#888;">${count.toLocaleString()} &nbsp;·&nbsp; <b style="color:${color};">${p}%</b></span>
+      <div class="bhw-prow">
+        <div class="bhw-prow-top">
+          <span class="l">${label}</span>
+          <span class="r">${count.toLocaleString()} &nbsp;·&nbsp; <b style="color:${color};">${p}%</b></span>
         </div>
-        <div style="height:6px; background:#f0f0f0; border-radius:99px; overflow:hidden;">
-          <div style="width:${p}%; height:100%; background:${color};"></div>
-        </div>
+        <div class="bhw-bar"><div style="width:${p}%; background:${color};"></div></div>
       </div>`;
   };
   const pGroup = (title, rows) => `
-    <div style="padding:14px 18px 4px; border-bottom:0.5px solid #f0f0f0;">
-      <div style="font-size:12px; font-weight:700; color:#9ca3af; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:10px;">${title}</div>
+    <div class="bhw-pgroup">
+      <div class="bhw-pgroup-t">${title}</div>
       ${rows}
     </div>`;
 
-  const dashPercent = numCard('Percentage of residents',
+  const dashPercent = panel('Percentage of residents', '',
     pGroup('Gender', pRow('Male', totalMale, '#378ADD') + pRow('Female', totalFemale, '#D4537E')) +
     pGroup('Special groups', pRow('Senior (60+)', totalSenior, '#3B6D11') + pRow('PWD', totalPWD, '#712B13')) +
     pGroup('Age groups', ageGroups.map(g => pRow(g.label, g.male + g.female, '#c0392b')).join('')) +
     pGroup('Trapiche', trapiches.map(t => pRow(t, bgy[t].total, '#1a3f6c')).join('')));
 
   const dashboardSection = `
-    <div style="display:grid; grid-template-columns:minmax(0,1.5fr) minmax(0,1fr); gap:16px; align-items:start; margin-bottom:24px;">
-      <div style="display:flex; flex-direction:column; gap:16px;">
-        ${numCard('Residents by age group', dashAge)}
-        ${numCard('Residents by Trapiche', dashBgy)}
+    <div class="bhw-dash">
+      <div class="bhw-stack">
+        ${panel('Residents by age group', '', dashAge)}
+        ${panel('Residents by Trapiche', '', dashBgy)}
       </div>
       ${dashPercent}
-    </div>
-  `;
+    </div>`;
 
   const dashTitle = mode === 'all' ? `
-    <div style="margin-bottom:16px;">
-      <div style="font-size:22px; font-weight:700; color:#1a1a1a;">Statistic Dashboard</div>
-      <div style="font-size:14px; color:#9ca3af; margin-top:2px;">Overview of all residents in Barangay Trapiche</div>
-    </div>` : '';
+    <div class="bhw-title">Statistic Dashboard</div>
+    <div class="bhw-sub">Overview of all residents in Barangay Trapiche</div>` : '';
 
   const sections =
-    mode === 'age' ? `<div style="display:grid; grid-template-columns:minmax(0,1.15fr) minmax(0,1fr); gap:20px; align-items:start;">${ageSection}${rangeSection}</div>` :
+    mode === 'age' ? `<div class="bhw-two">${ageSection}${rangeSection}</div>` :
     mode === 'bgy' ? bgySection :
     dashboardSection;
 
   body.innerHTML = `
-    <div style="padding:24px; background:#f5f6fa; min-height:100%;">
+    <div class="bhw-wrap">
       ${dashTitle}
       ${metricCards}
       ${sections}
