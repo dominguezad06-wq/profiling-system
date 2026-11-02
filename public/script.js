@@ -872,7 +872,7 @@ function showMyRequests() {
                     ? `<p>Pick-up Date: ${formatDate(r.date)}</p>
                        <p>Pick-up Time: ${formatTime12Hour(r.time)}</p>`
                     : ''}
-                  ${r.status === 'Rejected' ? `<p style="color:red; margin:0;">Your request was rejected.</p>` : ''}
+                  ${r.status === 'Rejected' ? `<p style="color:red; margin:0;">Your request was rejected.${r.rejection_reason ? ' <strong>Reason:</strong> ' + dswdEsc(r.rejection_reason) : ''}</p>` : ''}
                 </div>
               `;
             }).join('')}
@@ -1629,20 +1629,6 @@ function notifyApproval(email, docType, purpose, date, time) {
     });
 }
 
-function sendRejectionEmail(residentEmail, documentType, purpose) {
-  emailjs.send("service_9m8vyrc", "template_rejection", {
-    to_email: residentEmail,
-    document_type: documentType,
-    purpose: purpose
-  }, "Ndd7_r9gTrjDBG9-K")
-  .then(() => {
-    console.log("Rejection email sent successfully!");
-  })
-  .catch((error) => {
-    console.error("Error sending rejection email:", error);
-  });
-}
-
 function showToast(message, type = 'success', title) {
   const existingOverlay = document.getElementById('toast-overlay');
   if (existingOverlay) existingOverlay.remove();
@@ -1741,50 +1727,65 @@ function approveRequest(username, documentType, date, time) {
   .catch(() => showToast('Server error while approving request.', 'error'));
 }
 
+// Asks the manager for the reason, then rejects. The server saves the reason and emails the resident (via Brevo).
 function rejectRequest(username, documentType, requestId) {
-  showToast('Are you sure you want to reject this request?', 'info');
+  const old = document.getElementById('toast-overlay');
+  if (old) old.remove();
 
-  setTimeout(() => {
-    const overlay = document.getElementById('toast-overlay');
-    if (!overlay) return;
+  const overlay = document.createElement('div');
+  overlay.id = 'toast-overlay';
+  overlay.style.cssText = 'position:fixed; inset:0; z-index:99999; background:rgba(0,0,0,0.45); display:flex; align-items:center; justify-content:center; padding:16px;';
+  overlay.innerHTML = `
+    <div style="background:#fff; border-radius:20px; padding:30px 32px; max-width:460px; width:100%; box-shadow:0 24px 60px rgba(0,0,0,0.2); border-top:4px solid #fca5a5;">
+      <div style="font-size:19px; font-weight:700; color:#1a1a1a; margin-bottom:6px;">Reject this request?</div>
+      <div style="font-size:14px; color:#666; margin-bottom:14px;">Write the reason. The resident will receive it by email.</div>
+      <textarea id="reject-reason" rows="4" maxlength="500"
+        placeholder="e.g. The Gov ID photo is blurry. Please upload a clear copy."
+        style="width:100%; padding:11px 14px; border-radius:10px; border:1.5px solid #e5e7eb; font-size:15px; resize:vertical; margin:0 0 6px;"></textarea>
+      <div id="reject-error" style="display:none; color:#dc2626; font-size:13px; margin-bottom:8px;">Please write a reason.</div>
+      <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:10px;">
+        <button id="cancel-reject-btn" style="padding:11px 24px; border-radius:10px; border:1.5px solid #e5e7eb; background:#fff; color:#374151; font-weight:700; cursor:pointer;">Cancel</button>
+        <button id="confirm-reject-btn" style="padding:11px 24px; border-radius:10px; border:none; background:#dc2626; color:#fff; font-weight:700; cursor:pointer;">Reject &amp; Send Email</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
 
-    const btnRow = document.createElement('div');
-    btnRow.style.cssText = 'display:flex; gap:10px; justify-content:center; margin-top:8px;';
-    btnRow.innerHTML = `
-      <button id="confirm-reject-btn"
-        style="padding:11px 28px; border-radius:10px; border:none; background:#dc2626; color:#fff; font-size:14px; font-weight:700; cursor:pointer;">
-        Yes, Reject
-      </button>
-      <button onclick="document.getElementById('toast-overlay').remove()"
-        style="padding:11px 28px; border-radius:10px; border:1.5px solid #e5e7eb; background:#fff; color:#374151; font-size:14px; font-weight:700; cursor:pointer;">
-        Cancel
-      </button>
-    `;
+  const box = document.getElementById('reject-reason');
+  box.focus();
+  document.getElementById('cancel-reject-btn').onclick = () => overlay.remove();
 
-    const okBtn = overlay.querySelector('button');
-    if (okBtn) okBtn.style.display = 'none';
-    overlay.querySelector('div > div').appendChild(btnRow);
+  const confirmBtn = document.getElementById('confirm-reject-btn');
+  confirmBtn.onclick = () => {
+    const reason = box.value.trim();
+    if (!reason) { document.getElementById('reject-error').style.display = 'block'; box.focus(); return; }
 
-    document.getElementById('confirm-reject-btn').addEventListener('click', () => {
+    confirmBtn.disabled = true;
+    confirmBtn.innerText = 'Rejecting...';
+
+    fetch(`${API_BASE}/api/reject-request`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, documentType, requestId, reason })
+    })
+    .then(res => res.json())
+    .then(data => {
       overlay.remove();
-
-      fetch(`${API_BASE}/api/reject-request`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, documentType, requestId })
-      })
-      .then(res => res.json())
-      .then(data => {
-        if (data.success) {
-          showToast(`Rejected — notification sent to ${data.email}`, 'error');
-          showDocRequests();
+      if (data.success) {
+        if (data.emailSent) {
+          showToast(`Rejected — email sent to ${dswdEsc(data.email)}`, 'error', 'Request Rejected');
         } else {
-          showToast(data.message || 'Failed to reject request.', 'error');
+          showToast(`The request was rejected, but the email could NOT be sent.<br><br><b>Reason:</b> ${dswdEsc(data.emailError || 'Unknown error')}`, 'error', 'Email not sent');
         }
-      })
-      .catch(() => showToast('Server error while rejecting request.', 'error'));
+        showDocRequests();
+      } else {
+        showToast(data.message || 'Failed to reject request.', 'error');
+      }
+    })
+    .catch(() => {
+      overlay.remove();
+      showToast('Server error while rejecting request.', 'error');
     });
-  }, 50);
+  };
 }
 
 /* =======================================================================
