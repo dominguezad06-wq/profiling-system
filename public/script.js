@@ -849,7 +849,7 @@ function showMyRequests() {
         <label>Preferred Pick-up Date:</label>
         <input type="date" id="request-date" style="width:100%; padding:8px; margin-bottom:10px;" min="${new Date().toISOString().split('T')[0]}">
         <label>Preferred Pick-up Time:</label>
-        <input type="time" id="request-time" style="width:100%; padding:8px; margin-bottom:15px;">
+        ${timeWheelHTML()}
         <button onclick="requestDocument()" style="width:100%; padding:10px; background:#1a3f6c; color:white; border:none; border-radius:8px; cursor:pointer;">
           Request
         </button>
@@ -877,6 +877,66 @@ function showMyRequests() {
       </div>
     </div>
   `;
+  initTimeWheels();
+}
+
+// ---- Scrolling time picker: hour 1-12, minute 00-59, AM/PM ----
+function timeWheelHTML() {
+  const col = (id, items) => `
+    <div class="tw-col" id="${id}" data-n="${items.length}">
+      <div class="tw-pad"></div>
+      ${items.map((t, i) => `<div class="tw-item" data-i="${i}">${t}</div>`).join('')}
+      <div class="tw-pad"></div>
+    </div>`;
+  const hours = Array.from({ length: 12 }, (_, i) => String(i + 1));
+  const mins  = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'));
+  return `
+    <div class="tw-wrap">
+      <div class="tw-band"></div>
+      ${col('tw-hour', hours)}
+      <div class="tw-colon">:</div>
+      ${col('tw-min', mins)}
+      ${col('tw-ampm', ['AM', 'PM'])}
+    </div>
+    <input type="hidden" id="request-time" value="08:00">
+    <div id="tw-label" class="tw-label"></div>`;
+}
+
+function initTimeWheels() {
+  const H = 50; // must match .tw-item height in style.css
+  const hc = document.getElementById('tw-hour');
+  const mc = document.getElementById('tw-min');
+  const ac = document.getElementById('tw-ampm');
+  const hidden = document.getElementById('request-time');
+  const label = document.getElementById('tw-label');
+  if (!hc || !mc || !ac || !hidden) return;
+
+  const idx = el => Math.max(0, Math.min(Number(el.dataset.n) - 1, Math.round(el.scrollTop / H)));
+
+  const update = () => {
+    const h12 = idx(hc) + 1;
+    const m = idx(mc);
+    const pm = idx(ac) === 1;
+    const h24 = (h12 % 12) + (pm ? 12 : 0);
+    hidden.value = String(h24).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+    if (label) label.textContent = 'Selected time: ' + h12 + ':' + String(m).padStart(2, '0') + ' ' + (pm ? 'PM' : 'AM');
+    [hc, mc, ac].forEach(c => {
+      const i = idx(c);
+      c.querySelectorAll('.tw-item').forEach(it => it.classList.toggle('sel', Number(it.dataset.i) === i));
+    });
+  };
+
+  [hc, mc, ac].forEach(c => {
+    c.addEventListener('scroll', () => { clearTimeout(c._t); c._t = setTimeout(update, 60); });
+    c.querySelectorAll('.tw-item').forEach(it =>
+      it.addEventListener('click', () => c.scrollTo({ top: Number(it.dataset.i) * H, behavior: 'smooth' })));
+  });
+
+  // default 8:00 AM
+  hc.scrollTop = 7 * H;
+  mc.scrollTop = 0;
+  ac.scrollTop = 0;
+  update();
 }
 
 function showMyProfile() {
@@ -1494,8 +1554,7 @@ function renderManagerRequests(allRequests, filter = 'all') {
       .then(res => res.json())
       .then(data => {
         if (data.success) {
-          sendApprovalEmail(data.email, docType, data.purpose || 'General Requirement', data.date || date, data.time || time);
-          showToast(`Approved — notification sent to ${data.email}`, 'success');
+          notifyApproval(data.email, docType, data.purpose || 'General Requirement', data.date || date, data.time || time);
           showDocRequests();
         } else {
           showToast(data.message || 'Failed to approve request.', 'error');
@@ -1523,20 +1582,43 @@ function renderManagerRequests(allRequests, filter = 'all') {
   });
 }
 
+// Sends the approval email through EmailJS and RETURNS the promise so errors can be shown.
+// Extra recipient names (email, user_email, reply_to) are sent so it works whichever
+// variable your EmailJS template uses in its "To Email" field.
 function sendApprovalEmail(residentEmail, documentType, purpose, date, time) {
-  emailjs.send("service_9m8vyrc", "template_tro0oll", {
+  const prettyDate = formatDate(date);
+  const prettyTime = formatTime12Hour(time);
+  return emailjs.send("service_9m8vyrc", "template_tro0oll", {
     to_email: residentEmail,
+    email: residentEmail,
+    user_email: residentEmail,
+    reply_to: residentEmail,
+    to_name: 'Resident',
+    name: 'Resident',
     document_type: documentType,
     purpose: purpose,
-    date: formatDate(date),
-    time: formatTime12Hour(time)
-  }, "Ndd7_r9gTrjDBG9-K")
-  .then(() => {
-    console.log("Email sent successfully!");
-  })
-  .catch((error) => {
-    console.error("Error sending email:", error);
-  });
+    date: prettyDate,
+    time: prettyTime,
+    pickup_date: prettyDate,
+    pickup_time: prettyTime,
+    message: `Your ${documentType} request has been approved. Please pick it up on ${prettyDate} at ${prettyTime}.`
+  }, "Ndd7_r9gTrjDBG9-K");
+}
+
+// Sends the email, then tells the manager the TRUE result (sent or the real error)
+function notifyApproval(email, docType, purpose, date, time) {
+  if (!email) {
+    showToast('The request was approved, but this resident has no email address on file, so no email was sent.', 'error', 'Email not sent');
+    return;
+  }
+  sendApprovalEmail(email, docType, purpose, date, time)
+    .then(() => showToast(`Approved — email sent to ${dswdEsc(email)}`, 'success'))
+    .catch(err => {
+      console.error('EmailJS approval error:', err);
+      const reason = dswdEsc((err && (err.text || err.message)) || 'Unknown error');
+      const status = err && err.status ? ` (code ${err.status})` : '';
+      showToast(`The request was approved, but the email to ${dswdEsc(email)} could NOT be sent.<br><br><b>Reason${status}:</b> ${reason}`, 'error', 'Email not sent');
+    });
 }
 
 function sendRejectionEmail(residentEmail, documentType, purpose) {
@@ -1553,7 +1635,7 @@ function sendRejectionEmail(residentEmail, documentType, purpose) {
   });
 }
 
-function showToast(message, type = 'success') {
+function showToast(message, type = 'success', title) {
   const existingOverlay = document.getElementById('toast-overlay');
   if (existingOverlay) existingOverlay.remove();
 
@@ -1590,7 +1672,7 @@ function showToast(message, type = 'success') {
         border: 2px solid ${c.border};
       ">${c.icon}</div>
       <div style="font-size: 18px; font-weight: 700; color: #1a1a1a; margin-bottom: 8px;">
-        ${type === 'success' ? 'Request Approved' : type === 'error' ? 'Request Rejected' : 'Notice'}
+        ${title || (type === 'success' ? 'Request Approved' : type === 'error' ? 'Request Rejected' : 'Notice')}
       </div>
       <div style="font-size: 14px; color: #555; line-height: 1.6; margin-bottom: 24px;">
         ${message}
@@ -1642,8 +1724,7 @@ function approveRequest(username, documentType, date, time) {
       const purpose = data.purpose || 'General Requirement';
       const finalDate = data.date || date;
       const finalTime = data.time || time;
-      sendApprovalEmail(residentEmail, documentType, purpose, finalDate, finalTime);
-      showToast(`Approved — notification sent to ${residentEmail}`, 'success');
+      notifyApproval(residentEmail, documentType, purpose, finalDate, finalTime);
       showDocRequests();
     } else {
       showToast(data.message || 'Failed to approve request.', 'error');
@@ -2195,6 +2276,7 @@ function renderDSWDStats(residents, mode) {
   const dashboardSection = `
     <div class="bhw-dash">
       <div class="bhw-stack">
+        ${metricCards}
         ${panel('Residents by age group', '', dashAge)}
         ${panel('Residents by Trapiche', '', dashBgy)}
       </div>
@@ -2213,7 +2295,7 @@ function renderDSWDStats(residents, mode) {
   body.innerHTML = `
     <div class="bhw-wrap">
       ${dashTitle}
-      ${metricCards}
+      ${mode === 'all' ? '' : metricCards}
       ${sections}
     </div>
   `;
@@ -2325,15 +2407,13 @@ function openResidentDetail(key) {
   if (extraRows.length) sections.push({ title: '📋 Other Details (PhilHealth & more)', color: '#6b7280', rows: extraRows });
 
   const sectionHTML = s => `
-    <div style="background:#fff; border-radius:16px; border:1px solid #ebebeb; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
-      <div style="padding:12px 18px; border-bottom:1px solid #f0f0f0; background:#fafafa;">
-        <div style="font-size:14px; font-weight:700; color:${s.color};">${s.title}</div>
-      </div>
-      <div style="padding:12px 18px; display:flex; flex-direction:column; gap:9px;">
+    <div class="rd-sec">
+      <div class="rd-sec-h" style="color:${s.color};">${s.title}</div>
+      <div class="rd-body">
         ${s.rows.map(row => `
-          <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px;">
-            <span style="font-size:12px; color:#999; font-weight:500; text-transform:uppercase; letter-spacing:0.4px; min-width:130px; padding-top:1px;">${row[0]}</span>
-            <span style="font-size:14px; color:#1a1a1a; font-weight:500; text-align:right; word-break:break-word;">${row[1]}</span>
+          <div class="rd-row">
+            <span class="rd-l">${row[0]}</span>
+            <span class="rd-v">${row[1]}</span>
           </div>`).join('')}
       </div>
     </div>`;
@@ -2351,20 +2431,16 @@ function openResidentDetail(key) {
     const mates = dswdResidents.filter(x => x.family_code && x.family_code === r.family_code && dswdKey(x) !== key);
     if (mates.length) {
       familyHTML = `
-        <div style="background:#fff; border-radius:16px; border:1px solid #ebebeb; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.04); margin-top:14px;">
-          <div style="padding:12px 18px; border-bottom:1px solid #f0f0f0; background:#fafafa;">
-            <div style="font-size:14px; font-weight:700; color:#1a3f6c;">👪 Other Family Members (${mates.length})</div>
-          </div>
-          <div style="padding:14px 18px; display:flex; flex-direction:column; gap:6px;">
+        <div class="rd-sec rd-fam">
+          <div class="rd-sec-h" style="color:#1a3f6c;">👪 Other Family Members (${mates.length})</div>
+          <div class="rd-body">
             ${mates.map(m => `
-              <div onclick="openResidentDetail('${dswdKey(m)}')"
-                style="display:flex; align-items:center; justify-content:space-between; padding:10px 14px; border-radius:9px; border:0.5px solid #eee; cursor:pointer; background:#fff;"
-                onmouseover="this.style.background='#f4f7ff'" onmouseout="this.style.background='#fff'">
+              <div class="rd-mate" onclick="openResidentDetail('${dswdKey(m)}')">
                 <div>
-                  <div style="font-size:14px; font-weight:600; color:#1a1a1a;">${dswdEsc(m.name || m.username)}</div>
-                  <div style="font-size:12px; color:#888; margin-top:2px;">${dswdEsc(m.household_role || '—')} &nbsp;·&nbsp; Age ${dswdEsc(m.age ?? '—')} &nbsp;·&nbsp; ${dswdEsc(m.gender || '—')}</div>
+                  <div class="rd-mate-n">${dswdEsc(m.name || m.username)}</div>
+                  <div class="rd-mate-s">${dswdEsc(m.household_role || '—')} &nbsp;·&nbsp; Age ${dswdEsc(m.age ?? '—')} &nbsp;·&nbsp; ${dswdEsc(m.gender || '—')}</div>
                 </div>
-                <span style="font-size:13px; color:#bbb;">View →</span>
+                <span class="rd-mate-v">View →</span>
               </div>`).join('')}
           </div>
         </div>`;
@@ -2372,30 +2448,25 @@ function openResidentDetail(key) {
   }
 
   body.innerHTML = `
-    <div style="padding:24px; background:#f5f6fa; min-height:100%; box-sizing:border-box;">
-      <button onclick="backToDSWDList()"
-        style="margin-bottom:16px; padding:9px 18px; background:#1a3f6c; color:#fff; border:none; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer;">
-        ← Back
-      </button>
+    <div class="rd-wrap">
+      <button class="rd-back" onclick="backToDSWDList()">← Back</button>
 
-      <div style="background:#8B0000; border-radius:16px; padding:22px 26px; margin-bottom:16px; display:flex; align-items:center; gap:20px; box-shadow:0 8px 32px rgba(139,0,0,0.2);">
+      <div class="rd-banner">
         ${avatar}
-        <div style="color:#fff; min-width:0;">
-          <div style="font-size:24px; font-weight:700; word-break:break-word;">${dswdEsc(fullName)}</div>
-          <div style="font-size:13px; color:rgba(255,255,255,0.8); margin-top:4px;">
-            ${dswdEsc(r.barangay || '—')} &nbsp;·&nbsp; Age ${dswdEsc(r.age ?? '—')} &nbsp;·&nbsp; ${dswdEsc(r.gender || '—')}
-          </div>
-          <div style="margin-top:10px; display:flex; gap:8px;">
-            ${dswdYes(r.pwd) ? `<span style="background:#FAECE7; color:#712B13; font-size:12px; font-weight:600; padding:4px 12px; border-radius:99px;">PWD</span>` : ''}
-            ${dswdIsSenior(r) ? `<span style="background:#EAF3DE; color:#27500A; font-size:12px; font-weight:600; padding:4px 12px; border-radius:99px;">Senior</span>` : ''}
+        <div style="min-width:0;">
+          <div class="rd-name">${dswdEsc(fullName)}</div>
+          <div class="rd-meta">${dswdEsc(r.barangay || '—')} &nbsp;·&nbsp; Age ${dswdEsc(r.age ?? '—')} &nbsp;·&nbsp; ${dswdEsc(r.gender || '—')}</div>
+          <div class="rd-tags">
+            ${dswdYes(r.pwd) ? `<span class="rd-tag" style="background:#FAECE7; color:#712B13;">PWD</span>` : ''}
+            ${dswdIsSenior(r) ? `<span class="rd-tag" style="background:#EAF3DE; color:#27500A;">Senior</span>` : ''}
           </div>
         </div>
       </div>
 
-      <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(340px,1fr)); gap:14px; align-items:start;">
+      <div class="rd-grid">
         ${sections.map(sectionHTML).join('')}
       </div>
-      ${familyHTML}
+      ${familyHTML ? `<div class="rd-famwrap">${familyHTML}</div>` : ''}
     </div>
   `;
   body.scrollTop = 0;
