@@ -1655,6 +1655,11 @@ span[style*="color:white; font-weight:700; font-size:17px"] {
 .bhw-stack { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
 .bhw-two { display: grid; grid-template-columns: minmax(0,1.15fr) minmax(0,1fr); gap: 20px; align-items: start; }
 
+/* Statistic Dashboard: the cards sit in the left column, so the Percentage panel starts at the same level */
+.bhw-dash .bhw-cards { display: grid; grid-template-columns: repeat(5, minmax(0,1fr)); gap: 10px; margin-bottom: 0; }
+.bhw-dash .bhw-card { width: auto; padding: 12px 14px; }
+@media (max-width: 1100px) { .bhw-dash .bhw-cards { grid-template-columns: repeat(3, minmax(0,1fr)); } }
+
 /* panels */
 .bhw-panel { background: #fff; border-radius: 12px; border: .5px solid #e0e0e0; overflow: hidden; margin-bottom: 0; }
 .bhw-two .bhw-panel, .bhw-wrap > .bhw-panel { margin-bottom: 24px; }
@@ -1741,6 +1746,7 @@ span[style*="color:white; font-weight:700; font-size:17px"] {
   .bhw-sub { font-size: 13px; margin-bottom: 12px; }
 
   .bhw-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+  .bhw-dash .bhw-cards { grid-template-columns: 1fr 1fr; gap: 8px; }
   .bhw-card { width: auto; padding: 9px 12px; border-radius: 10px; }
   .bhw-card-label { font-size: 12px; margin-bottom: 1px; }
   .bhw-card-value { font-size: 22px; }
@@ -1776,4 +1782,62 @@ span[style*="color:white; font-weight:700; font-size:17px"] {
   .bhw-rg-btn { width: 100%; height: 40px; }
 
   #dswd-page #dashboard-body { padding: 0 !important; }
+}
+
+
+/* =====================================================
+   SCROLLING TIME PICKER (My Requests)
+===================================================== */
+.tw-wrap { position: relative; display: flex; align-items: stretch; justify-content: center; height: 150px; background: #fff; border: 1px solid #ccc; border-radius: 10px; overflow: hidden; margin-bottom: 6px; }
+.tw-band { position: absolute; left: 0; right: 0; top: 50px; height: 50px; background: rgba(139,0,0,.08); border-top: 2px solid #8B0000; border-bottom: 2px solid #8B0000; pointer-events: none; }
+.tw-col { flex: 1; overflow-y: auto; scroll-snap-type: y mandatory; scrollbar-width: none; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
+.tw-col::-webkit-scrollbar { display: none; }
+.tw-pad { height: 50px; }
+.tw-item { height: 50px; line-height: 50px; text-align: center; font-size: 22px; color: #9aa0a6; scroll-snap-align: center; cursor: pointer; user-select: none; }
+.tw-item.sel { color: #8B0000; font-weight: 700; }
+.tw-colon { display: flex; align-items: center; font-size: 24px; font-weight: 700; color: #8B0000; padding: 0 2px; z-index: 1; }
+.tw-label { font-size: 13px; color: #555; margin-bottom: 14px; text-align: center; }
+
+/* =====================================================
+   RESIDENT DETAILS PAGE (BHW)
+===================================================== */
+.rd-wrap { padding: 24px; background: #f5f6fa; min-height: 100%; box-sizing: border-box; }
+.rd-back { margin-bottom: 16px; padding: 9px 18px; background: #1a3f6c; color: #fff; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; }
+.rd-banner { background: #8B0000; border-radius: 16px; padding: 22px 26px; margin-bottom: 16px; display: flex; align-items: center; gap: 20px; box-shadow: 0 8px 32px rgba(139,0,0,.2); }
+.rd-name { font-size: 24px; font-weight: 700; color: #fff; word-break: break-word; }
+.rd-meta { font-size: 13px; color: rgba(255,255,255,.85); margin-top: 4px; }
+.rd-tags { margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap; }
+.rd-tag { font-size: 12px; font-weight: 600; padding: 4px 12px; border-radius: 99px; }
+.rd-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 14px; align-items: start; }
+.rd-sec { background: #fff; border-radius: 16px; border: 1px solid #ebebeb; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,.04); }
+.rd-sec-h { padding: 12px 18px; border-bottom: 1px solid #f0f0f0; background: #fafafa; font-size: 14px; font-weight: 700; }
+.rd-body { padding: 6px 18px; }
+.rd-row { display: flex; justify-content: space-between; gap: 12px; padding: 9px 0; border-bottom: 1px solid #f3f4f6; }
+.rd-row:last-child { border-bottom: none; }
+.rd-l { flex: 0 0 42%; font-size: 12px; color: #999; font-weight: 500; text-transform: uppercase; letter-spacing: .4px; padding-top: 2px; }
+.rd-v { flex: 1; min-width: 0; font-size: 14px; color: #1a1a1a; font-weight: 500; text-align: right; word-break: break-word; }
+.rd-famwrap { margin-top: 14px; }
+.rd-mate { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 0; border-bottom: 1px solid #f3f4f6; cursor: pointer; }
+.rd-mate:last-child { border-bottom: none; }
+.rd-mate-n { font-size: 14px; font-weight: 600; color: #1a1a1a; }
+.rd-mate-s { font-size: 12px; color: #888; margin-top: 2px; }
+.rd-mate-v { font-size: 13px; color: #bbb; white-space: nowrap; }
+
+@media (max-width: 768px) {
+  /* flat, casual list: no boxes, one column, small clean text */
+  .rd-wrap { padding: 12px; }
+  .rd-banner { padding: 14px 16px; gap: 14px; border-radius: 12px; margin-bottom: 8px; }
+  .rd-name { font-size: 19px; }
+  .rd-meta { font-size: 12px; }
+  #dswd-detail-avatar > * { width: 64px !important; height: 64px !important; font-size: 26px !important; }
+  .rd-grid { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .rd-sec { background: transparent; border: none; border-radius: 0; box-shadow: none; overflow: visible; margin-top: 10px; }
+  .rd-sec-h { background: transparent; padding: 10px 0 6px; border-bottom: 2px solid #8B0000; font-size: 14px; }
+  .rd-body { padding: 0; }
+  .rd-row { padding: 8px 0; }
+  .rd-l { flex-basis: 40%; font-size: 11px; }
+  .rd-v { font-size: 13px; }
+  .rd-famwrap { margin-top: 0; }
+  .rd-mate-n { font-size: 13px; }
+  .rd-mate-s { font-size: 11px; }
 }
