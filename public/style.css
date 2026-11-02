@@ -1635,3 +1635,145 @@ span[style*="color:white; font-weight:700; font-size:17px"] {
 #dswd-header-datetime {
   font-size: 15px !important;
 }
+
+/* =====================================================
+   BHW DASHBOARD - responsive (laptop + phone)
+===================================================== */
+.bhw-wrap { padding: 24px; background: #f5f6fa; min-height: 100%; }
+.bhw-title { font-size: 28px; font-weight: 700; color: #1a1a1a; }
+.bhw-sub { font-size: 16px; color: #9ca3af; margin: 2px 0 18px; }
+
+/* summary cards: bigger, but only as wide as they need */
+.bhw-cards { display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 22px; }
+.bhw-card { background: #fff; border-radius: 12px; border: .5px solid #e0e0e0; padding: 14px 18px; width: 195px; }
+.bhw-card-label { font-size: 15px; margin-bottom: 4px; }
+.bhw-card-value { font-size: 32px; font-weight: 700; line-height: 1.15; }
+.bhw-card-sub { font-size: 14px; margin-top: 3px; }
+
+/* layout grids */
+.bhw-dash { display: grid; grid-template-columns: minmax(0,1.5fr) minmax(0,1fr); gap: 18px; align-items: start; margin-bottom: 24px; }
+.bhw-stack { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+.bhw-two { display: grid; grid-template-columns: minmax(0,1.15fr) minmax(0,1fr); gap: 20px; align-items: start; }
+
+/* panels */
+.bhw-panel { background: #fff; border-radius: 12px; border: .5px solid #e0e0e0; overflow: hidden; margin-bottom: 0; }
+.bhw-two .bhw-panel, .bhw-wrap > .bhw-panel { margin-bottom: 24px; }
+.bhw-panel-h { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 16px 20px; border-bottom: .5px solid #e0e0e0; }
+.bhw-panel-t { font-size: 19px; font-weight: 600; color: #1a1a1a; }
+.bhw-panel-n { font-size: 14px; color: #aaa; }
+
+/* number tables (dashboard) */
+.bhw-trow { display: grid; grid-template-columns: minmax(0,1.4fr) repeat(5, minmax(0,1fr)); gap: 8px; align-items: center; padding: 12px 20px; border-bottom: .5px solid #f0f0f0; }
+.bhw-trow > span { text-align: center; font-size: 17px; font-weight: 700; min-width: 0; }
+.bhw-trow > span:first-child { text-align: left; font-size: 16px; font-weight: 600; color: #1a1a1a; }
+.bhw-thead { background: #f8f9fa; border-bottom: .5px solid #eee; }
+.bhw-thead > span, .bhw-thead > span:first-child { font-size: 13px !important; font-weight: 600 !important; color: #888 !important; }
+
+/* percentage panel */
+.bhw-pgroup { padding: 14px 20px 6px; border-bottom: .5px solid #f0f0f0; }
+.bhw-pgroup-t { font-size: 12px; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 10px; }
+.bhw-prow { margin-bottom: 12px; }
+.bhw-prow-top { display: flex; justify-content: space-between; gap: 8px; font-size: 15px; margin-bottom: 4px; }
+.bhw-prow-top b { font-weight: 700; }
+.bhw-prow-top .l { font-weight: 600; color: #1a1a1a; }
+.bhw-prow-top .r { color: #888; white-space: nowrap; }
+.bhw-bar { height: 6px; background: #f0f0f0; border-radius: 99px; overflow: hidden; }
+.bhw-bar > div { height: 100%; }
+
+/* legend */
+.bhw-legend { display: flex; flex-wrap: wrap; gap: 8px 18px; padding: 12px 20px; border-bottom: .5px solid #f0f0f0; align-items: center; }
+.bhw-legend span { display: flex; align-items: center; gap: 6px; font-size: 15px; color: #666; }
+.bhw-legend i { width: 12px; height: 12px; border-radius: 2px; display: inline-block; }
+.bhw-legend .hint { margin-left: auto; font-size: 13px; color: #bbb; }
+
+/* expandable group rows (Age / Barangay pages) */
+.bhw-grow { display: grid; grid-template-columns: 16px minmax(70px,1.2fr) repeat(var(--n,3), minmax(0,1fr)); gap: 12px; align-items: center; padding: 16px 20px; cursor: pointer; background: #fff; transition: background .15s; }
+.bhw-grow:hover { background: #fafcff; }
+.bhw-ghead { background: #f8f9fa; cursor: default; border-bottom: .5px solid #eee; padding: 11px 20px; }
+.bhw-ghead:hover { background: #f8f9fa; }
+.bhw-ghead > span { font-size: 14px; font-weight: 600; color: #888; }
+.bhw-chev { display: inline-block; font-size: 13px; color: #bbb; transition: transform .2s; }
+.bhw-glabel { font-size: 18px; font-weight: 600; color: #1a1a1a; min-width: 0; }
+.bhw-stat { display: flex; flex-direction: column; min-width: 0; }
+.bhw-num { font-size: 21px; font-weight: 700; line-height: 1.1; }
+.bhw-pct { font-size: 13px; color: #a4a4a4; font-weight: 600; margin-top: 2px; }
+
+/* age range filter: From / To number boxes are the same size as the Months/Years box */
+.bhw-rg-row { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-end; padding: 18px 20px; background: #fafbfc; border-bottom: .5px solid #f0f0f0; }
+.bhw-rg-label { display: block; font-size: 12px; font-weight: 600; color: #888; margin-bottom: 6px; }
+.bhw-rg-pair { display: flex; gap: 8px; }
+#dashboard-body .bhw-box { width: 100px !important; height: 42px; margin: 0 !important; padding: 0 10px !important; box-sizing: border-box; border-radius: 8px; border: 1px solid #ddd; font-size: 14px !important; }
+.bhw-rg-btn { height: 42px; padding: 0 22px; background: #8B0000; color: #fff; border: none; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+
+/* resident rows inside dropdowns wrap instead of overflowing */
+#dashboard-body div[onclick^="openResidentDetail"] { flex-wrap: wrap; gap: 6px; }
+
+/* =====================================================
+   PHONE
+===================================================== */
+@media (max-width: 768px) {
+  /* general text sizes (cancels the huge desktop sizes) */
+  body { font-size: 14px !important; }
+  input, select, textarea { font-size: 14px !important; }
+  button { font-size: 13px !important; }
+  label { font-size: 13px !important; }
+
+  /* top header: smaller title so it doesn't wrap into the menu */
+  span[style*="color:white; font-weight:700; font-size:17px"],
+  span[style*="color:white; font-weight:600; font-size:15px"] { font-size: 13px !important; line-height: 1.2; }
+  #header-name, #manager-header-name, #dswd-header-name { font-size: 13px !important; font-weight: 700 !important; }
+  #header-role { font-size: 10px !important; }
+
+  /* sidebar pills */
+  .sidebar ul li a { font-size: 13px !important; font-weight: 600 !important; padding: 8px 12px !important; }
+  .sidebar ul li a span:first-child, .sidebar ul li a span { font-size: 15px !important; }
+  div[style*="font-size:14px; font-weight:600; color:white"] { font-size: 14px !important; font-weight: 700 !important; }
+
+  /* resident dashboard big numbers */
+  div[style*="font-size:22px; font-weight:700"] { font-size: 20px !important; font-weight: 700 !important; }
+  div[style*="font-size:22px; font-weight:700; color:#fff"] { font-size: 22px !important; }
+  div[style*="font-size:11px; color:#999; font-weight:600; text-transform:uppercase"] { font-size: 11px !important; letter-spacing: .4px !important; }
+  div[style*="font-size:16px; font-weight:700; color:#1a1a1a"] { font-size: 14px !important; }
+
+  /* BHW dashboard */
+  .bhw-wrap { padding: 10px; }
+  .bhw-title { font-size: 21px; }
+  .bhw-sub { font-size: 13px; margin-bottom: 12px; }
+
+  .bhw-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+  .bhw-card { width: auto; padding: 9px 12px; border-radius: 10px; }
+  .bhw-card-label { font-size: 12px; margin-bottom: 1px; }
+  .bhw-card-value { font-size: 22px; }
+  .bhw-card-sub { font-size: 11px; }
+
+  .bhw-dash, .bhw-two { grid-template-columns: minmax(0,1fr); gap: 12px; }
+  .bhw-stack { gap: 12px; }
+  .bhw-panel-h { padding: 12px 14px; }
+  .bhw-panel-t { font-size: 15px; }
+  .bhw-panel-n { font-size: 12px; }
+
+  .bhw-trow { padding: 10px 12px; gap: 4px; }
+  .bhw-trow > span { font-size: 14px; }
+  .bhw-trow > span:first-child { font-size: 13px; }
+  .bhw-thead > span, .bhw-thead > span:first-child { font-size: 11px !important; }
+
+  .bhw-pgroup { padding: 12px 14px 4px; }
+  .bhw-prow-top { font-size: 13px; }
+
+  .bhw-legend { padding: 10px 14px; }
+  .bhw-legend span { font-size: 13px; }
+  .bhw-legend .hint { margin-left: 0; width: 100%; font-size: 12px; }
+
+  .bhw-grow { padding: 12px 12px; gap: 6px; grid-template-columns: 12px minmax(52px,1.3fr) repeat(var(--n,3), minmax(0,1fr)); }
+  .bhw-ghead { padding: 9px 12px; }
+  .bhw-ghead > span { font-size: 11px; }
+  .bhw-glabel { font-size: 14px; }
+  .bhw-num { font-size: 16px; }
+  .bhw-pct { font-size: 11px; }
+
+  .bhw-rg-row { padding: 14px; gap: 12px; }
+  #dashboard-body .bhw-box { width: 90px !important; height: 40px; }
+  .bhw-rg-btn { width: 100%; height: 40px; }
+
+  #dswd-page #dashboard-body { padding: 0 !important; }
+}
