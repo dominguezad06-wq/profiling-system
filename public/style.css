@@ -1788,7 +1788,7 @@ span[style*="color:white; font-weight:700; font-size:17px"] {
 /* =====================================================
    SCROLLING TIME PICKER (My Requests)
 ===================================================== */
-.tw-wrap { position: relative; display: flex; align-items: stretch; justify-content: center; height: 150px; background: #fff; border: 1px solid #ccc; border-radius: 10px; overflow: hidden; margin-bottom: 6px; }
+.tw-wrap { position: relative; max-width: 300px; display: flex; align-items: stretch; justify-content: center; height: 150px; background: #fff; border: 1px solid #ccc; border-radius: 10px; overflow: hidden; margin-bottom: 6px; }
 .tw-band { position: absolute; left: 0; right: 0; top: 50px; height: 50px; background: rgba(139,0,0,.08); border-top: 2px solid #8B0000; border-bottom: 2px solid #8B0000; pointer-events: none; }
 .tw-col { flex: 1; overflow-y: auto; scroll-snap-type: y mandatory; scrollbar-width: none; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
 .tw-col::-webkit-scrollbar { display: none; }
@@ -1840,4 +1840,24 @@ span[style*="color:white; font-weight:700; font-size:17px"] {
   .rd-famwrap { margin-top: 0; }
   .rd-mate-n { font-size: 13px; }
   .rd-mate-s { font-size: 11px; }
+}
+
+
+/* =====================================================
+   PHONE: let the whole page scroll so the Request button can be reached
+===================================================== */
+@media (max-width: 768px) {
+  #dashboard-page { height: auto !important; min-height: 100vh; overflow: visible !important; }
+  #dashboard-page #dashboard-content { height: auto !important; overflow: visible !important; }
+  #dashboard-page #dashboard-body { height: auto !important; min-height: 0 !important; overflow: visible !important; padding-bottom: 90px !important; }
+  #manager-page .main-content { height: auto !important; overflow: visible !important; padding-bottom: 90px !important; }
+}
+
+
+/* Manager request cards: stack into one column on phones */
+@media (max-width: 768px) {
+  #manager-table div[style*="grid-template-columns:1fr 230px 1fr"] { grid-template-columns: minmax(0, 1fr) !important; min-height: 0 !important; }
+  #manager-table div[style*="grid-template-columns:1fr 230px 1fr"] > div { border-right: none !important; border-bottom: 1px solid #f3f4f6; }
+  #manager-table div[style*="padding:24px 32px; background:#f5f6fa"] { padding: 12px !important; }
+  #manager-table div[style*="padding:24px 32px 20px"] { padding: 16px !important; }
 }
