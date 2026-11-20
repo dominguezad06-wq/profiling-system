@@ -2126,6 +2126,43 @@ function renderDSWDStats(residents, mode) {
   ageGroups.forEach(g => { window.dswdGroupData[`age-${g.k}`] = g.residents; });
   trapiches.forEach(t => { window.dswdGroupData[`bgy-${t.replace(/\s+/g, '-')}`] = bgy[t].residents; });
 
+  // ---------- Households, families and extended families ----------
+  // Family = one family_code. Household = one house (same address in the same Trapiche).
+  // Several families in one house count as ONE household; the extra families are "extended".
+  const normAddr = a => String(a || '').toLowerCase().replace(/[.,#;]/g, ' ').replace(/\s+/g, ' ').trim();
+  const famMap = {};
+  residents.forEach(r => {
+    const fk = r.family_code ? 'fc_' + r.family_code : 'solo_' + (r.id !== undefined && r.id !== null ? r.id : r.username);
+    const f = famMap[fk] || (famMap[fk] = { barangay: r.barangay, head: '', first: '', addr: '', headAddr: '' });
+    const isHeadRow = r.is_head === true || r.is_head === 'Yes' || r.is_head === 'true' || r.is_head === 't';
+    if (!f.first) f.first = r.name || r.username || '';
+    if (isHeadRow) { f.head = r.name || r.username || ''; f.barangay = r.barangay || f.barangay; }
+    if (r.address && String(r.address).trim()) {
+      if (!f.addr) f.addr = String(r.address).trim();
+      if (isHeadRow) f.headAddr = String(r.address).trim();
+    }
+  });
+  const hh = {};
+  trapiches.forEach(t => { hh[t] = { households: 0, families: 0, extended: 0, noAddr: 0, multi: [] }; });
+  const houseMap = {};
+  Object.keys(famMap).forEach(fk => {
+    const f = famMap[fk];
+    if (!hh[f.barangay]) return;
+    const addr = f.headAddr || f.addr;
+    const key = normAddr(addr) ? f.barangay + '|' + normAddr(addr) : f.barangay + '|noaddr|' + fk;
+    if (!normAddr(addr)) hh[f.barangay].noAddr++;
+    (houseMap[key] = houseMap[key] || { barangay: f.barangay, address: addr, heads: [] }).heads.push(f.head || f.first || 'Unnamed');
+  });
+  Object.keys(houseMap).forEach(k => {
+    const h = houseMap[k], d = hh[h.barangay];
+    d.households++;
+    d.families += h.heads.length;
+    d.extended += h.heads.length - 1;
+    if (h.heads.length > 1) d.multi.push(h);
+  });
+  const hhTotal = { households: 0, families: 0, extended: 0, noAddr: 0 };
+  trapiches.forEach(t => { ['households', 'families', 'extended', 'noAddr'].forEach(k => { hhTotal[k] += hh[t][k]; }); });
+
   // ---------- summary cards ----------
   const metricCard = (label, value, sub, color, labelColor) => `
     <div class="bhw-card">
@@ -2141,6 +2178,9 @@ function renderDSWDStats(residents, mode) {
       ${metricCard('Female', totalFemale.toLocaleString(), pct(totalFemale, n) + '% of total', '#993556', '#993556')}
       ${metricCard('Senior (60+)', totalSenior.toLocaleString(), pct(totalSenior, n) + '% of total', '#3B6D11', '#3B6D11')}
       ${metricCard('PWD', totalPWD.toLocaleString(), pct(totalPWD, n) + '% of total', '#712B13', '#712B13')}
+      ${metricCard('Households', hhTotal.households.toLocaleString(), 'each house counted once', '#1a3f6c', '#1a3f6c')}
+      ${metricCard('Families', hhTotal.families.toLocaleString(), 'all families', '#8B0000', '#8B0000')}
+      ${metricCard('Extended families', hhTotal.extended.toLocaleString(), 'extra families in a house', '#6b21a8', '#6b21a8')}
     </div>`;
 
   const panel = (title, note, inner) => `
@@ -2285,12 +2325,49 @@ function renderDSWDStats(residents, mode) {
     pGroup('Age groups', ageGroups.map(g => pRow(g.label, g.residents.length, '#c0392b')).join('')) +
     pGroup('Trapiche', trapiches.map(t => pRow(t, bgy[t].total, '#1a3f6c')).join('')));
 
+  const hhHead = `
+    <div style="display:flex; align-items:center; gap:12px; padding:10px 18px; background:#f8f9fa; border-bottom:0.5px solid #eee;">
+      <span style="flex:1.2; font-size:13px; font-weight:600; color:#888;">Barangay</span>
+      <span style="flex:1; text-align:center; font-size:13px; font-weight:600; color:#888;">Households</span>
+      <span style="flex:1; text-align:center; font-size:13px; font-weight:600; color:#888;">Families</span>
+      <span style="flex:1; text-align:center; font-size:13px; font-weight:600; color:#888;">Extended</span>
+    </div>`;
+  const hhRow = (label, d, total) => `
+    <div style="display:flex; align-items:center; gap:12px; padding:11px 18px; border-bottom:0.5px solid #f0f0f0; ${total ? 'background:#f8f9fa;' : ''}">
+      <span style="flex:1.2; font-size:15px; font-weight:${total ? 700 : 600}; color:#1a1a1a;">${label}</span>
+      <span style="flex:1; text-align:center; font-size:16px; font-weight:700; color:#1a3f6c;">${d.households.toLocaleString()}</span>
+      <span style="flex:1; text-align:center; font-size:16px; font-weight:700; color:#8B0000;">${d.families.toLocaleString()}</span>
+      <span style="flex:1; text-align:center; font-size:16px; font-weight:700; color:#6b21a8;">${d.extended.toLocaleString()}</span>
+    </div>`;
+  const multiList = [];
+  trapiches.forEach(t => hh[t].multi.forEach(m => multiList.push(m)));
+  const multiHTML = multiList.length
+    ? `<details style="padding:12px 18px; border-bottom:0.5px solid #f0f0f0;">
+        <summary style="cursor:pointer; font-size:14px; font-weight:600; color:#8B0000;">View ${multiList.length} house${multiList.length !== 1 ? 's' : ''} with more than one family</summary>
+        <div style="margin-top:8px;">
+          ${multiList.map(m => `
+            <div style="padding:9px 0; border-top:0.5px solid #f0f0f0;">
+              <div style="font-size:14px; color:#1a1a1a;"><b>${dswdEsc(m.barangay)}</b> &nbsp;·&nbsp; ${dswdEsc(m.address)}</div>
+              <div style="font-size:13px; color:#888; margin-top:2px;">${m.heads.length} families: ${m.heads.map(dswdEsc).join(', ')}</div>
+            </div>`).join('')}
+        </div>
+      </details>`
+    : `<div style="padding:12px 18px; font-size:13px; color:#aaa; border-bottom:0.5px solid #f0f0f0;">No house has more than one family yet.</div>`;
+  const hhNote = `
+    <div style="padding:12px 18px; font-size:12px; color:#9ca3af; line-height:1.5;">
+      Households are counted by address: families living at the same address count as <b>one</b> household, and the other families in that house are counted as <b>extended</b>.
+      ${hhTotal.noAddr ? `<br>${hhTotal.noAddr} famil${hhTotal.noAddr !== 1 ? 'ies have' : 'y has'} no address saved, so each is counted as its own household.` : ''}
+    </div>`;
+  const hhPanel = panel('Households &amp; extended families', 'per Trapiche',
+    hhHead + trapiches.map(t => hhRow(t, hh[t])).join('') + hhRow('Total', hhTotal, true) + multiHTML + hhNote);
+
   const dashboardSection = `
     <div class="bhw-dash">
       <div class="bhw-stack">
         ${metricCards}
         ${panel('Residents by age group', '', dashAge)}
         ${panel('Residents by Trapiche', '', dashBgy)}
+        ${hhPanel}
       </div>
       ${dashPercent}
     </div>`;
@@ -2301,7 +2378,7 @@ function renderDSWDStats(residents, mode) {
 
   const sections =
     mode === 'age' ? `<div class="bhw-two">${ageSection}${rangeSection}</div>` :
-    mode === 'bgy' ? bgySection :
+    mode === 'bgy' ? bgySection + hhPanel :
     dashboardSection;
 
   body.innerHTML = `
