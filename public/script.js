@@ -1796,6 +1796,7 @@ function rejectRequest(username, documentType, requestId) {
    - Every group dropdown shows 10 residents per page (First/Prev/Next/Last)
    - Clicking a resident opens a full details page
    - Back returns to the same open group, page, search and scroll position
+   - BHW can delete a resident (or a whole family) from the list or details page
 ======================================================================= */
 
 const DSWD_PAGE_SIZE = 10;
@@ -1880,6 +1881,9 @@ function dswdResidentCard(r) {
         ${dswdYes(r.pwd) ? `<span style="background:#FAECE7; color:#712B13; font-size:12px; font-weight:600; padding:4px 12px; border-radius:99px;">PWD</span>` : ''}
         ${dswdIsSenior(r) ? `<span style="background:#EAF3DE; color:#27500A; font-size:12px; font-weight:600; padding:4px 12px; border-radius:99px;">Senior</span>` : ''}
         <span style="font-size:13px; color:#bbb;">View →</span>
+        <button title="Delete resident" onclick="event.stopPropagation(); dswdAskDelete('${dswdKey(r)}')"
+          style="padding:5px 10px; border-radius:8px; border:1px solid #fca5a5; background:#fff; color:#dc2626; font-size:14px; cursor:pointer; line-height:1;"
+          onmouseover="this.style.background='#fff5f5'" onmouseout="this.style.background='#fff'">🗑</button>
       </div>
     </div>
   `;
@@ -2084,7 +2088,7 @@ function renderDSWDStats(residents, mode) {
   const n = residents.length;
   const pct = (a, b) => b ? Math.round(a / b * 100) : 0;
 
-  // FIX: residents with no saved gender are no longer counted as Female
+  // Residents with no saved gender are not counted as Female
   let totalMale = 0, totalFemale = 0, totalNoGender = 0, totalPWD = 0, totalSenior = 0;
   const ageGroups = [
     { k: '0_10',  label: '0–10',  test: a => a <= 10 },
@@ -2556,6 +2560,14 @@ function openResidentDetail(key) {
         ${sections.map(sectionHTML).join('')}
       </div>
       ${familyHTML ? `<div class="rd-famwrap">${familyHTML}</div>` : ''}
+
+      <div style="margin:24px 0 40px; text-align:center;">
+        <button onclick="dswdAskDelete('${key}')"
+          style="padding:12px 28px; border-radius:10px; border:1.5px solid #fca5a5; background:#fff; color:#dc2626; font-size:15px; font-weight:700; cursor:pointer;"
+          onmouseover="this.style.background='#fff5f5'" onmouseout="this.style.background='#fff'">
+          🗑 Delete this resident
+        </button>
+      </div>
     </div>
   `;
   body.scrollTop = 0;
@@ -2580,6 +2592,129 @@ function backToDSWDList() {
   renderDSWDStats(dswdResidents, window.dswdUI.mode);
   const body = document.getElementById('dashboard-body');
   if (body) body.scrollTop = window.dswdUI.scroll || 0;
+}
+
+/* ----------------------- Delete resident (BHW only) -----------------------
+   Sends POST /api/delete-resident with { id, requestedBy } for each resident.
+   Deleting only ever goes by the resident's id (never by username), because
+   residents uploaded from the phones share one username.
+--------------------------------------------------------------------------- */
+
+function dswdAskDelete(key) {
+  const r = dswdResidents.find(x => dswdKey(x) === key);
+  if (!r) return;
+
+  if (currentRole !== 'dswd') {
+    showToast('Only the BHW account can delete residents.', 'error', 'Not allowed');
+    return;
+  }
+  if (r.id === undefined || r.id === null) {
+    showToast('This resident has no ID saved, so it cannot be deleted safely from here.', 'error', 'Cannot delete');
+    return;
+  }
+
+  const name = r.name || r.username || 'this resident';
+  const isHead = dswdYes(r.is_head);
+  // Other people in the same family (only offered when a family head is being deleted)
+  const mates = (isHead && r.family_code)
+    ? dswdResidents.filter(x => x.family_code === r.family_code && dswdKey(x) !== key && x.id !== undefined && x.id !== null)
+    : [];
+
+  const old = document.getElementById('dswd-del-overlay');
+  if (old) old.remove();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'dswd-del-overlay';
+  overlay.style.cssText = 'position:fixed; inset:0; z-index:99999; background:rgba(0,0,0,0.45); display:flex; align-items:center; justify-content:center; padding:16px;';
+  overlay.innerHTML = `
+    <div style="background:#fff; border-radius:20px; padding:28px 30px; max-width:440px; width:100%; box-shadow:0 24px 60px rgba(0,0,0,0.2); border-top:4px solid #fca5a5;">
+      <div style="font-size:19px; font-weight:700; color:#1a1a1a; margin-bottom:8px;">Delete this resident?</div>
+      <div style="font-size:14px; color:#555; line-height:1.6; margin-bottom:14px;">
+        <b>${dswdEsc(name)}</b> will be removed permanently. This cannot be undone.
+      </div>
+      ${mates.length ? `
+        <div style="background:#f8f9fb; border:1px solid #eee; border-radius:10px; padding:12px 14px; margin-bottom:14px; font-size:14px; color:#374151;">
+          <div style="font-weight:700; margin-bottom:8px;">This person is a family head. What do you want to delete?</div>
+          <label style="display:flex; gap:8px; align-items:flex-start; margin-bottom:8px; cursor:pointer;">
+            <input type="radio" name="dswd-del-scope" value="one" checked style="margin-top:3px; width:auto;">
+            <span>Only this person<br><span style="font-size:12px; color:#888;">The ${mates.length} other family member${mates.length !== 1 ? 's' : ''} stay.</span></span>
+          </label>
+          <label style="display:flex; gap:8px; align-items:flex-start; cursor:pointer;">
+            <input type="radio" name="dswd-del-scope" value="family" style="margin-top:3px; width:auto;">
+            <span>The whole family (${mates.length + 1} people)<br><span style="font-size:12px; color:#888;">${mates.slice(0, 6).map(m => dswdEsc(m.name || m.username)).join(', ')}${mates.length > 6 ? ', …' : ''}</span></span>
+          </label>
+        </div>` : ''}
+      <div style="display:flex; gap:10px; justify-content:flex-end;">
+        <button id="dswd-del-cancel" style="padding:11px 24px; border-radius:10px; border:1.5px solid #e5e7eb; background:#fff; color:#374151; font-weight:700; cursor:pointer;">Cancel</button>
+        <button id="dswd-del-confirm" style="padding:11px 24px; border-radius:10px; border:none; background:#dc2626; color:#fff; font-weight:700; cursor:pointer;">Delete</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+
+  document.getElementById('dswd-del-cancel').onclick = () => overlay.remove();
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+
+  const confirmBtn = document.getElementById('dswd-del-confirm');
+  confirmBtn.onclick = () => {
+    const scope = (document.querySelector('input[name="dswd-del-scope"]:checked') || {}).value;
+    const list = scope === 'family' ? [r].concat(mates) : [r];
+    confirmBtn.disabled = true;
+    confirmBtn.innerText = 'Deleting...';
+    dswdRunDelete(list, overlay);
+  };
+}
+
+async function dswdRunDelete(list, overlay) {
+  const deletedIds = [];
+  let errMsg = null, noEndpoint = false;
+
+  for (const r of list) {
+    try {
+      const res = await fetch(`${API_BASE}/api/delete-resident`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: r.id, requestedBy: loggedInUser && loggedInUser.username })
+      });
+      if (res.status === 404 || res.status === 405) { noEndpoint = true; break; }
+      let d = {};
+      try { d = await res.json(); } catch (e) { d = {}; }
+      if (d && d.success) {
+        deletedIds.push(String(r.id));
+      } else {
+        errMsg = (d && d.message) || 'The server could not delete this resident.';
+        break;
+      }
+    } catch (e) {
+      errMsg = 'Could not connect to the server. Please try again.';
+      break;
+    }
+  }
+
+  if (overlay) overlay.remove();
+
+  if (deletedIds.length) {
+    dswdResidents = dswdResidents.filter(x => !(x.id !== undefined && x.id !== null && deletedIds.includes(String(x.id))));
+    dswdRedrawAfterDelete();
+  }
+
+  if (noEndpoint) {
+    showToast('The server does not have the delete feature yet. Nothing was deleted.', 'error', 'Cannot delete');
+  } else if (errMsg) {
+    const part = deletedIds.length ? `<br><br>${deletedIds.length} of ${list.length} were deleted before the problem.` : '';
+    showToast(dswdEsc(errMsg) + part, 'error', 'Delete failed');
+  } else {
+    showToast(deletedIds.length > 1 ? `${deletedIds.length} residents were deleted.` : 'The resident was deleted.', 'success', 'Deleted');
+  }
+}
+
+// Redraw the counts and lists, keeping the same open group, page, search and scroll position
+function dswdRedrawAfterDelete() {
+  const body = document.getElementById('dashboard-body');
+  const wasDetail = window.dswdUI.inDetail;
+  const scroll = wasDetail ? (window.dswdUI.scroll || 0) : (body ? body.scrollTop : 0);
+  window.dswdUI.inDetail = false;
+  renderDSWDStats(dswdResidents, window.dswdUI.mode);
+  if (body) body.scrollTop = scroll;
 }
 
 function generateRandomPassword(length = 10){
