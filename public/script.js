@@ -2084,7 +2084,8 @@ function renderDSWDStats(residents, mode) {
   const n = residents.length;
   const pct = (a, b) => b ? Math.round(a / b * 100) : 0;
 
-  let totalMale = 0, totalFemale = 0, totalPWD = 0, totalSenior = 0;
+  // FIX: residents with no saved gender are no longer counted as Female
+  let totalMale = 0, totalFemale = 0, totalNoGender = 0, totalPWD = 0, totalSenior = 0;
   const ageGroups = [
     { k: '0_10',  label: '0–10',  test: a => a <= 10 },
     { k: '11_14', label: '11–14', test: a => a >= 11 && a <= 14 },
@@ -2092,21 +2093,23 @@ function renderDSWDStats(residents, mode) {
     { k: '31_59', label: '31–59', test: a => a >= 31 && a <= 59 },
     { k: '60',    label: '60+',   test: a => a >= 60 }
   ];
-  ageGroups.forEach(g => { g.residents = []; g.male = 0; g.female = 0; g.pwd = 0; g.senior = 0; });
+  ageGroups.forEach(g => { g.residents = []; g.male = 0; g.female = 0; g.nogender = 0; g.pwd = 0; g.senior = 0; });
 
   const bgy = {};
-  trapiches.forEach(t => { bgy[t] = { male: 0, female: 0, total: 0, pwd: 0, senior: 0, residents: [] }; });
+  trapiches.forEach(t => { bgy[t] = { male: 0, female: 0, nogender: 0, total: 0, pwd: 0, senior: 0, residents: [] }; });
 
   residents.forEach(r => {
     const isMale = r.gender === 'Male';
+    const isFemale = r.gender === 'Female';
+    const gKey = isMale ? 'male' : isFemale ? 'female' : 'nogender';
     const a = dswdAge(r);
-    if (isMale) totalMale++; else totalFemale++;
+    if (isMale) totalMale++; else if (isFemale) totalFemale++; else totalNoGender++;
     if (dswdYes(r.pwd)) totalPWD++;
     if (dswdIsSenior(r)) totalSenior++;
 
     if (bgy[r.barangay]) {
       const b = bgy[r.barangay];
-      b[isMale ? 'male' : 'female']++;
+      b[gKey]++;
       b.total++;
       if (dswdYes(r.pwd)) b.pwd++;
       if (dswdIsSenior(r)) b.senior++;
@@ -2115,7 +2118,7 @@ function renderDSWDStats(residents, mode) {
 
     const g = ageGroups.find(x => x.test(a)) || ageGroups[0];
     g.residents.push(r);
-    g[isMale ? 'male' : 'female']++;
+    g[gKey]++;
     if (dswdYes(r.pwd)) g.pwd++;
     if (dswdIsSenior(r)) g.senior++;
   });
@@ -2164,11 +2167,11 @@ function renderDSWDStats(residents, mode) {
 
   // ---------- Age Statistics page ----------
   const ageRows = ageGroups.map(g => {
-    const rt = g.male + g.female;
+    const rt = g.residents.length;
     const mPct = pct(g.male, rt);
     return dswdGroupRowHTML({
       key: `age-${g.k}`, label: g.label,
-      total: rt, totalPct: pct(rt, n), male: g.male, mPct, female: g.female, fPct: rt ? 100 - mPct : 0,
+      total: rt, totalPct: pct(rt, n), male: g.male, mPct, female: g.female, fPct: pct(g.female, rt),
       placeholder: 'Search residents in this age group...',
       filename: `Residents_Age_${g.label.replace(/[^0-9A-Za-z]+/g, '_')}`
     });
@@ -2230,7 +2233,7 @@ function renderDSWDStats(residents, mode) {
     const safeId = t.replace(/\s+/g, '-');
     return dswdGroupRowHTML({
       key: `bgy-${safeId}`, label: t,
-      total: d.total, totalPct: pct(d.total, n), male: d.male, mPct, female: d.female, fPct: d.total ? 100 - mPct : 0,
+      total: d.total, totalPct: pct(d.total, n), male: d.male, mPct, female: d.female, fPct: pct(d.female, d.total),
       pwd: d.pwd, senior: d.senior,
       placeholder: `Search residents in ${t}...`,
       filename: `Residents_${safeId}`
@@ -2255,7 +2258,7 @@ function renderDSWDStats(residents, mode) {
   const heads = ['Total', 'Male', 'Female', 'PWD', 'Senior'];
 
   const dashAge = tRow('Age group', heads, true) +
-    ageGroups.map(g => tRow(g.label, { total: g.male + g.female, male: g.male, female: g.female, pwd: g.pwd, senior: g.senior })).join('');
+    ageGroups.map(g => tRow(g.label, { total: g.residents.length, male: g.male, female: g.female, pwd: g.pwd, senior: g.senior })).join('');
   const dashBgy = tRow('Barangay', heads, true) +
     trapiches.map(t => tRow(t, bgy[t])).join('');
 
@@ -2277,9 +2280,9 @@ function renderDSWDStats(residents, mode) {
     </div>`;
 
   const dashPercent = panel('Percentage of residents', '',
-    pGroup('Gender', pRow('Male', totalMale, '#378ADD') + pRow('Female', totalFemale, '#D4537E')) +
+    pGroup('Gender', pRow('Male', totalMale, '#378ADD') + pRow('Female', totalFemale, '#D4537E') + (totalNoGender ? pRow('Not specified', totalNoGender, '#9ca3af') : '')) +
     pGroup('Special groups', pRow('Senior (60+)', totalSenior, '#3B6D11') + pRow('PWD', totalPWD, '#712B13')) +
-    pGroup('Age groups', ageGroups.map(g => pRow(g.label, g.male + g.female, '#c0392b')).join('')) +
+    pGroup('Age groups', ageGroups.map(g => pRow(g.label, g.residents.length, '#c0392b')).join('')) +
     pGroup('Trapiche', trapiches.map(t => pRow(t, bgy[t].total, '#1a3f6c')).join('')));
 
   const dashboardSection = `
