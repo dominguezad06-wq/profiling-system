@@ -1806,7 +1806,8 @@ const DSWD_PAGE_SIZE = 10;
 window.dswdGroupData = window.dswdGroupData || {};
 
 // Remembers what the BHW had open so Back can restore it
-window.dswdUI = { mode: 'all', open: {}, page: {}, search: {}, range: null, scroll: 0, inDetail: false };
+window.dswdUI = { mode: 'all', open: {}, page: {}, search: {}, range: null, scroll: 0, inDetail: false, housesExpanded: false };
+const HOUSE_PAGE_SIZE = 8;
 
 function dswdEsc(s) {
   return String(s === undefined || s === null ? '' : s)
@@ -2068,7 +2069,7 @@ function dswdGroupRowHTML(o) {
 // Load residents from the server, then draw the page.
 // mode: 'all' (Statistic Dashboard), 'age' (Age Statistics), 'bgy' (Barangay Statistics), 'house' (Household Statistics)
 function showDSWDStats(mode) {
-  window.dswdUI = { mode: (typeof mode === 'string') ? mode : 'all', open: {}, page: {}, search: {}, range: null, scroll: 0, inDetail: false };
+  window.dswdUI = { mode: (typeof mode === 'string') ? mode : 'all', open: {}, page: {}, search: {}, range: null, scroll: 0, inDetail: false, housesExpanded: false };
   fetch(`${API_BASE}/api/residents`)
     .then(res => res.json())
     .then(data => {
@@ -2080,6 +2081,12 @@ function showDSWDStats(mode) {
 function showAgeStats() { showDSWDStats('age'); }
 function showBarangayStats() { showDSWDStats('bgy'); }
 function showHouseholdStats() { showDSWDStats('house'); }
+
+// Toggles between the capped household list (HOUSE_PAGE_SIZE rows) and showing every household
+function toggleHouseholdViewAll() {
+  window.dswdUI.housesExpanded = !window.dswdUI.housesExpanded;
+  renderDSWDStats(dswdResidents, 'house');
+}
 
 function renderDSWDStats(residents, mode) {
   mode = mode || window.dswdUI.mode || 'all';
@@ -2409,7 +2416,12 @@ function renderDSWDStats(residents, mode) {
     hhHead + trapiches.map(t => hhRow(t, hh[t])).join('') + hhRow('Total', hhTotal, true) + multiHTML + extHTML + hhNote);
 
   // ---------- Household breakdown (one row per physical house, expandable) ----------
-  const houseRows = houseList.map(h => {
+  // Capped to HOUSE_PAGE_SIZE rows by default so the page doesn't get too long;
+  // "View All" expands to show every household.
+  const housesExpanded = !!window.dswdUI.housesExpanded;
+  const visibleHouses = housesExpanded ? houseList : houseList.slice(0, HOUSE_PAGE_SIZE);
+
+  const houseRows = visibleHouses.map(h => {
     const members = h.members || [];
     const total = members.length;
     const male = members.filter(r => r.gender === 'Male').length;
@@ -2427,8 +2439,16 @@ function renderDSWDStats(residents, mode) {
     });
   }).join('');
 
+  const houseViewAllBtn = houseList.length > HOUSE_PAGE_SIZE ? `
+    <div style="padding:16px 18px; text-align:center; border-top:0.5px solid #f0f0f0;">
+      <button onclick="toggleHouseholdViewAll()"
+        style="padding:9px 22px; background:#fff; border:1.5px solid #8B0000; color:#8B0000; border-radius:8px; font-size:13px; font-weight:700; cursor:pointer;">
+        ${housesExpanded ? 'Show less' : `View All ${houseList.length.toLocaleString()} Households`}
+      </button>
+    </div>` : '';
+
   const houseSection = panel('Household breakdown', `${houseList.length.toLocaleString()} household${houseList.length !== 1 ? 's' : ''}`,
-    legend + gridHead(['Household', 'Total', 'Male', 'Female', 'PWD', 'Senior']) + (houseRows || `<p style="color:#aaa; font-size:14px; text-align:center; padding:18px 0;">No households found.</p>`));
+    legend + gridHead(['Household', 'Total', 'Male', 'Female', 'PWD', 'Senior']) + (houseRows || `<p style="color:#aaa; font-size:14px; text-align:center; padding:18px 0;">No households found.</p>`) + houseViewAllBtn);
 
   const dashboardSection = `
     <div class="bhw-dash">
@@ -2631,7 +2651,12 @@ function openResidentDetail(key) {
       </div>
       ${familyHTML ? `<div class="rd-famwrap">${familyHTML}</div>` : ''}
 
-      <div style="margin:24px 0 40px; text-align:center;">
+      <div style="margin:24px 0 40px; text-align:center; display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
+        <button onclick="editResidentProfile('${key}')"
+          style="padding:12px 28px; border-radius:10px; border:1.5px solid #1a3f6c; background:#fff; color:#1a3f6c; font-size:15px; font-weight:700; cursor:pointer;"
+          onmouseover="this.style.background='#f4f7ff'" onmouseout="this.style.background='#fff'">
+          ✏️ Edit Profile
+        </button>
         <button onclick="dswdAskDelete('${key}')"
           style="padding:12px 28px; border-radius:10px; border:1.5px solid #fca5a5; background:#fff; color:#dc2626; font-size:15px; font-weight:700; cursor:pointer;"
           onmouseover="this.style.background='#fff5f5'" onmouseout="this.style.background='#fff'">
@@ -2654,6 +2679,252 @@ function openResidentDetail(key) {
       })
       .catch(() => {});
   }
+}
+
+/* ----------------------- Edit resident profile (BHW only) ----------------------- */
+
+function editResidentProfile(key) {
+  const r = dswdResidents.find(x => dswdKey(x) === key);
+  if (!r) return;
+
+  if (currentRole !== 'dswd') {
+    showToast('Only the BHW account can edit resident profiles.', 'error', 'Not allowed');
+    return;
+  }
+
+  const body = document.getElementById('dashboard-body');
+
+  let children = [];
+  try { children = JSON.parse(r.children_names || '[]'); } catch(e) { children = []; }
+  if (!Array.isArray(children)) children = [];
+
+  const inputStyle = `width:100%; padding:9px 12px; border-radius:8px; border:1px solid #ddd; font-size:13px; margin:0; box-sizing:border-box;`;
+  const labelStyle = `font-size:13px; color:#555; font-weight:600; display:block; margin-bottom:4px;`;
+  const fieldDiv = (label, input) => `
+    <div style="margin-bottom:14px;">
+      <label style="${labelStyle}">${label}</label>
+      ${input}
+    </div>
+  `;
+  const sel = (id, options, val) => `
+    <select id="${id}" style="${inputStyle}">
+      ${options.map(o => `<option value="${o}" ${val===o?'selected':''}>${o}</option>`).join('')}
+    </select>
+  `;
+
+  body.innerHTML = `
+    <div style="max-width:900px; margin:0 auto; padding:20px;">
+      <button onclick="openResidentDetail('${key}')"
+        style="margin-bottom:16px; padding:8px 16px; background:#1a3f6c; color:white; border:none; border-radius:6px; font-size:13px; cursor:pointer;">
+        ← Back
+      </button>
+      <h2 style="margin:0 0 20px; color:#1a1a1a; font-size:20px;">Edit Profile — ${dswdEsc(r.name || r.username)}</h2>
+
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
+
+        <!-- PERSONAL INFO -->
+        <div style="background:#fff; padding:20px; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,0.08); border-top:4px solid #c0392b;">
+          <h3 style="margin:0 0 16px; font-size:15px; color:#c0392b;">Personal Information</h3>
+          ${fieldDiv('Full Name', `<input type="text" id="edit-name" value="${dswdEsc(r.name||'')}" style="${inputStyle}">`)}
+          ${fieldDiv('Date of Birth', `<input type="date" id="edit-dob" value="${(r.dob||'').split('T')[0]}" onchange="calcEditAge()" style="${inputStyle}">`)}
+          ${fieldDiv('Age', `<input type="number" id="edit-age" value="${r.age||''}" style="${inputStyle}">`)}
+          ${fieldDiv('Sex', sel('edit-gender', ['Male','Female'], r.gender))}
+          ${fieldDiv('Civil Status', sel('edit-status', ['Single','Married','Live-in','Widowed','Separated'], r.status))}
+          ${fieldDiv('Religion', `<input type="text" id="edit-religion" value="${dswdEsc(r.religion||'')}" style="${inputStyle}">`)}
+          ${fieldDiv('Place of Birth', `<input type="text" id="edit-place-of-birth" value="${dswdEsc(r.place_of_birth||'')}" style="${inputStyle}">`)}
+          ${fieldDiv('Blood Type', sel('edit-blood-type', ['Unknown','A+','A-','B+','B-','AB+','AB-','O+','O-'], r.blood_type||'Unknown'))}
+          ${fieldDiv('Barangay', sel('edit-barangay', ['Trapiche 1','Trapiche 2','Trapiche 3','Trapiche 4'], r.barangay))}
+          ${fieldDiv('House No. / Street / Address', `<input type="text" id="edit-address" value="${dswdEsc(r.address||'')}" placeholder="e.g. 123 Mabini St." style="${inputStyle}">`)}
+        </div>
+
+        <!-- FAMILY & OTHER INFO -->
+        <div style="background:#fff; padding:20px; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,0.08); border-top:4px solid #1a3f6c;">
+          <h3 style="margin:0 0 16px; font-size:15px; color:#1a3f6c;">Family & Other Info</h3>
+          ${fieldDiv('Voter Status', sel('edit-voter-status', ['Not Registered','Registered Voter'], r.voter_status||'Not Registered'))}
+          ${fieldDiv('Household Role', sel('edit-household-role', ['Select Household Role','Head','Spouse','Child','Sibling','Grandparent','Grandchild','Relative','Extended family 1','Extended family 2','Extended family 3','Extended family 4'], r.household_role||'Select Household Role'))}
+          ${fieldDiv('Educational Attainment', sel('edit-educational-attainment', ['Select Educational Attainment','Elementary Level','Elementary Graduate','High School Level','High School Graduate','Vocational','College Level','College Graduate','Post Graduate'], r.educational_attainment||'Select Educational Attainment'))}
+          ${fieldDiv('PWD', sel('edit-pwd', ['No','Yes'], (r.pwd==='Yes'||r.pwd===true)?'Yes':'No'))}
+
+          <!-- SPOUSE -->
+          <div style="margin-bottom:14px;">
+            <label style="${labelStyle}">Spouse</label>
+            <div style="display:flex; gap:8px; align-items:center;">
+              <select id="edit-spouse-toggle" onchange="toggleEditSpouseInput()" style="width:120px; padding:9px 12px; border-radius:8px; border:1px solid #ddd; font-size:13px;">
+                <option value="N/A" ${(!r.spouse||r.spouse==='N/A')?'selected':''}>N/A</option>
+                <option value="named" ${(r.spouse&&r.spouse!=='N/A')?'selected':''}>Enter Name</option>
+              </select>
+              <input type="text" id="edit-spouse-name" value="${(r.spouse&&r.spouse!=='N/A')?dswdEsc(r.spouse):''}"
+                placeholder="Spouse name"
+                style="${inputStyle} flex:1; display:${(r.spouse&&r.spouse!=='N/A')?'block':'none'};">
+            </div>
+          </div>
+
+          ${fieldDiv('Contact Number', `<input type="tel" id="edit-contact" value="${dswdEsc(r.contact||'')}" placeholder="09XXXXXXXXX" oninput="this.value=this.value.replace(/[^0-9]/g,'')" maxlength="11" style="${inputStyle}">`)}
+          ${fieldDiv('Email Address', `<input type="email" id="edit-email" value="${dswdEsc(r.email||'')}" style="${inputStyle}">`)}
+          ${fieldDiv('Emergency Contact Name', `<input type="text" id="edit-emergency-name" value="${dswdEsc(r.emergency_contact_name||'')}" style="${inputStyle}">`)}
+          ${fieldDiv('Emergency Contact Number', `<input type="tel" id="edit-emergency-number" value="${dswdEsc(r.emergency_contact_number||'')}" placeholder="09XXXXXXXXX" oninput="this.value=this.value.replace(/[^0-9]/g,'')" maxlength="11" style="${inputStyle}">`)}
+        </div>
+
+      </div>
+
+      <!-- CHILDREN SECTION -->
+      <div style="background:#fff; padding:20px; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,0.08); border-top:4px solid #e67e22; margin-top:20px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+          <h3 style="margin:0; font-size:15px; color:#e67e22;">Children</h3>
+          <button onclick="addEditChildRow()" style="padding:7px 16px; background:#e67e22; color:white; border:none; border-radius:6px; font-size:13px; cursor:pointer;">+ Add Child</button>
+        </div>
+        <div id="edit-children-list" style="display:flex; flex-direction:column; gap:10px;">
+          ${children.length === 0
+            ? `<p style="color:#aaa; font-size:13px; text-align:center; padding:20px 0;">No children added yet. Click "+ Add Child" to add one.</p>`
+            : children.map((c, i) => editChildRow(c.name, c.age, c.gender, i)).join('')
+          }
+        </div>
+      </div>
+
+      <!-- SAVE / CANCEL -->
+      <div style="margin-top:20px; margin-bottom:60px; text-align:right;">
+        <div id="edit-profile-message" style="font-size:13px; margin-bottom:10px; text-align:center;"></div>
+        <button onclick="cancelEditResident('${key}')"
+          style="padding:12px 28px; background:#fff; color:#374151; border:1.5px solid #e5e7eb; border-radius:8px; font-size:14px; font-weight:700; cursor:pointer; margin-right:10px;">
+          Cancel
+        </button>
+        <button onclick="saveResidentEdit('${key}')"
+          style="padding:12px 40px; background:#8B0000; color:white; font-weight:bold; border:none; border-radius:8px; font-size:14px; cursor:pointer;">
+          💾 Save Changes
+        </button>
+      </div>
+    </div>
+  `;
+  body.scrollTop = 0;
+}
+
+function editChildRow(name='', age='', gender='Male', index) {
+  return `
+    <div id="edit-child-row-${index}" style="display:flex; gap:10px; align-items:center; background:#f8f9fa; padding:10px 14px; border-radius:8px; border:1px solid #eee;">
+      <input type="text" placeholder="Child's name" value="${dswdEsc(name)}"
+        style="flex:2; padding:8px 12px; border-radius:6px; border:1px solid #ddd; font-size:13px; margin:0;"
+        id="edit-child-name-${index}">
+      <input type="number" placeholder="Age" value="${age}" min="0"
+        style="width:70px; padding:8px 12px; border-radius:6px; border:1px solid #ddd; font-size:13px; margin:0;"
+        id="edit-child-age-${index}">
+      <select id="edit-child-gender-${index}" style="padding:8px 12px; border-radius:6px; border:1px solid #ddd; font-size:13px; margin:0;">
+        <option value="Male" ${gender==='Male'?'selected':''}>Male</option>
+        <option value="Female" ${gender==='Female'?'selected':''}>Female</option>
+      </select>
+      <button onclick="removeEditChildRow(${index})" style="padding:6px 12px; background:#f8d7da; color:#c0392b; border:none; border-radius:6px; font-size:13px; cursor:pointer;">✕</button>
+    </div>
+  `;
+}
+
+function addEditChildRow() {
+  const list = document.getElementById('edit-children-list');
+  const index = Date.now();
+  const p = list.querySelector('p');
+  if (p) p.remove();
+  const div = document.createElement('div');
+  div.innerHTML = editChildRow('', '', 'Male', index);
+  list.appendChild(div.firstElementChild);
+}
+
+function removeEditChildRow(index) {
+  const row = document.getElementById(`edit-child-row-${index}`);
+  if (row) row.remove();
+  const list = document.getElementById('edit-children-list');
+  if (list.children.length === 0) {
+    list.innerHTML = `<p style="color:#aaa; font-size:13px; text-align:center; padding:20px 0;">No children added yet. Click "+ Add Child" to add one.</p>`;
+  }
+}
+
+function toggleEditSpouseInput() {
+  const toggle = document.getElementById('edit-spouse-toggle').value;
+  const input = document.getElementById('edit-spouse-name');
+  input.style.display = toggle === 'named' ? 'block' : 'none';
+  if (toggle === 'N/A') input.value = '';
+}
+
+function calcEditAge() {
+  const dob = document.getElementById('edit-dob').value;
+  if (!dob) return;
+  const age = Math.floor((new Date() - new Date(dob)) / (365.25 * 24 * 60 * 60 * 1000));
+  document.getElementById('edit-age').value = age;
+}
+
+function cancelEditResident(key) {
+  openResidentDetail(key);
+}
+
+// Saves via the same /api/update-resident/:username endpoint the resident's own
+// "Save Profile" button uses. NOTE: like the resident's own edit, this is keyed by
+// username — if several phone-uploaded residents share one username, this updates
+// that username's record on the server, so double-check the right person is open.
+function saveResidentEdit(key) {
+  const r = dswdResidents.find(x => dswdKey(x) === key);
+  if (!r) return;
+
+  const childRows = document.querySelectorAll('#edit-children-list [id^="edit-child-row-"]');
+  const children = [];
+  childRows.forEach(row => {
+    const id = row.id.replace('edit-child-row-', '');
+    const name = document.getElementById(`edit-child-name-${id}`)?.value.trim();
+    const age = document.getElementById(`edit-child-age-${id}`)?.value;
+    const gender = document.getElementById(`edit-child-gender-${id}`)?.value;
+    if (name) children.push({ name, age: parseInt(age)||0, gender });
+  });
+
+  const spouseToggle = document.getElementById('edit-spouse-toggle')?.value;
+  const spouseName = document.getElementById('edit-spouse-name')?.value.trim();
+  const spouse = spouseToggle === 'named' && spouseName ? spouseName : 'N/A';
+
+  const age = parseInt(document.getElementById('edit-age').value) || 0;
+
+  const updatedData = {
+    name: document.getElementById('edit-name').value,
+    age,
+    senior: age >= 60 ? 'Yes' : 'No',
+    gender: document.getElementById('edit-gender').value,
+    status: document.getElementById('edit-status').value,
+    barangay: document.getElementById('edit-barangay').value,
+    address: document.getElementById('edit-address')?.value || '',
+    dob: document.getElementById('edit-dob').value,
+    religion: document.getElementById('edit-religion').value,
+    place_of_birth: document.getElementById('edit-place-of-birth')?.value || '',
+    blood_type: document.getElementById('edit-blood-type')?.value || '',
+    voter_status: document.getElementById('edit-voter-status')?.value || '',
+    household_role: document.getElementById('edit-household-role')?.value || '',
+    educational_attainment: document.getElementById('edit-educational-attainment')?.value || '',
+    spouse,
+    sons: r.sons || 0,
+    daughters: r.daughters || 0,
+    pwd: document.getElementById('edit-pwd').value,
+    family_members: r.family_members || 0,
+    contact: document.getElementById('edit-contact').value,
+    email: document.getElementById('edit-email').value,
+    emergency_contact_name: document.getElementById('edit-emergency-name')?.value || '',
+    emergency_contact_number: document.getElementById('edit-emergency-number')?.value || '',
+    children_names: JSON.stringify(children)
+  };
+
+  const msg = document.getElementById('edit-profile-message');
+  if (msg) { msg.innerText = 'Saving...'; msg.style.color = '#888'; }
+
+  fetch(`${API_BASE}/api/update-resident/${r.username}`, {
+    method: 'PUT',
+    headers: { 'Content-Type':'application/json' },
+    body: JSON.stringify(updatedData)
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (data.success) {
+      Object.assign(r, updatedData);
+      showToast("The resident's profile was updated.", 'success', 'Saved');
+      openResidentDetail(key);
+    } else {
+      if (msg) { msg.innerText = 'Failed: ' + (data.message || 'Unknown error'); msg.style.color = 'red'; }
+    }
+  })
+  .catch(() => {
+    if (msg) { msg.innerText = 'Server error.'; msg.style.color = 'red'; }
+  });
 }
 
 // Back from a resident page: same open group, same page, same scroll position
