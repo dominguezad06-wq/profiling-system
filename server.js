@@ -721,16 +721,41 @@ app.get('/create-admins', async (req, res) => {
   }
 });
 
-// ================= DELETE RESIDENT =================
-app.delete('/api/delete-resident/:username', async (req, res) => {
+// ================= DELETE RESIDENT BY ID (BHW only) =================
+// Replaces the old DELETE /api/delete-resident/:username route, which had no
+// checks and deleted by username (phone-uploaded residents share one username).
+app.post('/api/delete-resident', async (req, res) => {
   try {
-    const { username } = req.params;
-    await pool.query(`DELETE FROM document_requests WHERE username=$1`, [username]);
-    await pool.query(`DELETE FROM residents WHERE username=$1`, [username]);
-    await pool.query(`DELETE FROM users WHERE username=$1`, [username]);
+    const { id, requestedBy } = req.body;
+    if (!id) return res.json({ success: false, message: 'Missing resident id.' });
+
+    const auth = await pool.query(
+      `SELECT 1 FROM users WHERE username=$1 AND role='dswd' LIMIT 1`,
+      [requestedBy || '']
+    );
+    if (!auth.rows.length) {
+      return res.status(403).json({ success: false, message: 'Only the BHW account can delete residents.' });
+    }
+
+    const found = await pool.query(`SELECT id, username FROM residents WHERE id=$1`, [id]);
+    const row = found.rows[0];
+    if (!row) return res.json({ success: false, message: 'Resident not found. Maybe already deleted.' });
+
+    await pool.query(`DELETE FROM residents WHERE id=$1`, [row.id]);
+
+    // Remove the login account and requests only if no other resident uses the same username
+    // (phone-uploaded residents share one username)
+    if (row.username) {
+      const others = await pool.query(`SELECT 1 FROM residents WHERE username=$1 LIMIT 1`, [row.username]);
+      if (!others.rows.length) {
+        await pool.query(`DELETE FROM document_requests WHERE username=$1`, [row.username]);
+        await pool.query(`DELETE FROM users WHERE username=$1 AND role='resident'`, [row.username]);
+      }
+    }
+
     res.json({ success: true });
   } catch (err) {
-    console.error(err);
+    console.error('DELETE RESIDENT ERROR:', err);
     res.json({ success: false, message: err.message });
   }
 });
