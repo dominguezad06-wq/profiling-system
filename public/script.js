@@ -982,7 +982,7 @@ function showMyProfile() {
           ${fieldDiv('Date of Birth', `<input type="date" id="profile-dob" value="${(u.dob||'').split('T')[0]}" onchange="calcProfileAge()" style="${inputStyle}">`)}
           ${fieldDiv('Age', `<input type="number" id="profile-age" value="${u.age||''}" style="${inputStyle}">`)}
           ${fieldDiv('Sex', sel('profile-gender', ['Male','Female'], u.gender))}
-          ${fieldDiv('Civil Status', sel('profile-status', ['Single','Married','Widowed','Separated'], u.status))}
+          ${fieldDiv('Civil Status', sel('profile-status', ['Single','Married','Live-in','Widowed','Separated'], u.status))}
           ${fieldDiv('Religion', `<input type="text" id="profile-religion" value="${u.religion||''}" style="${inputStyle}">`)}
           ${fieldDiv('Place of Birth', `<input type="text" id="profile-place-of-birth" value="${u.place_of_birth||''}" style="${inputStyle}">`)}
           ${fieldDiv('Blood Type', sel('profile-blood-type', ['Unknown','A+','A-','B+','B-','AB+','AB-','O+','O-'], u.blood_type||'Unknown'))}
@@ -994,7 +994,7 @@ function showMyProfile() {
         <div style="background:#fff; padding:20px; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,0.08); border-top:4px solid #1a3f6c;">
           <h3 style="margin:0 0 16px; font-size:15px; color:#1a3f6c;">Family & Other Info</h3>
           ${fieldDiv('Voter Status', sel('profile-voter-status', ['Not Registered','Registered Voter'], u.voter_status||'Not Registered'))}
-          ${fieldDiv('Household Role', sel('profile-household-role', ['Select Household Role','Head','Spouse','Child','Sibling','Grandparent','Grandchild','Relative'], u.household_role||'Select Household Role'))}
+          ${fieldDiv('Household Role', sel('profile-household-role', ['Select Household Role','Head','Spouse','Child','Sibling','Grandparent','Grandchild','Relative','Extended family 1','Extended family 2','Extended family 3','Extended family 4'], u.household_role||'Select Household Role'))}
           ${fieldDiv('Educational Attainment', sel('profile-educational-attainment', ['Select Educational Attainment','Elementary Level','Elementary Graduate','High School Level','High School Graduate','Vocational','College Level','College Graduate','Post Graduate'], u.educational_attainment||'Select Educational Attainment'))}
           ${fieldDiv('PWD', sel('profile-pwd', ['No','Yes'], u.pwd==='Yes'?'Yes':'No'))}
 
@@ -2132,14 +2132,17 @@ function renderDSWDStats(residents, mode) {
 
   // ---------- Households, families and extended families ----------
   // Family = one family_code. Household = one house (same address in the same Trapiche).
-  // Several families in one house count as ONE household; the extra families are "extended".
+  // Extended family = (a) other families in the same house, plus
+  //                   (b) each different "Extended family 1-4" label inside a family.
   const normAddr = a => String(a || '').toLowerCase().replace(/[.,#;]/g, ' ').replace(/\s+/g, ' ').trim();
   const famMap = {};
   residents.forEach(r => {
     const fk = r.family_code ? 'fc_' + r.family_code : 'solo_' + (r.id !== undefined && r.id !== null ? r.id : r.username);
-    const f = famMap[fk] || (famMap[fk] = { barangay: r.barangay, head: '', first: '', addr: '', headAddr: '' });
+    const f = famMap[fk] || (famMap[fk] = { barangay: r.barangay, head: '', first: '', addr: '', headAddr: '', ext: new Set() });
     const isHeadRow = r.is_head === true || r.is_head === 'Yes' || r.is_head === 'true' || r.is_head === 't';
     if (!f.first) f.first = r.name || r.username || '';
+    const em = /^extended family\s*(\d+)/i.exec(String(r.household_role || '').trim());
+    if (em) f.ext.add(em[1]);
     if (isHeadRow) { f.head = r.name || r.username || ''; f.barangay = r.barangay || f.barangay; }
     if (r.address && String(r.address).trim()) {
       if (!f.addr) f.addr = String(r.address).trim();
@@ -2147,7 +2150,7 @@ function renderDSWDStats(residents, mode) {
     }
   });
   const hh = {};
-  trapiches.forEach(t => { hh[t] = { households: 0, families: 0, extended: 0, noAddr: 0, multi: [] }; });
+  trapiches.forEach(t => { hh[t] = { households: 0, families: 0, extended: 0, noAddr: 0, multi: [], extFams: [] }; });
   const houseMap = {};
   Object.keys(famMap).forEach(fk => {
     const f = famMap[fk];
@@ -2163,6 +2166,13 @@ function renderDSWDStats(residents, mode) {
     d.families += h.heads.length;
     d.extended += h.heads.length - 1;
     if (h.heads.length > 1) d.multi.push(h);
+  });
+  // Extended family 1-4 labels (from the phone app)
+  Object.keys(famMap).forEach(fk => {
+    const f = famMap[fk];
+    if (!hh[f.barangay] || !f.ext.size) return;
+    hh[f.barangay].extended += f.ext.size;
+    hh[f.barangay].extFams.push({ head: f.head || f.first || 'Unnamed', list: [...f.ext].sort((a, b) => a - b).join(', ') });
   });
   const hhTotal = { households: 0, families: 0, extended: 0, noAddr: 0 };
   trapiches.forEach(t => { ['households', 'families', 'extended', 'noAddr'].forEach(k => { hhTotal[k] += hh[t][k]; }); });
@@ -2184,7 +2194,7 @@ function renderDSWDStats(residents, mode) {
       ${metricCard('PWD', totalPWD.toLocaleString(), pct(totalPWD, n) + '% of total', '#712B13', '#712B13')}
       ${metricCard('Households', hhTotal.households.toLocaleString(), 'each house counted once', '#1a3f6c', '#1a3f6c')}
       ${metricCard('Families', hhTotal.families.toLocaleString(), 'all families', '#8B0000', '#8B0000')}
-      ${metricCard('Extended families', hhTotal.extended.toLocaleString(), 'extra families in a house', '#6b21a8', '#6b21a8')}
+      ${metricCard('Extended families', hhTotal.extended.toLocaleString(), 'Extended family 1–4 + same-house families', '#6b21a8', '#6b21a8')}
     </div>`;
 
   const panel = (title, note, inner) => `
@@ -2356,14 +2366,27 @@ function renderDSWDStats(residents, mode) {
             </div>`).join('')}
         </div>
       </details>`
-    : `<div style="padding:12px 18px; font-size:13px; color:#aaa; border-bottom:0.5px solid #f0f0f0;">No house has more than one family yet.</div>`;
+    : '';
+  const extList = [];
+  trapiches.forEach(t => hh[t].extFams.forEach(x => extList.push(Object.assign({ barangay: t }, x))));
+  const extHTML = extList.length
+    ? `<details open style="padding:12px 18px; border-bottom:0.5px solid #f0f0f0;">
+        <summary style="cursor:pointer; font-size:14px; font-weight:600; color:#6b21a8;">View ${extList.length} famil${extList.length !== 1 ? 'ies' : 'y'} with extended family</summary>
+        <div style="margin-top:8px;">
+          ${extList.map(x => `
+            <div style="padding:9px 0; border-top:0.5px solid #f0f0f0; font-size:14px; color:#1a1a1a;">
+              <b>${dswdEsc(x.barangay)}</b> &nbsp;·&nbsp; Family of ${dswdEsc(x.head)} &nbsp;·&nbsp; <span style="color:#6b21a8; font-weight:600;">Extended family ${dswdEsc(x.list)}</span>
+            </div>`).join('')}
+        </div>
+      </details>`
+    : `<div style="padding:12px 18px; font-size:13px; color:#aaa; border-bottom:0.5px solid #f0f0f0;">No extended family added yet.</div>`;
   const hhNote = `
     <div style="padding:12px 18px; font-size:12px; color:#9ca3af; line-height:1.5;">
-      Households are counted by address: families living at the same address count as <b>one</b> household, and the other families in that house are counted as <b>extended</b>.
+      <b>Extended</b> counts each "Extended family 1–4" added from the phone app, plus extra families living at the same address.
       ${hhTotal.noAddr ? `<br>${hhTotal.noAddr} famil${hhTotal.noAddr !== 1 ? 'ies have' : 'y has'} no address saved, so each is counted as its own household.` : ''}
     </div>`;
   const hhPanel = panel('Households &amp; extended families', 'per Trapiche',
-    hhHead + trapiches.map(t => hhRow(t, hh[t])).join('') + hhRow('Total', hhTotal, true) + multiHTML + hhNote);
+    hhHead + trapiches.map(t => hhRow(t, hh[t])).join('') + hhRow('Total', hhTotal, true) + multiHTML + extHTML + hhNote);
 
   const dashboardSection = `
     <div class="bhw-dash">
