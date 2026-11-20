@@ -2149,14 +2149,24 @@ function renderDSWDStats(residents, mode) {
   // Last name of a resident: the saved last_name, otherwise the last word of the full name
   const lastOf = x => (x.last_name && String(x.last_name).trim()) ||
     String(x.name || '').trim().split(/\s+/).slice(-1)[0] || '';
+  // Full name written first name then last name (flips "Last, First" if that is how it was saved)
+  const fullOf = x => {
+    const fn = String(x.first_name || '').trim(), ln = String(x.last_name || '').trim();
+    if (fn && ln) return fn + ' ' + ln;
+    const nm = String(x.name || x.username || '').trim();
+    const m = /^([^,]+),\s*(.+)$/.exec(nm);
+    return m ? m[2].trim() + ' ' + m[1].trim() : nm;
+  };
   const famMap = {};
   residents.forEach(r => {
     const fk = r.family_code ? 'fc_' + r.family_code : 'solo_' + (r.id !== undefined && r.id !== null ? r.id : r.username);
-    const f = famMap[fk] || (famMap[fk] = { barangay: r.barangay, head: '', first: '', addr: '', headAddr: '', headLast: '', firstLast: '', ext: new Set(), residents: [] });
+    const f = famMap[fk] || (famMap[fk] = { barangay: r.barangay, head: '', first: '', addr: '', headAddr: '', headLast: '', firstLast: '', headFull: '', firstFull: '', ext: new Set(), residents: [] });
     f.residents.push(r);
     const isHeadRow = r.is_head === true || r.is_head === 'Yes' || r.is_head === 'true' || r.is_head === 't';
     if (!f.first) f.first = r.name || r.username || '';
     if (!f.firstLast) f.firstLast = lastOf(r);
+    if (!f.firstFull) f.firstFull = fullOf(r);
+    if (isHeadRow) f.headFull = fullOf(r);
     if (isHeadRow) f.headLast = lastOf(r);
     const em = /^extended family\s*(\d+)/i.exec(String(r.household_role || '').trim());
     if (em) f.ext.add(em[1]);
@@ -2175,15 +2185,17 @@ function renderDSWDStats(residents, mode) {
     const addr = f.headAddr || f.addr;
     const key = normAddr(addr) ? f.barangay + '|' + normAddr(addr) : f.barangay + '|noaddr|' + fk;
     if (!normAddr(addr)) hh[f.barangay].noAddr++;
-    const hEntry = (houseMap[key] = houseMap[key] || { barangay: f.barangay, address: addr, heads: [], members: [], extCount: 0, lasts: [] });
+    const hEntry = (houseMap[key] = houseMap[key] || { barangay: f.barangay, address: addr, heads: [], members: [], extCount: 0, lasts: [], fulls: [] });
     hEntry.heads.push(f.head || f.first || 'Unnamed');
     hEntry.lasts.push(f.headLast || f.firstLast || '');
+    hEntry.fulls.push(f.headFull || f.firstFull || '');
     hEntry.members.push(...f.residents);
     hEntry.extCount += f.ext.size;
   });
   Object.keys(houseMap).forEach(k => {
     const h = houseMap[k], d = hh[h.barangay];
     h.lastName = [...new Set(h.lasts.filter(Boolean))].join(' / ');
+    h.fullName = [...new Set(h.fulls.filter(Boolean))].join(' / ');
     d.households++;
     d.families += h.heads.length;
     d.extended += h.heads.length - 1;
@@ -2435,9 +2447,8 @@ function renderDSWDStats(residents, mode) {
     const female = members.filter(r => r.gender === 'Female').length;
     const pwdCount = members.filter(r => dswdYes(r.pwd)).length;
     const seniorCount = members.filter(r => dswdIsSenior(r)).length;
-    const title = h.lastName ? `${dswdEsc(h.lastName)} Household` : 'Unnamed Household';
-    const headNames = [...new Set((h.heads || []).filter(Boolean))].map(dswdEsc).join(', ');
-    const label = `${title} <span style="font-weight:500; color:#6b7280; font-size:12px;">— Head: ${headNames || 'Not set'}</span> <span style="font-weight:500; color:#9ca3af; font-size:12px;">· ${dswdEsc(h.address || 'No address saved')} · ${dswdEsc(h.barangay)}${h.familiesCount > 1 ? ` · ${h.familiesCount} families` : ''}</span>`;
+    const title = h.fullName ? `${dswdEsc(h.fullName)} Household` : (h.lastName ? `${dswdEsc(h.lastName)} Household` : 'Unnamed Household');
+    const label = `${title} <span style="font-weight:500; color:#9ca3af; font-size:12px;">— ${dswdEsc(h.address || 'No address saved')} · ${dswdEsc(h.barangay)}${h.familiesCount > 1 ? ` · ${h.familiesCount} families` : ''}</span>`;
     return dswdGroupRowHTML({
       key: h.key, label,
       total, totalPct: pct(total, n),
