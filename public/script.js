@@ -2436,7 +2436,8 @@ function renderDSWDStats(residents, mode) {
     const pwdCount = members.filter(r => dswdYes(r.pwd)).length;
     const seniorCount = members.filter(r => dswdIsSenior(r)).length;
     const title = h.lastName ? `${dswdEsc(h.lastName)} Household` : 'Unnamed Household';
-    const label = `${title} <span style="font-weight:500; color:#9ca3af; font-size:12px;">— ${dswdEsc(h.address || 'No address saved')} · ${dswdEsc(h.barangay)}${h.familiesCount > 1 ? ` · ${h.familiesCount} families` : ''}</span>`;
+    const headNames = [...new Set((h.heads || []).filter(Boolean))].map(dswdEsc).join(', ');
+    const label = `${title} <span style="font-weight:500; color:#6b7280; font-size:12px;">— Head: ${headNames || 'Not set'}</span> <span style="font-weight:500; color:#9ca3af; font-size:12px;">· ${dswdEsc(h.address || 'No address saved')} · ${dswdEsc(h.barangay)}${h.familiesCount > 1 ? ` · ${h.familiesCount} families` : ''}</span>`;
     return dswdGroupRowHTML({
       key: h.key, label,
       total, totalPct: pct(total, n),
