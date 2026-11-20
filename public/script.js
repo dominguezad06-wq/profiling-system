@@ -2134,6 +2134,8 @@ function renderDSWDStats(residents, mode) {
   // Family = one family_code. Household = one house (same address in the same Trapiche).
   // Extended family = (a) other families in the same house, plus
   //                   (b) each different "Extended family 1-4" label inside a family.
+  // NOTE (fix): an "Extended family N" label inside one family record is its OWN family,
+  // but stays part of the SAME household/house as the head — it must NOT inflate households.
   const normAddr = a => String(a || '').toLowerCase().replace(/[.,#;]/g, ' ').replace(/\s+/g, ' ').trim();
   const famMap = {};
   residents.forEach(r => {
@@ -2167,10 +2169,12 @@ function renderDSWDStats(residents, mode) {
     d.extended += h.heads.length - 1;
     if (h.heads.length > 1) d.multi.push(h);
   });
-  // Extended family 1-4 labels (from the phone app)
+  // Extended family 1-4 labels (from the phone app):
+  // each tagged extended group is its own FAMILY, but stays part of the SAME household as the head.
   Object.keys(famMap).forEach(fk => {
     const f = famMap[fk];
     if (!hh[f.barangay] || !f.ext.size) return;
+    hh[f.barangay].families += f.ext.size;
     hh[f.barangay].extended += f.ext.size;
     hh[f.barangay].extFams.push({ head: f.head || f.first || 'Unnamed', list: [...f.ext].sort((a, b) => a - b).join(', ') });
   });
