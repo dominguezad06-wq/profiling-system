@@ -1793,6 +1793,7 @@ function rejectRequest(username, documentType, requestId) {
    - Statistic Dashboard: small cards + numbers only (no filter, no dropdowns)
    - Age Statistics: age groups + age range filter
    - Barangay Statistics: Trapiche 1-4 dropdowns
+   - Household Statistics: one row per physical house, expandable, searchable, CSV
    - Every group dropdown shows 10 residents per page (First/Prev/Next/Last)
    - Clicking a resident opens a full details page
    - Back returns to the same open group, page, search and scroll position
@@ -1801,7 +1802,7 @@ function rejectRequest(username, documentType, requestId) {
 
 const DSWD_PAGE_SIZE = 10;
 
-// Resident list for each expandable row, keyed like "age-60" or "bgy-Trapiche-1"
+// Resident list for each expandable row, keyed like "age-60" or "bgy-Trapiche-1" or "house-Trapiche-1-3"
 window.dswdGroupData = window.dswdGroupData || {};
 
 // Remembers what the BHW had open so Back can restore it
@@ -2031,7 +2032,7 @@ function dswdStatBlock(count, pctVal, color) {
     </div>`;
 }
 
-// One expandable row (age groups and Trapiche zones)
+// One expandable row (age groups, Trapiche zones, and households)
 function dswdGroupRowHTML(o) {
   const ui = window.dswdUI;
   const isOpen = !!ui.open[o.key];
@@ -2065,7 +2066,7 @@ function dswdGroupRowHTML(o) {
 }
 
 // Load residents from the server, then draw the page.
-// mode: 'all' (Statistic Dashboard), 'age' (Age Statistics), 'bgy' (Barangay Statistics)
+// mode: 'all' (Statistic Dashboard), 'age' (Age Statistics), 'bgy' (Barangay Statistics), 'house' (Household Statistics)
 function showDSWDStats(mode) {
   window.dswdUI = { mode: (typeof mode === 'string') ? mode : 'all', open: {}, page: {}, search: {}, range: null, scroll: 0, inDetail: false };
   fetch(`${API_BASE}/api/residents`)
@@ -2078,6 +2079,7 @@ function showDSWDStats(mode) {
 }
 function showAgeStats() { showDSWDStats('age'); }
 function showBarangayStats() { showDSWDStats('bgy'); }
+function showHouseholdStats() { showDSWDStats('house'); }
 
 function renderDSWDStats(residents, mode) {
   mode = mode || window.dswdUI.mode || 'all';
@@ -2140,7 +2142,8 @@ function renderDSWDStats(residents, mode) {
   const famMap = {};
   residents.forEach(r => {
     const fk = r.family_code ? 'fc_' + r.family_code : 'solo_' + (r.id !== undefined && r.id !== null ? r.id : r.username);
-    const f = famMap[fk] || (famMap[fk] = { barangay: r.barangay, head: '', first: '', addr: '', headAddr: '', ext: new Set() });
+    const f = famMap[fk] || (famMap[fk] = { barangay: r.barangay, head: '', first: '', addr: '', headAddr: '', ext: new Set(), residents: [] });
+    f.residents.push(r);
     const isHeadRow = r.is_head === true || r.is_head === 'Yes' || r.is_head === 'true' || r.is_head === 't';
     if (!f.first) f.first = r.name || r.username || '';
     const em = /^extended family\s*(\d+)/i.exec(String(r.household_role || '').trim());
@@ -2160,13 +2163,17 @@ function renderDSWDStats(residents, mode) {
     const addr = f.headAddr || f.addr;
     const key = normAddr(addr) ? f.barangay + '|' + normAddr(addr) : f.barangay + '|noaddr|' + fk;
     if (!normAddr(addr)) hh[f.barangay].noAddr++;
-    (houseMap[key] = houseMap[key] || { barangay: f.barangay, address: addr, heads: [] }).heads.push(f.head || f.first || 'Unnamed');
+    const hEntry = (houseMap[key] = houseMap[key] || { barangay: f.barangay, address: addr, heads: [], members: [], extCount: 0 });
+    hEntry.heads.push(f.head || f.first || 'Unnamed');
+    hEntry.members.push(...f.residents);
+    hEntry.extCount += f.ext.size;
   });
   Object.keys(houseMap).forEach(k => {
     const h = houseMap[k], d = hh[h.barangay];
     d.households++;
     d.families += h.heads.length;
     d.extended += h.heads.length - 1;
+    h.familiesCount = h.heads.length + h.extCount;
     if (h.heads.length > 1) d.multi.push(h);
   });
   // Extended family 1-4 labels (from the phone app):
@@ -2181,9 +2188,18 @@ function renderDSWDStats(residents, mode) {
   const hhTotal = { households: 0, families: 0, extended: 0, noAddr: 0 };
   trapiches.forEach(t => { ['households', 'families', 'extended', 'noAddr'].forEach(k => { hhTotal[k] += hh[t][k]; }); });
 
+  // One row per physical household, so the BHW can open any house and see exactly who lives there
+  const houseList = Object.keys(houseMap)
+    .map(k => houseMap[k])
+    .sort((a, b) => (a.barangay || '').localeCompare(b.barangay || '') || (a.address || '').localeCompare(b.address || ''));
+  houseList.forEach((h, i) => {
+    h.key = `house-${(h.barangay || 'NA').replace(/\s+/g, '-')}-${i + 1}`;
+    window.dswdGroupData[h.key] = h.members || [];
+  });
+
   // ---------- summary cards ----------
-  const metricCard = (label, value, sub, color, labelColor) => `
-    <div class="bhw-card">
+  const metricCard = (label, value, sub, color, labelColor, onclick) => `
+    <div class="bhw-card" ${onclick ? `onclick="${onclick}" style="cursor:pointer;"` : ''}>
       <div class="bhw-card-label" style="color:${labelColor || '#888'};">${label}</div>
       <div class="bhw-card-value" style="color:${color};">${value}</div>
       <div class="bhw-card-sub" style="color:${labelColor || '#aaa'};">${sub}</div>
@@ -2196,7 +2212,7 @@ function renderDSWDStats(residents, mode) {
       ${metricCard('Female', totalFemale.toLocaleString(), pct(totalFemale, n) + '% of total', '#993556', '#993556')}
       ${metricCard('Senior (60+)', totalSenior.toLocaleString(), pct(totalSenior, n) + '% of total', '#3B6D11', '#3B6D11')}
       ${metricCard('PWD', totalPWD.toLocaleString(), pct(totalPWD, n) + '% of total', '#712B13', '#712B13')}
-      ${metricCard('Households', hhTotal.households.toLocaleString(), 'each house counted once', '#1a3f6c', '#1a3f6c')}
+      ${metricCard('Households', hhTotal.households.toLocaleString(), 'click to see each household', '#1a3f6c', '#1a3f6c', 'showHouseholdStats()')}
       ${metricCard('Families', hhTotal.families.toLocaleString(), 'all families', '#8B0000', '#8B0000')}
       ${metricCard('Extended families', hhTotal.extended.toLocaleString(), 'Extended family 1–4 + same-house families', '#6b21a8', '#6b21a8')}
     </div>`;
@@ -2392,6 +2408,28 @@ function renderDSWDStats(residents, mode) {
   const hhPanel = panel('Households &amp; extended families', 'per Trapiche',
     hhHead + trapiches.map(t => hhRow(t, hh[t])).join('') + hhRow('Total', hhTotal, true) + multiHTML + extHTML + hhNote);
 
+  // ---------- Household breakdown (one row per physical house, expandable) ----------
+  const houseRows = houseList.map(h => {
+    const members = h.members || [];
+    const total = members.length;
+    const male = members.filter(r => r.gender === 'Male').length;
+    const female = members.filter(r => r.gender === 'Female').length;
+    const pwdCount = members.filter(r => dswdYes(r.pwd)).length;
+    const seniorCount = members.filter(r => dswdIsSenior(r)).length;
+    const label = `${dswdEsc(h.address || 'No address saved')} <span style="font-weight:500; color:#9ca3af; font-size:12px;">— ${dswdEsc(h.barangay)}${h.familiesCount > 1 ? ` · ${h.familiesCount} families` : ''}</span>`;
+    return dswdGroupRowHTML({
+      key: h.key, label,
+      total, totalPct: pct(total, n),
+      male, mPct: pct(male, total), female, fPct: pct(female, total),
+      pwd: pwdCount, senior: seniorCount,
+      placeholder: 'Search residents in this household...',
+      filename: `Residents_${h.key}`
+    });
+  }).join('');
+
+  const houseSection = panel('Household breakdown', `${houseList.length.toLocaleString()} household${houseList.length !== 1 ? 's' : ''}`,
+    legend + gridHead(['Household', 'Total', 'Male', 'Female', 'PWD', 'Senior']) + (houseRows || `<p style="color:#aaa; font-size:14px; text-align:center; padding:18px 0;">No households found.</p>`));
+
   const dashboardSection = `
     <div class="bhw-dash">
       <div class="bhw-stack">
@@ -2410,11 +2448,16 @@ function renderDSWDStats(residents, mode) {
   const sections =
     mode === 'age' ? `<div class="bhw-two">${ageSection}${rangeSection}</div>` :
     mode === 'bgy' ? bgySection + hhPanel :
+    mode === 'house' ? houseSection :
     dashboardSection;
+
+  const houseTitle = mode === 'house' ? `
+    <div class="bhw-title">Household Statistics</div>
+    <div class="bhw-sub">Every physical house in Barangay Trapiche, with who lives there</div>` : '';
 
   body.innerHTML = `
     <div class="bhw-wrap">
-      ${dashTitle}
+      ${dashTitle}${houseTitle}
       ${mode === 'all' ? '' : metricCards}
       ${sections}
     </div>
